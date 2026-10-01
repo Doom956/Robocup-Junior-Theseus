@@ -1,3 +1,3 @@
 # Robocup-Junoir-Theseus
-Robocup junoir 2025
-chacandnnaf
+Robocup junior 2026
+LT fixes
