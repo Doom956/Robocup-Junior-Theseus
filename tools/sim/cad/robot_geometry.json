@@ -1,0 +1,76 @@
+{
+  "source": "V2.step",
+  "frame": "origin on the floor under the middle of the wheelbase; forward +, left +, height above floor (mm)",
+  "sensors": [
+    {
+      "cad_part": "VL53L0X v1:7",
+      "forward_mm": 98.4,
+      "left_mm": -80.2,
+      "height_mm": 106.3,
+      "faces": "forward",
+      "code_sensor": 1
+    },
+    {
+      "cad_part": "VL53L0X v1:6",
+      "forward_mm": 98.4,
+      "left_mm": 80.2,
+      "height_mm": 106.3,
+      "faces": "forward",
+      "code_sensor": 7
+    },
+    {
+      "cad_part": "VL53L0X v1:2",
+      "forward_mm": 88.3,
+      "left_mm": -90.8,
+      "height_mm": 106.3,
+      "faces": "right",
+      "code_sensor": 2
+    },
+    {
+      "cad_part": "VL53L0X v1:3",
+      "forward_mm": -87.7,
+      "left_mm": -90.8,
+      "height_mm": 106.3,
+      "faces": "right",
+      "code_sensor": 3
+    },
+    {
+      "cad_part": "VL53L0X v1:4",
+      "forward_mm": 88.3,
+      "left_mm": 90.8,
+      "height_mm": 106.3,
+      "faces": "left",
+      "code_sensor": 6
+    },
+    {
+      "cad_part": "VL53L0X v1:5",
+      "forward_mm": -87.7,
+      "left_mm": 90.8,
+      "height_mm": 106.3,
+      "faces": "left",
+      "code_sensor": 5
+    },
+    {
+      "cad_part": "VL53L0X v1:1",
+      "forward_mm": -102.8,
+      "left_mm": 0.0,
+      "height_mm": 42.7,
+      "faces": "backward",
+      "code_sensor": 4
+    }
+  ],
+  "colour_sensor": {
+    "forward_mm": 92.8,
+    "left_mm": 0.0,
+    "height_mm": 23.7,
+    "faces": "down"
+  },
+  "axles_forward_mm": [
+    57.8,
+    -57.8
+  ],
+  "sensor_span_mm": {
+    "length": 202.5,
+    "width": 182.9
+  }
+}
