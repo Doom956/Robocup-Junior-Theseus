@@ -31,6 +31,8 @@ tools\sim\run_sim.bat --robot realistic --scenario ramp --seed 2 --show
 | `--robot NAME` | `perfect` (default), `realistic` or `harsh`, see below |
 | `--runs N` | fields per scenario (default 500) |
 | `--scenario NAME` | `flat`, `loops`, `big`, `ramp`, `bigramp` or `all` |
+| `--random` | use a new random block of seeds (printed at the top, so any field can be replayed) |
+| `--start S` | use seeds S to S+N-1 |
 | `--seed S` | replay one field (the output prints a replay command for the first failure) |
 | `--show` | with `--seed`: draw the real field and the robot's map for each floor |
 | `--verbose` | also print the robot code's `Serial` output |
@@ -83,6 +85,22 @@ With faults on, failures are expected; use the numbers to compare code changes:
 | avg coverage | share of reachable tiles visited (large fields can't be finished in 8 min) |
 | map walls | share of stored walls that match the real field on visited tiles |
 | lost | map position or floor stopped matching the real robot at some point |
+
+### Same fields or new fields?
+
+By default `run_sim.bat` uses seeds 1 to N, so the same fields come up every time. Use that to
+compare two versions of the code fairly. Add `--random` (or untick "Same fields every time" on the
+web page, which is the default there) to test on new fields. Between random batches the pass rate
+moves a little just by chance: about ±2 points for 2000 fields, ±6.5 points for 200.
+
+## How it works
+
+It is a **tile-level** simulation. The robot is always centred in a tile, facing exactly N, E, S
+or W, and a move is either one whole tile or a failure. A wall reading is either the true answer
+or flipped by chance. Nothing about where the sensors are mounted, beam angles, distances,
+`MIN_DIST`, the robot sitting off-centre, motors or PID is modelled. So it tests the navigation
+**decisions** (planning, map bookkeeping, recovery, getting home) when things go wrong, not how
+often things go wrong on the real robot.
 
 ## What it does NOT test
 

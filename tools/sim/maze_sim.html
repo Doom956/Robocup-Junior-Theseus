@@ -114,7 +114,7 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
 <div class="wrap">
   <header>
     <h1>Theseus Maze Simulator</h1>
-    <p>Runs the robot's exploration planner on RCJ Rescue Maze fields with black, blue and silver tiles and ramps. The realism setting adds the faults a real run has (misread walls, stalls, wheel slip, miscounted ramps, missed black tiles, the 8-minute clock) and sends each one through the same recovery code as <code>Main/</code>.</p>
+    <p>Runs the robot's exploration planner on RCJ Rescue Maze fields with black, blue and silver tiles and ramps. The realism setting adds the faults a real run has (misread walls, stalls, wheel slip, miscounted ramps, missed black tiles, the 8-minute clock) and sends each one through the same recovery code as <code>Main/</code>. It works tile by tile: the robot is always centred in a tile facing N, E, S or W, and each fault is a fixed chance, not a model of where the sensors sit or how the motors behave. It tests the decision logic, not the hardware.</p>
   </header>
 
   <section class="panel controls" aria-label="Field and playback controls">
@@ -207,8 +207,9 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
           <button id="batch2000" type="button">Run 2000 fields</button>
           <button id="batchstop" type="button" hidden>Stop</button>
         </div>
+        <label class="hint" style="display:flex;gap:8px;align-items:center"><input id="fixedseeds" type="checkbox"> Same fields every time (seeds 1 to N), for comparing two versions of the code</label>
         <div class="bar" id="bar" hidden><i id="bar-fill"></i></div>
-        <div class="batch-out" id="batch-out"><span class="hint" style="margin:0">Runs seeds 1 to N of the selected field type and realism without drawing.</span></div>
+        <div class="batch-out" id="batch-out"><span class="hint" style="margin:0">Each batch runs a new random set of fields of the selected type and realism, without drawing.</span></div>
       </section>
     </div>
   </div>
@@ -717,14 +718,16 @@ fieldCv.addEventListener("click", ev => {
 function startBatch(n) {
   if (batchJob) return;
   const scName = $("scenario").value, sc = SCENARIOS[scName], realism = $("realism").value, p = REALISM[realism];
-  const job = batchJob = { n, s: 1, agg: { pass: 0, home: 0, full: 0, timeRet: 0, cov: 0, acc: 0, lost: 0, lostEnd: 0, lops: 0, time: 0, crossed: 0 }, reasons: new Map(), fails: [] };
+  // a fresh random block of seeds each batch, unless fixed seeds are asked for
+  const first = $("fixedseeds").checked ? 1 : 1 + Math.floor(Math.random() * 1e6);
+  const job = batchJob = { n, s: 1, first, agg: { pass: 0, home: 0, full: 0, timeRet: 0, cov: 0, acc: 0, lost: 0, lostEnd: 0, lops: 0, time: 0, crossed: 0 }, reasons: new Map(), fails: [] };
   $("bar").hidden = false; $("batchstop").hidden = false; $("batch200").disabled = $("batch2000").disabled = true;
   const out = $("batch-out");
   const chunk = () => {
     if (batchJob !== job) return;
     const t0 = performance.now();
     while (job.s <= n && performance.now() - t0 < 40) {
-      const s = job.s++, r = new Robot(generate(sc, s), p, s); r.runToEnd(); const res = r.result, a = job.agg;
+      const s = job.first + job.s++ - 1, r = new Robot(generate(sc, s), p, s); r.runToEnd(); const res = r.result, a = job.agg;
       a.pass += res.pass; a.home += res.home; a.full += res.fullCov; a.timeRet += res.timeReturn; a.cov += res.coverage; a.acc += res.mapAcc;
       a.lost += res.lost; a.lostEnd += res.lostAtEnd; a.lops += res.lops; a.time += res.time; a.crossed += res.ramps > 0;
       if (!res.pass) { job.reasons.set(res.reason, (job.reasons.get(res.reason) || 0) + 1); if (job.fails.length < 8) job.fails.push([s, res.reason]); }
@@ -750,7 +753,9 @@ function summary(job, done, sc, scName, realism) {
   ];
   if (sc.ramps) rowsHtml.push(["Runs that crossed a ramp", pct(a.crossed / k)]);
   const reasons = [...job.reasons.entries()].sort((x, y) => y[1] - x[1]).slice(0, 5);
-  return `<div class="row"><span class="pill ${a.pass === done ? "ok" : "bad"}">${a.pass}/${done} passed</span><span>${done < job.n ? `running… ${done}/${job.n}` : `${done} fields · ${realism}`}</span></div>` +
+  const pr = a.pass / k, margin = 1.96 * Math.sqrt(pr * (1 - pr) / k); // 95% range from sampling alone
+  return `<div class="row"><span class="pill ${a.pass === done ? "ok" : "bad"}">${a.pass}/${done} passed</span><span>${done < job.n ? `running… ${done}/${job.n}` : `${done} fields · ${realism} · seeds ${job.first} to ${job.first + done - 1}`}</span></div>` +
+    (done >= job.n && margin > 0 ? `<span class="hint" style="margin:0">Another random batch of this size will usually land within ±${(margin * 100).toFixed(1)} points of ${pct(pr)}.</span>` : "") +
     `<table class="metrics"><tbody>${rowsHtml.map(([l, v]) => `<tr><td>${l}</td><td>${v}</td></tr>`).join("")}</tbody></table>` +
     (reasons.length ? `<div class="reasons"><b style="font-weight:500">Most common failures</b>${reasons.map(([r, c]) => `<div class="row"><span>${c}×</span><span>${r}</span></div>`).join("")}</div>` : "") +
     (job.fails.length ? `<div class="reasons"><b style="font-weight:500">Replay a failure</b><div class="row">${job.fails.map(([s]) => `<button class="linkbtn" type="button" data-seed="${s}">seed ${s}</button>`).join("")}</div></div>` : "");

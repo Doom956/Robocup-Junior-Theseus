@@ -22,7 +22,11 @@
 // checkpoint). An 8-minute clock runs in every mode, using the time model below.
 //
 // Usage: sim.exe [--robot perfect|realistic|harsh] [--runs N] [--scenario NAME|all]
-//                [--seed S] [--show] [--verbose]
+//                [--random | --start S] [--seed S] [--show] [--verbose]
+// By default every run uses seeds 1..N, so results repeat exactly (good for comparing two
+// versions of the code). --random picks a fresh block of seeds and prints it.
+// It is a tile-level simulation: the robot is always centred in a tile facing N/E/S/W, and
+// each fault is a fixed chance. It does not model sensor positions, distances or motors.
 
 #include "Globals.h"
 #include <deque>
@@ -30,6 +34,7 @@
 #include <random>
 #include <string>
 #include <map>
+#include <ctime>
 
 // ---- globals navigation.cpp expects (defined in main.cpp on the robot) ----
 bool serialEcho = false;
@@ -535,7 +540,8 @@ static std::string pct(double v) { char b[16]; std::snprintf(b, sizeof b, "%.0f%
 // ============================================================
 int main(int argc, char **argv) {
   int runs = 500;
-  long seed = -1;
+  long seed = -1, start = 1;
+  bool randomStart = false;
   std::string only = "all", robot = "perfect";
   bool show = false;
   for (int i = 1; i < argc; i++) {
@@ -544,15 +550,21 @@ int main(int argc, char **argv) {
     else if (a == "--seed" && i + 1 < argc) seed = std::atol(argv[++i]);
     else if (a == "--scenario" && i + 1 < argc) only = argv[++i];
     else if (a == "--robot" && i + 1 < argc) robot = argv[++i];
+    else if (a == "--start" && i + 1 < argc) start = std::atol(argv[++i]);
+    else if (a == "--random") randomStart = true;
     else if (a == "--show") show = true;
     else if (a == "--verbose") serialEcho = true;
-    else { std::printf("usage: sim [--robot perfect|realistic|harsh] [--runs N] [--scenario flat|loops|big|ramp|bigramp|all] [--seed S] [--show] [--verbose]\n"); return 2; }
+    else { std::printf("usage: sim [--robot perfect|realistic|harsh] [--runs N] [--scenario flat|loops|big|ramp|bigramp|all] [--random | --start S] [--seed S] [--show] [--verbose]\n"); return 2; }
   }
   bool found = false;
   for (const Realism &p : REALISM) if (robot == p.name) { prof = p; found = true; }
   if (!found) { std::printf("unknown --robot %s (perfect, realistic or harsh)\n", robot.c_str()); return 2; }
   perfectRobot = robot == "perfect";
 
+  // seeds start..start+runs-1: the same every time unless --random picks a new block
+  // std::random_device is not random on this MinGW compiler, so seed from the clock
+  if (randomStart) start = 1 + (long)((((unsigned)std::time(nullptr) * 2654435761u) ^ (unsigned)std::clock()) % 1000000u);
+  if (seed < 0) std::printf("seeds %ld to %ld (%s)\n", start, start + runs - 1, randomStart ? "random block" : "same every time; add --random for a new block");
   if (seed < 0) std::printf("robot: %s%s\n\n", prof.name, perfectRobot ? " (logic test: every run must pass)" : " (faults on: expect failures, compare the numbers)");
   int totalFail = 0;
   for (const Scenario &sc : SCENARIOS) {
@@ -561,7 +573,7 @@ int main(int argc, char **argv) {
     double cov = 0, acc = 0;
     std::map<std::string, int> reasons;
     for (int k = 0; k < n; k++) {
-      long s = seed >= 0 ? seed : k + 1;
+      long s = seed >= 0 ? seed : start + k;
       std::mt19937 rng((unsigned)s * 2654435761u + (unsigned)(&sc - SCENARIOS));
       noise.seed((unsigned)s * 7919u + 12345u);
       world = generate(sc, rng);
