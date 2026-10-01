@@ -1,6 +1,14 @@
 // camera communication code
 // clear serial buffers.
 
+#include "Globals.h"
+#include "dispenser.h"
+
+extern dispenser disp;
+extern char classes[6];
+extern int LEDPIN;
+extern volatile int victimSide;
+
 void lcdPrint(const char* msg) {
   lcdMutex.lock();
   lcd.setCursor(0, 0);
@@ -61,7 +69,6 @@ bool detectCam1(){ // left camera serial4
   int n = 0;
   int maxCount = 0;
   char res = 0;
-  char output;
   timer myTimer;
   while(n<5){
     if(myTimer.getTime() > 4*1000000) return false;
@@ -88,7 +95,12 @@ bool detectCam1(){ // left camera serial4
       res = classes[i];
     }
   }
-  
+  for(int i = 0; i<5;i++){
+    digitalWrite(LEDPIN,HIGH);
+    delay(500);
+    digitalWrite(LEDPIN,LOW);
+    delay(500);
+  }
   char msg[17]; snprintf(msg, sizeof(msg), "victim: %c", res);
   lcdPrint(msg);
   
@@ -102,7 +114,6 @@ bool detectCam2(){
   int n = 0;
   int maxCount = 0;
   char res = 0;
-  char output;
   timer myTimer;
   while(n<5){
     if(myTimer.getTime() > 4*1000000) return false;
@@ -129,17 +140,22 @@ bool detectCam2(){
       res = classes[i];
     }
   }
+  for(int i = 0; i<5;i++){
+    digitalWrite(LEDPIN,HIGH);
+    delay(500);
+    digitalWrite(LEDPIN,LOW);
+    delay(500);
+  }
   char msg[17]; snprintf(msg, sizeof(msg), "victim: %c", res);
   lcdPrint(msg);
   
   disp.dispenseRight(res);
   return true;
 }
+
 // Service a camera victim that the RTOS thread flagged via victimPending.
-// The caller (fwd/absoluteturn) has already paused its PID + timer. This stops
-// the drivetrain, identifies the victim on the wall, dispenses the rescue kit,
-// and labels the correct tile using the encoder position. (claude version 6/16/2026)
-// serviceCameraVictim() is outside to prevent I2C conflict with centered.
+// The caller (fwd/absoluteturn) has already paused PID + timer. This stops drivetrain, identifies victim, dispenses rescue kit, and labels the correct tile using encoder position. 
+// serviceCameraVictim() is outside to prevent I2C conflict with centered.x
 void serviceCameraVictim(){
   
   if(victimSide == 1){            // left camera (Serial3)
@@ -160,54 +176,4 @@ void serviceCameraVictim(){
   }
   isVictim = true;       // at most one victim serviced per move
   victimPending = false; // re-enable the camera thread
-}
-void detect(){ // the robot goes forward until it detects something( does not return)
-  drivetrain.fullstop();
-  bool victimAtLeft = false; // victim at left
-  bool victimAtRight = false; // victim at right
-  // clear buffers
-  clearSerialBuffer1();
-  clearSerialBuffer2();
-  // don't detect if there is no wall( prevent misdetection)
-  bool wallAtLeft = false;
-  bool wallAtRight = false;
-  int right = measure(3);
-  int left = measure(6);
-  if(right <MIN_DIST&&right!=-1) wallAtRight = true;
-  if(left<MIN_DIST&&right!=-1) wallAtLeft = true;
-  if(wallAtRight == false && wallAtLeft == false) return;
-  timer myTimer;
-  while(true){
-    if(readSerial1() != -1&&wallAtLeft == true){
-      Serial.println("left");
-      victimAtLeft = true;
-      victimtoggle = true;
-      break;
-    }
-    if(readSerial2() != -1&&wallAtRight == true){
-      Serial.println("right");
-      victimAtRight = true;
-      victimtoggle = true;
-      break;
-    }
-    if(myTimer.getTime() >= 1000000*1.2) break; // give 1.5 seconds to detect.
-    drivetrain.fw(80);
-  }
-  drivetrain.fullstop();
-  delay(200);
-  if(victimAtLeft == true){
-    
-    detectCam1();
-  }
-  else if(victimAtRight == true){
-    
-    detectCam2();
-  }
-  
-  // backpedal
-  while(drivetrain.encoderCountA > 0){
-    drivetrain.backward(100);
-  }
-  drivetrain.fullstop();
-
 }

@@ -39,9 +39,7 @@ double gyro::heading(){
   bno.getEvent(&event);
   i2cMutex.unlock();
   float heading = (double)event.orientation.x;
-  // no snap-to-zero near north: every consumer normalizes the 0/360 wraparound
-  // itself (yaw deltas wrap to [-180,180], headingToCardinal bins +/-45 deg), and
-  // snapping killed the PID centering error within 5 deg of north.
+  
   return heading;
 }
 double gyro::pitch_heading(){

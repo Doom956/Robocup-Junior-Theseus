@@ -84,7 +84,7 @@ void motors::init_drive(){
   motorA->run(FORWARD);
   motorB->run(FORWARD);
   motorC->run(FORWARD);
-  motorD->run(FORWARD);
+  motorD->run(BACKWARD);
   // initialize gyro
   
 }
@@ -93,7 +93,7 @@ void motors::fullstop(){
   motorA->run(FORWARD);
   motorB->run(FORWARD);
   motorC->run(FORWARD);
-  motorD->run(FORWARD);
+  motorD->run(BACKWARD);
   motorA->setSpeed(0);
   motorB->setSpeed(0);
   motorC->setSpeed(0);
@@ -149,7 +149,7 @@ void motors::fw(int speed){
   motorA->run(FORWARD);
   motorB->run(FORWARD);
   motorC->run(FORWARD);
-  motorD->run(FORWARD);
+  motorD->run(BACKWARD);
   motorA->setSpeed(speed);
   motorB->setSpeed(speed);
   motorC->setSpeed(speed);
@@ -161,7 +161,7 @@ void motors::backward(int speed){
   motorA->run(BACKWARD);
   motorB->run(BACKWARD);
   motorC->run(BACKWARD);
-  motorD->run(BACKWARD);
+  motorD->run(FORWARD);
   motorA->setSpeed(speed);
   motorB->setSpeed(speed);
   motorC->setSpeed(speed);
@@ -173,10 +173,10 @@ void motors::turnright(int speed){
   motorA->run(FORWARD);
   motorB->run(BACKWARD);
   motorC->run(FORWARD);
-  motorD->run(BACKWARD);
+  motorD->run(FORWARD);
   motorA->setSpeed(speed);
-  motorB->setSpeed(speed*1.25);
-  motorC->setSpeed(speed*1.25);
+  motorB->setSpeed(speed);
+  motorC->setSpeed(speed);
   motorD->setSpeed(speed);
   i2cMutex.unlock();
 }
@@ -185,10 +185,10 @@ void motors::turnleft(int speed){
   motorA->run(BACKWARD);
   motorB->run(FORWARD);
   motorC->run(BACKWARD);
-  motorD->run(FORWARD);
+  motorD->run(BACKWARD);
   motorA->setSpeed(speed);
-  motorB->setSpeed(speed*1.25);
-  motorC->setSpeed(speed*1.25);
+  motorB->setSpeed(speed);
+  motorC->setSpeed(speed);
   motorD->setSpeed(speed);
   i2cMutex.unlock();
 }

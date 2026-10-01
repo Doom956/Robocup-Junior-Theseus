@@ -14,7 +14,9 @@ double timer::delta_time(){
   return delta;
 }
 double timer::reset_delta_time(){
+  double prev = delta;
   last = current;
+  return prev;
 }
 void timer::pause(int on){
   if(on == 1) startTimeStamp = micros();

@@ -1,11 +1,14 @@
-// navigation.ino — claude version 6/16/2026
+// navigation.cpp
 // Ported from multicore_version (M7_main/navigation.ino) into the single-core
 // main branch. All RPC.call(...) cross-core calls have been replaced with the
 // original single-core functions (drivetrain.encoderCountA, detectWall, ...).
 // Adds the multi-floor elevation features (m1/m2/m3, elevation/descend) and the
 // encoder-based victim tile marking, while keeping main's working BFS.
 
-// I assume is global?
+#include "Globals.h"
+#include <ArduinoQueue.h>
+#include <deque>
+
 Direction rotateDir(Direction base, int offset) {
   return (Direction)((base + offset + 4) % 4);
 }
@@ -65,6 +68,7 @@ void initializeMap() {
       for (int d = 0; d < 4; d++) {
         mapGrid[x][y].setWall(d, false);
         mapGrid[x][y].setEdge(d, false);
+        mapGrid[x][y].setObstacle(d, false);
       }
       mapGrid[x][y].setType(BLANK);
     }
@@ -124,58 +128,34 @@ void writeWallsToCurrentTile(bool wallF, bool wallR, bool wallB, bool wallL) {
   t.setWall(absL, wallL);
   // need to mark both ways.
 }
-Direction pickNextDirection() {
+// FIXME: this still needs to be fixed - the re-sense / position-mismatch logic
+// is not trustworthy yet and should be revisited before being relied on.
+// Re-sense check: does the freshly-sensed wall pattern at the current tile agree
+// with what the map already recorded for it? Only meaningful once the tile has
+// actually been visited before (getVisited(), not getDiscovered() -- the home
+// tile is marked discovered in setup() before any real walls are ever sensed,
+// so gating on getDiscovered() would false-positive "mismatch" on the very
+// first tile at power-on). Tolerates a single disagreeing wall (sensor noise)
+// via WALL_MISMATCH_THRESHOLD before flagging the position as unreliable.
+bool checkTileMismatch(bool wallF, bool wallR, bool wallB, bool wallL) {
   Tile &t = mapGrid[x_pos][y_pos];
+  if (!t.getVisited()) return false; // no trustworthy prior data for this tile yet
 
-  Direction absL = rotateDir(currentDir, -1);
   Direction absF = currentDir;
   Direction absR = rotateDir(currentDir, +1);
   Direction absB = rotateDir(currentDir, +2);
-  // Plan directly in absolute map directions.
-  const Direction priority[3] = {absF,absR, absL};
+  Direction absL = rotateDir(currentDir, -1);
 
-  auto open  = [&](Direction d){ return t.getWall(d) == false; };
-  auto untr  = [&](Direction d){ return t.getEdge(d) == false; };
-  auto isBlueTile = [&](int nx, int ny){
-    return mapGrid[nx][ny].getType() == BLUE || mapGrid[nx][ny].getBlue();
-  };
-  auto blockedForTravel = [&](int nx, int ny){
-    return mapGrid[nx][ny].getType() == BLACK || isBlueTile(nx, ny);
-  };
-  auto isBlackTile = [&](int nx, int ny){
-    return mapGrid[nx][ny].getType() == BLACK;
-  };
+  int mismatches = 0;
+  if (t.getWall(absF) != wallF) mismatches++;
+  if (t.getWall(absR) != wallR) mismatches++;
+  if (t.getWall(absB) != wallB) mismatches++;
+  if (t.getWall(absL) != wallL) mismatches++;
 
-  // 1) try open + untraveled first
-  for (int i = 0; i < 3; i++) {
-    int nx = x_pos, ny = y_pos;
-
-    Direction d = priority[i];
-    stepForward(d,nx,ny);
-
-    if (inBounds(nx, ny) && open(d) && untr(d) && !mapGrid[nx][ny].getVisited() && !blockedForTravel(nx, ny)) return d;
-  }
-
-  // 2) else any open (still avoid black/blue) using the same absolute priority.
-  for (int i = 0; i < 3; i++) {
-    int nx = x_pos, ny = y_pos;
-    Direction d = priority[i];
-    stepForward(d,nx,ny);
-    if (inBounds(nx, ny) && open(d) && !blockedForTravel(nx, ny)) return d;
-  }
-  for (int i=0;i<3;i++){
-    int nx = x_pos, ny = y_pos;
-    Direction d = priority[i];
-    stepForward(d,nx,ny);
-    if (inBounds(nx, ny) && open(d) && !isBlackTile(nx,ny)) return d;
-  }
-
-  // figure out BFS later
-  // 3) trapped
-  return absB;
+  return mismatches >= WALL_MISMATCH_THRESHOLD;
 }
 
-int turnNeededDeg(Direction direction) {
+int turnNeededDeg(int direction) {
   // Convert an absolute direction enum to an absolute heading angle.
   if (direction == 0) return 0;
   if (direction == 1) return 90;
@@ -189,7 +169,7 @@ int dir[4][2] = {
     {0, -1},
     {-1, 0}
 };
-void initTile(int x, int y, Grid& map) {
+void initTile(int x, int y, Grid& map) { //needs update (probably unneeded, small prio)
     map[x][y].setDiscovered(false);
     map[x][y].setFully(false);
     map[x][y].setVisited(false);
@@ -198,6 +178,7 @@ void initTile(int x, int y, Grid& map) {
     for (int d = 0; d < 4; d++) {
         map[x][y].setWall(d, false);
         map[x][y].setEdge(d, false);
+        map[x][y].setObstacle(d, false);
     }
     map[x][y].setType(BLANK);
 }
@@ -281,47 +262,87 @@ void reallocate(Grid& mapgrid, int pos_x = 0, int pos_y = 0) { //input mapgrid, 
     }
 }
 
-// Move up one floor. The current floor grid is saved into the appropriate
-// storage grid (m1/m2/m3) and the active mapgrid is swapped to the floor above.
-void elevation(Grid& mapgrid, int xpos, int ypos, Grid& m1, Grid& m2, Grid& m3, int& floor){
-  mapgrid[xpos][ypos].setElevate(true);
-  if(floor == 0){
-    m1 = mapgrid;
-    mapgrid = m2;
-  } else if(floor == 1){
-    m2 = mapgrid;
-    mapgrid = m3;
-  }
-  mapgrid[xpos][ypos].setDescend(true); // bidirection elevate/descend
+// floor index -> its stored grid (m1 = floor 0, m2 = floor 1, m3 = floor 2)
+Grid& floorGrid(int floor) {
+  if (floor <= 0) return m1;
+  if (floor == 1) return m2;
+  return m3;
+}
+
+// mapGrid is a working copy of the current floor: write it back into its floor
+// slot so BFS (which reads m1/m2/m3) sees the latest walls/visits.
+void syncActiveFloor() {
+  floorGrid(currentFloor) = mapGrid;
+}
+
+// Record the ramp tile the robot is standing on (open front/back, walls at sides).
+static void recordRampTile() {
   markEdgeBothWays(x_pos, y_pos, currentDir);
   writeWallsToCurrentTile(0, 1, 0, 1);
   updateFullyExploredAt(x_pos, y_pos);
+}
+
+// Move up one floor. The current floor grid is saved into its storage grid and
+// the active mapgrid is swapped to the floor above. The lower copy of the ramp
+// tile is flagged elevate and the upper copy descend, which is how BFS links floors.
+// (m1/m2/m3 params kept for the existing call sites; floorGrid() uses the same globals.)
+void elevation(Grid& mapgrid, int xpos, int ypos, Grid& m1, Grid& m2, Grid& m3, int& floor){
+  if (floor + 1 >= NUM_FLOORS) {
+    // no stored floor above: keep mapping on this grid rather than indexing past m3
+    Serial.println("elevation: no floor slot above, staying on this grid");
+    recordRampTile();
+    return;
+  }
+  mapgrid[xpos][ypos].setElevate(true);
+  mapgrid[xpos][ypos].setRampUp(currentDir); // driving uphill
+  floorGrid(floor) = mapgrid;
   floor++;
+  mapgrid = floorGrid(floor);
+  mapgrid[xpos][ypos].setDescend(true); // bidirection elevate/descend
+  mapgrid[xpos][ypos].setRampUp(currentDir);
+  recordRampTile();
 }
 
 // Move down one floor.
 void descend(Grid& mapgrid, int xpos, int ypos, Grid& m1, Grid& m2, Grid& m3, int& floor){
+  if (floor - 1 < 0) {
+    // no stored floor below: keep mapping on this grid (the old code reloaded m1
+    // here, which threw away everything mapped on floor 0 since the last save)
+    Serial.println("descend: no floor slot below, staying on this grid");
+    recordRampTile();
+    return;
+  }
   mapgrid[xpos][ypos].setDescend(true);
-  if(floor == 0){
-    m1 = m3; //m3 should always be empty if descended twice
-    m3 = m2;
-    m2 = m1;
-    mapgrid = m1;
-    floor++;
-  }
-  else if(floor == 1){
-    m2 = mapgrid;
-    mapgrid = m1;
-  }
-  else if(floor == 2){
-    m3 = mapgrid;
-    mapgrid = m2;
-  }
-  mapgrid[xpos][ypos].setElevate(true);
-  markEdgeBothWays(x_pos, y_pos, currentDir);
-  writeWallsToCurrentTile(0, 1, 0, 1);
-  updateFullyExploredAt(x_pos, y_pos);
+  mapgrid[xpos][ypos].setRampUp(opposite(currentDir)); // driving downhill
+  floorGrid(floor) = mapgrid;
   floor--;
+  mapgrid = floorGrid(floor);
+  mapgrid[xpos][ypos].setElevate(true);
+  mapgrid[xpos][ypos].setRampUp(opposite(currentDir));
+  recordRampTile();
+}
+
+// Floor of the neighbour reached by moving from (z,x,y) in direction d.
+// A ramp tile is stored on both floors (lower copy flagged elevate, upper copy
+// descend). Stepping ONTO it switches to the other floor's copy; stepping OFF it
+// goes uphill -> upper floor, downhill -> lower floor. Without the second rule,
+// leaving a ramp copy toward the end it was entered from looked up a tile on the
+// wrong floor that was never visited, so the planner kept driving back over the
+// ramp to "explore" it.
+int neighbourFloor(int z, int x, int y, int d, int nx, int ny) {
+  Tile &cur = floorGrid(z)[x][y];
+  if (cur.getElevate() || cur.getDescend()) {
+    int upper = cur.getElevate() ? z + 1 : z;
+    int lower = upper - 1;
+    Direction up = cur.getRampUp();
+    if (d == up && upper < NUM_FLOORS) return upper;
+    if (d == opposite(up) && lower >= 0) return lower;
+    return z;
+  }
+  Tile &probe = floorGrid(z)[nx][ny];
+  if (probe.getElevate() && z + 1 < NUM_FLOORS) return z + 1;
+  if (probe.getDescend() && z - 1 >= 0) return z - 1;
+  return z;
 }
 
 // old 2d bfs
@@ -382,18 +403,11 @@ int BFS(coord currentpos, Grid& mapGrid, coord endpos, coord path[MAP_SIZE * MAP
 */
 // Compact BFS node. uint8_t is safe because MAP_SIZE (40) and floors (3) both
 // fit easily; keeps the static scratch arrays small.
-struct BfsNode { uint8_t z, x, y; }; // 3d coords by claude?
+struct BfsNode { uint8_t z, x, y; }; // 3d coords in form z (floor) ,x,y
 
 // allowBlue: if true, BLUE tiles are traversable (fallback mode).
 // Returns empty deque if endpos is unreachable under the given constraints.
-//
-// Memory note: this used to copy all three floor grids into a ~37.5 KB local
-// stack array and allocate ~60 KB of nested std::vector on the heap *per call*,
-// which hard-faulted / fragmented the Giga's D1 SRAM. Now the grids are indexed
-// through pointers (no copy) and all scratch lives in fixed static .bss arrays
-// reserved once at link time (visited ~4.7 KB, prev ~14 KB, queue ~14 KB). The
-// only per-call heap use is the returned path, which is just the route length.
-std::deque<std::pair<int, std::pair<int,int>>> BFS(std::pair<int, std::pair<int, int>> currentpos, Grid& m1, Grid& m2, Grid& m3, std::pair<int, std::pair<int, int>> endpos, bool allowBlue = false) {
+std::deque<std::pair<int, std::pair<int,int>>> BFS(std::pair<int, std::pair<int, int>> currentpos, Grid& m1, Grid& m2, Grid& m3, std::pair<int, std::pair<int, int>> endpos, bool allowBlue, bool allowObstacle) {
     Grid* map[3] = { &m1, &m2, &m3 };  // index, don't copy
 
     static bool    visited[3][MAP_SIZE][MAP_SIZE];
@@ -419,15 +433,10 @@ std::deque<std::pair<int, std::pair<int,int>>> BFS(std::pair<int, std::pair<int,
         for (int i = 0; i < 4; i++) {
             int nx = x + dir[i][0];
             int ny = y + dir[i][1];
-            int nz = z;
 
             if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE) {
-                // floor change: a neighbor tile flagged elevate/descend is a ramp
-                // entry. Index (*map[z])[nx][ny] only after the bounds check above,
-                // and clamp nz to the valid floor range [0,2] so map[nz]/visited[nz]
-                // can never go out of bounds.
-                if ((*map[z])[nx][ny].getElevate() && z + 1 < 3) nz = z + 1;
-                else if ((*map[z])[nx][ny].getDescend() && z - 1 >= 0) nz = z - 1;
+                // floor change across ramp tiles (same rule as the exploration planner)
+                int nz = neighbourFloor(z, x, y, i, nx, ny);
 
                 bool passable = !(*map[z])[x][y].getWall((Direction)i) &&
                                 !(*map[nz])[nx][ny].getWall(opposite((Direction)i)) &&
@@ -435,6 +444,12 @@ std::deque<std::pair<int, std::pair<int,int>>> BFS(std::pair<int, std::pair<int,
                                 (*map[nz])[nx][ny].getType() != BLACK;
                 if (!allowBlue) {
                     passable = passable && (*map[nz])[nx][ny].getType() != BLUE;
+                }
+                if (!allowObstacle){
+                    // obstacle bits are per edge (set on both tiles by EXECUTE_MOVE /
+                    // handleShortMove), so only this edge is blocked, not the whole tile
+                    passable = passable && !(*map[z])[x][y].getObstacle(i) &&
+                               !(*map[nz])[nx][ny].getObstacle(opposite((Direction)i));
                 }
 
                 if (!visited[nz][nx][ny] && passable) {
@@ -446,7 +461,7 @@ std::deque<std::pair<int, std::pair<int,int>>> BFS(std::pair<int, std::pair<int,
         }
     }
 
-    // endpos unreachable under current constraints — return empty path
+    // endpos unreachable under current constraints >> return empty path
     if (!visited[ez][ex][ey]) {
         return {};
     }
@@ -461,4 +476,80 @@ std::deque<std::pair<int, std::pair<int,int>>> BFS(std::pair<int, std::pair<int,
     }
     path.push_front(currentpos);
     return path;
+}
+
+// Can the robot drive from (z,x,y) in absolute direction d? No wall on either
+// side of the edge, no obstacle recorded on it, target not BLACK. On success
+// (nz,nx,ny) is the neighbour, with ramp tiles resolved to their other floor.
+static bool edgeTraversable(int z, int x, int y, int d, int &nz, int &nx, int &ny) {
+  nx = x + dir[d][0];
+  ny = y + dir[d][1];
+  if (!inBounds(nx, ny)) return false;
+  nz = neighbourFloor(z, x, y, d, nx, ny);
+
+  Tile &t = floorGrid(z)[x][y];
+  Tile &n = floorGrid(nz)[nx][ny];
+  Direction back = opposite((Direction)d);
+  if (t.getWall(d) || t.getObstacle(d)) return false;
+  if (n.getWall(back) || n.getObstacle(back)) return false;
+  if (n.getType() == BLACK) return false;
+  return true;
+}
+
+// A visited tile with a traversable edge into a tile that hasn't been visited yet.
+static bool isFrontier(int z, int x, int y) {
+  for (int d = 0; d < 4; d++) {
+    int nz, nx, ny;
+    if (edgeTraversable(z, x, y, d, nz, nx, ny) && !floorGrid(nz)[nx][ny].getVisited()) return true;
+  }
+  return false;
+}
+
+// Exploration planner. Returns false when no reachable unexplored tile is left
+// (maze fully explored -> go home).
+// 1) If an adjacent tile is unvisited, go there (front, right, left, then back -> fewest turns).
+// 2) Otherwise BFS through visited tiles (across floors via ramp tiles) to the
+//    nearest tile that still has an unvisited neighbour, and take the first step
+//    of that path. Re-planned every tile, so no path needs to be stored.
+bool planExploreDir(Direction &outDir) {
+  syncActiveFloor();
+  const int z0 = currentFloor;
+
+  const Direction pref[4] = { currentDir, rotateDir(currentDir, +1), rotateDir(currentDir, -1), rotateDir(currentDir, +2) };
+  for (int i = 0; i < 4; i++) {
+    int nz, nx, ny;
+    if (edgeTraversable(z0, x_pos, y_pos, pref[i], nz, nx, ny) && !floorGrid(nz)[nx][ny].getVisited()) {
+      outDir = pref[i];
+      return true;
+    }
+  }
+
+  static bool    seen[NUM_FLOORS][MAP_SIZE][MAP_SIZE];
+  static uint8_t firstDir[NUM_FLOORS][MAP_SIZE][MAP_SIZE]; // first move from the robot's tile on the path to this node
+  static BfsNode queue[NUM_FLOORS * MAP_SIZE * MAP_SIZE];
+  memset(seen, 0, sizeof(seen));
+  int head = 0, tail = 0;
+
+  queue[tail++] = { (uint8_t)z0, (uint8_t)x_pos, (uint8_t)y_pos };
+  seen[z0][x_pos][y_pos] = true;
+  while (head < tail) {
+    BfsNode cur = queue[head++];
+    bool isStart = (head == 1);
+    if (!isStart && isFrontier(cur.z, cur.x, cur.y)) {
+      outDir = (Direction)firstDir[cur.z][cur.x][cur.y];
+      return true;
+    }
+    // try the same turn preference so ties favour fewer turns
+    for (int i = 0; i < 4; i++) {
+      int d = isStart ? pref[i] : i;
+      int nz, nx, ny;
+      if (!edgeTraversable(cur.z, cur.x, cur.y, d, nz, nx, ny)) continue;
+      if (!floorGrid(nz)[nx][ny].getVisited()) continue; // only route through known tiles
+      if (seen[nz][nx][ny]) continue;
+      seen[nz][nx][ny] = true;
+      firstDir[nz][nx][ny] = isStart ? (uint8_t)d : firstDir[cur.z][cur.x][cur.y];
+      queue[tail++] = { (uint8_t)nz, (uint8_t)nx, (uint8_t)ny };
+    }
+  }
+  return false; // nothing left to explore
 }

@@ -22,16 +22,16 @@ void dispenser::dispenseLeft(char victim){ // clockwise
   }
   switch(victim){
     case 'H':
-      rotate(-(incr*2+offset+leftDispensed*incr));
+      rotate((incr*2+offset+leftDispensed*incr));
       leftDispensed += 2;
       medkits -= 2;
-      rotate(offset+leftDispensed*incr);
+      rotate(-(offset+leftDispensed*incr));
       break;
     case 'S':
-      rotate(-(incr*1+offset+leftDispensed*incr));
+      rotate((incr*1+offset+leftDispensed*incr));
       leftDispensed += 1;
       medkits -= 1;
-      rotate(offset+leftDispensed*incr);
+      rotate(-(offset+leftDispensed*incr));
       break;
     case 'U':
       break;
@@ -44,16 +44,16 @@ void dispenser::dispenseRight(char victim){ // clockwise
   }
   switch(victim){
     case 'H':
-      rotate(incr*2+offset+rightDispensed*incr-11);
+      rotate(-(incr*2+offset+rightDispensed*incr));
       rightDispensed += 2;
       medkits -= 2;
-      rotate(-(offset+rightDispensed*incr-11));
+      rotate(offset+rightDispensed*incr);
       break;
     case 'S':
-      rotate(incr*1+offset+rightDispensed*incr-11);
+      rotate(-(incr*1+offset+rightDispensed*incr));
       rightDispensed += 1;
       medkits -= 1;
-      rotate(-(offset+rightDispensed*incr+11));
+      rotate(offset+rightDispensed*incr);
       break;
     case 'U':
       break;

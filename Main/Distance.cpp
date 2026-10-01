@@ -1,8 +1,12 @@
 // distance sensor code
 // blue for SDA, yellow for SCL
-// the motor shield takes up the I2C address at 0x70 so chatgpt made some code that prevents conflict.
+// the motor shield takes up the I2C address at 0x70.
 
+#include "Globals.h"
+#include "Distance.h"
 
+// Forward declaration of fwd() from movement.cpp
+void fwd(double dist);
 
 void disableAllCall() {
   // Point register to MODE1
@@ -26,7 +30,6 @@ void disableAllCall() {
 }
 
 void init_dist() {
-  // put your setup code here, to run once:
   
   if(!myMux.begin()){
     Serial.println("can't find the Mux");
@@ -147,6 +150,12 @@ int measure(int sensor){
 }
 old robot settings
 */
+// Per-sensor distance offsets in mm, indexed by logical sensor number (1..7); [0] unused.
+// Calibrate: place a flat matte target at a known distance D (near the ~80mm working
+// range), average ~100 raw readings, set SENSOR_OFFSET_MM[n] = mean(raw) - D.
+// Positive => sensor reads long; it is subtracted from every reading in measure().
+const int SENSOR_OFFSET_MM[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
 int measure(int sensor){
   // sensor→mux port mapping
   const int portMap[] = {-1, 1, 0, 6, 4, 5, 3, 2};
@@ -159,7 +168,62 @@ int measure(int sensor){
   int value = sensors[sensorIdx].readRangeContinuousMillimeters();
   i2cMutex.unlock();
 
-  return (value != -1 && value != 8191) ? value : -1;
+  if(value == -1 || value == 8191) return -1;          // keep the no-reading sentinel
+  int corrected = value - SENSOR_OFFSET_MM[sensor];     // apply per-sensor calibration
+  return (corrected < 0) ? 0 : corrected;               // clamp: negative distance is nonsense
+}
+
+// Calibration helper. Place a flat matte target at a known true distance trueDistanceMm
+// (perpendicular to sensor n, ideally near the working range), then call this once from
+// setup() or a serial command, e.g. calibrateSensor(2, 80). It averages RAW readings
+// (offset NOT applied) and prints the recommended SENSOR_OFFSET_MM[n] value to Serial.
+// Copy that number into the SENSOR_OFFSET_MM array above and reflash. Returns the
+// computed offset, or -1 if the sensor never returned a valid reading.
+int calibrateSensor(int sensor, int trueDistanceMm){
+  const int samples = 100;
+  if(sensor < 1 || sensor > 7) return -1;
+  const int portMap[] = {-1, 1, 0, 6, 4, 5, 3, 2};
+  int port = portMap[sensor];
+  int sensorIdx = port;
+
+  long sum = 0;
+  int valid = 0;
+  for(int i = 0; i < samples; i++){
+    i2cMutex.lock();
+    myMux.setPort(port);
+    int value = sensors[sensorIdx].readRangeContinuousMillimeters();
+    i2cMutex.unlock();
+    if(value != -1 && value != 8191){
+      sum += value;
+      valid++;
+    }
+    delay(10); // ~let a fresh continuous-ranging sample accumulate between reads
+  }
+
+  if(valid == 0){
+    Serial.print("calibrateSensor: sensor ");
+    Serial.print(sensor);
+    Serial.println(" returned no valid readings");
+    return -1;
+  }
+
+  double meanRaw = (double)sum / valid;
+  int offset = (int)lround(meanRaw - trueDistanceMm);
+  Serial.print("[CAL] sensor ");
+  Serial.print(sensor);
+  Serial.print("  meanRaw=");
+  Serial.print(meanRaw, 1);
+  Serial.print("mm  true=");
+  Serial.print(trueDistanceMm);
+  Serial.print("mm  valid=");
+  Serial.print(valid);
+  Serial.print("/");
+  Serial.print(samples);
+  Serial.print("  -> SENSOR_OFFSET_MM[");
+  Serial.print(sensor);
+  Serial.print("] = ");
+  Serial.println(offset);
+  return offset;
 }
 // detects wall in a direction( 0 is north, 1 is east, etc..) If output = 0, there is a wall.
 // realtive directions(local).
@@ -214,17 +278,19 @@ void parallel(){
   const int PARALLEL_SPEED = 90;
   const unsigned long PARALLEL_TIMEOUT_MS = 500;
   const double MAX_PARALLEL_ROTATION_DEG = 45.0;
-  
+
   int sensorA = -1;
   int sensorB = -1;
   int wallDir;
   Serial.println("paralleling");
+  
+  
   // Prefer aligning to the right wall; otherwise use left wall.
-  if (detectWall(1) == 0) {
+  if (detectWall(1)==0) {
     sensorA = 2;
     sensorB = 3;
     wallDir=1;
-  } else if (detectWall(3) == 0) {
+  } else if (detectWall(3)==0) {
     sensorA = 6;
     sensorB = 5;
     wallDir=3;
@@ -237,6 +303,8 @@ void parallel(){
   double startHeading = myGyro.heading();
 
   while (true) {
+    // abort the correction on pause so the caller can transition to PAUSE.
+    if (Pausemaze == true) { drivetrain.fullstop(); break; }
     int a = measure(sensorA);
     int b = measure(sensorB);
 
@@ -245,6 +313,8 @@ void parallel(){
       Serial.println("parallel: invalid sensor reading, aborting correction");
       break;
     }
+    // If either sensor no longer sees the side wall within range, stop correcting
+    // (the wall ended / robot isn't beside one) to avoid spinning on a phantom reading.
     if(a>MIN_DIST||b>MIN_DIST){
       break;
     }
@@ -275,10 +345,10 @@ void parallel(){
     motorA->run(FORWARD);
     motorB->run(FORWARD);
     motorC->run(FORWARD);
-    motorD->run(FORWARD);
+    motorD->run(BACKWARD);
     if ((diff > 0 && wallDir == 1)||(diff < 0 && wallDir==3)) {
       motorB->run(BACKWARD);
-      motorD->run(BACKWARD);
+      motorD->run(FORWARD);
     } else {
       motorA->run(BACKWARD);
       motorC->run(BACKWARD);
@@ -291,16 +361,15 @@ void parallel(){
   drivetrain.fullstop();
 }
 
-// Self-centers the robot front-to-back within a tile using the front wall
-// (avg of sensors 1+7). Only acts when a front wall is present; back-wall-only
-// centering is not implemented yet. parallel() runs first so the robot is
-// squared to a side wall before the front reading is trusted.
+// Self-centers the robot front-to-back within a tile using the front wall (avg of sensors 1+7).
+// Only acts when a front wall is present (back-wall-only centering is not implemented yet)
+// parallel() runs first so the robot is squared to a side wall before the front reading is trusted.
+
 void centerFrontBack(){
-  const int CENTERING_SPEED = 90;                   // mirrors PARALLEL_SPEED
+  const int CENTERING_SPEED = 50;                   // mirrors PARALLEL_SPEED
   const unsigned long CENTERING_TIMEOUT_MS = 2000;
-  // MAX_CENTER_CORRECTION_MM is a file-scope #define (Main.ino), shared with
-  // the SENSE_TILE trigger gate — redundant safety abort in case conditions
-  // changed between the trigger check and this function actually running.
+  // MAX_CENTER_CORRECTION_MM is a file-scope #define (Main.ino), shared with the SENSE_TILE trigger gate >> redundant safety abort 
+  // -> in case conditions changed between the trigger check and this function actually running.
 
   Serial.println("centering front-back (front wall)");
   parallel();
@@ -318,7 +387,7 @@ void centerFrontBack(){
   }
 
   double frontGap = (front1 + front7) / 2.0;
-  double offset = frontGap - TARGET_GAP_MM; // +ve => too far from front wall, drive forward; -ve => drive backward
+  double offset = frontGap - TARGET_GAP_MM; // +ve => too far from ront wall, drive forward; -ve => drive backward
 
   if(abs(offset) >= MAX_CENTER_CORRECTION_MM){
     Serial.println("centerFrontBack: offset exceeds sanity cap, aborting");
@@ -333,6 +402,8 @@ void centerFrontBack(){
   unsigned long startMs = millis();
 
   while(true){
+    // abort the correction on pause so the caller can transition to PAUSE.
+    if(Pausemaze == true){ drivetrain.fullstop(); break; }
     front1 = measure(1);
     front7 = measure(7);
     if(front1 == -1 || front7 == -1){
@@ -347,8 +418,7 @@ void centerFrontBack(){
       Serial.println("centered");
       break;
     }
-    // If the live offset flips sign vs. our initial decision, we've
-    // overshot — stop rather than reversing (avoids oscillation).
+    // If the live offset flips sign vs. our initial decision >> overshot, stop rather than reversing (avoids oscillation).
     if((offset > 0) != driveForward){
       Serial.println("centerFrontBack: overshot target, stopping to avoid oscillation");
       break;
@@ -366,35 +436,106 @@ void centerFrontBack(){
   drivetrain.reset_encoderCount(true,true,true);
 }
 
+// Right-wall follower error, fed to center_PID in movement.cpp.
+// Uses the two right-side sensors (front = 2, back = 3) per Hanafi et al. (2013):
+//   E_Tot = (ideal - D) + angle,  where D = avg gap, angle = back - front.
+// Positive error steers away from the right wall (matches the old sign convention).
+// Returns 0 when the right wall isn't present on BOTH sensors (no reliable reference).
 int center(){
-  int a = measure(2);
-  int b = measure(6);
-  if(a<MIN_DIST && a != -1 && b<MIN_DIST && b != -1) return (a-b);
-  else return 0;
+  int front = measure(2);   // right-front gap (mm)
+  int back  = measure(3);   // right-back gap  (mm)
+  bool wallPresent = front != -1 && front != 8191 && front <= SIDE_WALL_MAX_MM
+                  && back  != -1 && back  != 8191 && back  <= SIDE_WALL_MAX_MM;
+  if(!wallPresent) return 0;
+  double D = (front + back) / 2.0;                       // distance term
+  double e = (TARGET_SIDE_GAP_MM - D) + (back - front);  // (ideal - D) + angle
+  return (int)e;
+}
+
+// Left-wall follower error — mirrors center() but uses left-side sensors (5 = back, 6 = front).
+// Sign convention: positive error steers AWAY from the left wall (toward center/right),
+// matching the same motor adjustment direction as the right-wall version so the same
+// center_PID and drivetrain.drive(... +/- adjustment) formula works unchanged.
+// Returns 0 when the left wall isn't present on BOTH sensors.
+int centerLeft(){
+  int front = measure(6);   // left-front gap (mm)
+  int back  = measure(5);   // left-back gap  (mm)
+  bool wallPresent = front != -1 && front != 8191 && front <= SIDE_WALL_MAX_MM
+                  && back  != -1 && back  != 8191 && back  <= SIDE_WALL_MAX_MM;
+  if(!wallPresent) return 0;
+  double D = (front + back) / 2.0;                       // distance term
+  // For the left wall: being too close (small D) means we need to steer right (positive adjustment).
+  // (TARGET_SIDE_GAP_MM - D) is positive when too close → steers right (away from left wall). ✓
+  // (front - back) is positive when nose points toward left wall → need to steer right. ✓
+  double e = (TARGET_SIDE_GAP_MM - D) + (front - back);
+  return (int)e;
 }
 
 
-void obstacleavoidance(int leftright){ // leftright determines to manuver left or right.
-  int _;
+int obstacleavoidance(int leftright){ // leftright determines to manuver left or right.
+// return distance to wall at front; -2 = paused, -3 = gave up (timeout)
+  Serial.println("obstacle avoidance");
+  int _ = -1;
+  // Whole-manoeuvre limit: PARALLEL <-> BACKTRACK and FWD <-> WIGGLE can otherwise
+  // cycle forever when the gap beside the obstacle is too tight.
+  timer avoidTimer;
+  const double AVOID_TIMEOUT_US = 12000000.0;
   while(true){
+    if(avoidTimer.getTime() > AVOID_TIMEOUT_US){
+      Serial.println("obstacle avoidance timeout, giving up");
+      drivetrain.fullstop();
+      steps = TURN;
+      return -3;
+    }
+    // Single authoritative pause guard: gates every step boundary and transition
+    // burst, not just the innermost drive loops. Reset steps so a resume after the
+    // pause starts a fresh maneuver instead of re-entering mid-sequence.
+    if(Pausemaze == true){
+      drivetrain.fullstop();
+      steps = TURN;
+      return -2;
+    }
     switch (steps){
       case TURN:{
+        // Timeout to prevent infinite spinning if the far-side sensor never clears
+        // (failed sensor, wall dead-ahead, or unusual obstacle geometry).
+        timer turnTimer;
+        const unsigned long TURN_TIMEOUT_US = 2000000; // 2 seconds
+
         if(leftright == 1){ // obstacle at left
-          Serial.println("turn step");
-          while(measure(7) < MIN_DIST){
-            motorB->run(BACKWARD);
-            motorD->run(BACKWARD);
-            drivetrain.drive(255,255,255,255);
-          }
           _ = measure(1);
+          _ = (_!=-1&&_!=8191) ? _ : -1;
+          Serial.println("turn step");
+          while(measure(7) < MIN_DIST && turnTimer.getTime() < TURN_TIMEOUT_US){
+            i2cMutex.lock();
+            motorB->run(BACKWARD);
+            motorD->run(FORWARD);
+            i2cMutex.unlock();
+            drivetrain.drive(255,255,255,255);
+            if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
+          }
+          
         }
         else if(leftright == 0){ // obstacle at right
-          while(measure(1)<MIN_DIST){
+          _ = measure(7);
+          _ = (_!=-1&&_!=8191) ? _ : -1;
+          while(measure(1)<MIN_DIST && turnTimer.getTime() < TURN_TIMEOUT_US){
+            i2cMutex.lock();
             motorA->run(BACKWARD);
             motorC->run(BACKWARD);
+            motorB->run(FORWARD);
+            motorD->run(BACKWARD); // D is mounted reversed; BACKWARD raw = physically FORWARD, matching motorB
+            i2cMutex.unlock();
             drivetrain.drive(255,255,255,255);
+            if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
           }
-          _ = measure(7);
+          
         }
         drivetrain.fullstop();
         delay(200);
@@ -410,6 +551,11 @@ void obstacleavoidance(int leftright){ // leftright determines to manuver left o
         if(leftright == 1){
           int a = measure(2); int b = measure(3);
           while(true){
+            if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
+            if(avoidTimer.getTime() > AVOID_TIMEOUT_US) break;
             a=measure(2); b = measure(3);
             if(a<=30) break;
             Serial.println("paralleling step");
@@ -430,6 +576,11 @@ void obstacleavoidance(int leftright){ // leftright determines to manuver left o
         }
         else if(leftright == 0){
           while(true){
+            if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
+            if(avoidTimer.getTime() > AVOID_TIMEOUT_US) break;
             int a = measure(6); int b = measure(5);
             if(a<=30) break;
             double increment = pid.getPID(a-b); // signed error: positive turns one way, negative the other
@@ -458,11 +609,19 @@ void obstacleavoidance(int leftright){ // leftright determines to manuver left o
         timer myTime;
         if(leftright == 0){
           while(measure(6)<=40&&myTime.getTime()<800000){
+            if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
             drivetrain.backward(120);
           }
         }
         else if(leftright == 1){
           while(measure(2)<=40&&myTime.getTime()<800000){
+            if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
             drivetrain.backward(120);
           }
         }
@@ -477,7 +636,7 @@ void obstacleavoidance(int leftright){ // leftright determines to manuver left o
       case FWD:{
         
         if(measure(6)<=35&&measure(2)<=35){
-          steps = WIGGLE;
+          steps = WIGGLE; // squeezed on both sides: wiggle, then retry FWD
           break;
         }
         
@@ -486,9 +645,17 @@ void obstacleavoidance(int leftright){ // leftright determines to manuver left o
         drivetrain.reset_encoderCount(true,true,true);
         delay(200);
         
-        fwd((300-(_-measure(1))<0) ? 0:300-(_-measure(1))); // subtract already travelled distance.
+        // Drive the rest of the tile, subtracting distance already travelled.
+        // Read the front sensor ONCE (a second read can differ and overshoot) and
+        // clamp to [0, TILE_MM]: if either front reading is invalid the front is
+        // open/garbage, so fall back to one tile instead of a runaway distance.
+        int frontNow = measure(1);
+        int travelled = (_ != -1 && frontNow != -1) ? (_ - frontNow) : 0;
+        int remaining = constrain(TILE_MM - travelled, 0, TILE_MM);
+        fwd(remaining);
         steps = TURN;
-        return;
+        if(moveInterrupted == true) return -2; // paused during the inner fwd()
+        return _;
       }
       case WIGGLE:{
         PID pid(8,0,0.1);
@@ -496,6 +663,10 @@ void obstacleavoidance(int leftright){ // leftright determines to manuver left o
         delay(2000);
         timer myTime;
         while(abs(measure(2)-measure(6))>=15&&myTime.getTime()<1000000){
+          if(Pausemaze == true){
+              drivetrain.fullstop();
+              return -2;
+            }
           double diff = pid.getPID(measure(2)-measure(6));
           drivetrain.drive(70+diff,70+diff,70-diff,70-diff);
         }
