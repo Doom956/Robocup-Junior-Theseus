@@ -100,25 +100,45 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
 </head>
 <body>
 
+<style>
+.metrics { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+.metrics td { padding: 4px 0; border-top: 1px solid var(--line); }
+.metrics td:last-child { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
+.bar { height: 6px; border-radius: 3px; background: var(--unknown); overflow: hidden; margin-top: 10px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--robot); }
+.profile { font-size: 11.5px; color: var(--muted); max-width: 46ch; }
+.ghost-note { color: var(--bad); }
+.reasons { display: grid; gap: 3px; margin-top: 8px; }
+</style>
+
 <div class="wrap">
   <header>
     <h1>Theseus Maze Simulator</h1>
-    <p>Watch the robot's exploration planner run on an RCJ Rescue Maze field: black, blue and silver tiles, and ramps between levels. Same rules as <code>Main/navigation.cpp</code>, ported to the browser.</p>
+    <p>Runs the robot's exploration planner on RCJ Rescue Maze fields with black, blue and silver tiles and ramps. The realism setting adds the faults a real run has (misread walls, stalls, wheel slip, miscounted ramps, missed black tiles, the 8-minute clock) and sends each one through the same recovery code as <code>Main/</code>.</p>
   </header>
 
-  <section class="panel controls" aria-label="Maze and playback controls">
+  <section class="panel controls" aria-label="Field and playback controls">
     <div class="field">
       <label for="scenario">Field</label>
       <select id="scenario">
         <option value="flat">Small, no loops</option>
         <option value="loops">Medium with loops</option>
         <option value="big">Large with loops</option>
-        <option value="ramp" selected>Two levels + ramp</option>
+        <option value="ramp">Two levels + ramp</option>
+        <option value="bigramp" selected>Large + two ramps</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="realism">Robot realism</label>
+      <select id="realism">
+        <option value="perfect">Perfect sensors and wheels</option>
+        <option value="realistic" selected>Realistic faults</option>
+        <option value="harsh">Harsh faults</option>
       </select>
     </div>
     <div class="field">
       <label for="seed">Seed</label>
-      <input id="seed" type="number" min="1" step="1" value="5">
+      <input id="seed" type="number" min="1" step="1" value="3">
     </div>
     <div class="btns">
       <button id="load" type="button">Load seed</button>
@@ -134,6 +154,7 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
       <label for="speed">Speed</label>
       <input id="speed" type="range" min="0" max="100" value="60">
     </div>
+    <p class="profile" id="profile"></p>
   </section>
 
   <div class="main">
@@ -151,17 +172,21 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
         <span><i class="sw" style="background:var(--silver)"></i>silver checkpoint</span>
         <span><i class="sw" style="background:var(--ramp)"></i>ramp (arrow points uphill)</span>
         <span><i class="sw" style="background:var(--robot)"></i>robot / next target</span>
+        <span><i class="sw" style="border:2px dashed var(--bad)"></i>where the robot thinks it is (when lost)</span>
       </div>
-      <p class="hint" id="edit-hint">Edit before pressing Play or Step: click near a tile edge to add or remove a wall, click a tile to cycle plain → black → blue → silver, Shift-click to move the start. Keys: Space play/pause, → step.</p>
+      <p class="hint" id="edit-hint">Edit before pressing Play or Step: click near a tile edge to add or remove a wall, click a tile to cycle plain → black → blue → silver, Shift-click to move the start. Black tiles that would wall off part of the field are refused. Keys: Space play/pause, → step.</p>
     </section>
 
     <div class="side">
       <section class="panel" aria-labelledby="run-h">
-        <div class="head"><h2 id="run-h">This run</h2><span id="seedlabel" class="pill">seed 5</span></div>
+        <div class="head"><h2 id="run-h">This run</h2><span id="seedlabel" class="pill">seed 3</span></div>
         <div class="status">
+          <div class="stat"><small>Clock</small><b id="s-time">0:00</b></div>
           <div class="stat"><small>Explore moves</small><b id="s-moves">0</b></div>
           <div class="stat"><small>Return moves</small><b id="s-ret">0</b></div>
-          <div class="stat"><small>Tiles visited</small><b id="s-vis">0</b></div>
+          <div class="stat"><small>Coverage</small><b id="s-cov">0%</b></div>
+          <div class="stat"><small>Short moves</small><b id="s-short">0</b></div>
+          <div class="stat"><small>Restarts (LoP)</small><b id="s-lop">0</b></div>
           <div class="stat"><small>Black stops</small><b id="s-black">0</b></div>
           <div class="stat"><small>Ramp crossings</small><b id="s-ramp">0</b></div>
           <div class="stat"><small>Floor · heading</small><b id="s-floor">1 · N</b></div>
@@ -176,31 +201,56 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
       </section>
 
       <section class="panel" aria-labelledby="batch-h">
-        <div class="head"><h2 id="batch-h">Batch test</h2></div>
-        <div class="btns"><button id="batch" type="button">Test 200 fields of this type</button></div>
-        <div class="batch-out" id="batch-out"><span class="hint" style="margin:0">Runs seeds 1 to 200 without drawing and reports any field where a check fails.</span></div>
+        <div class="head"><h2 id="batch-h">Batch test</h2><span class="pill" id="batch-cfg"></span></div>
+        <div class="btns">
+          <button id="batch200" type="button">Run 200 fields</button>
+          <button id="batch2000" type="button">Run 2000 fields</button>
+          <button id="batchstop" type="button" hidden>Stop</button>
+        </div>
+        <div class="bar" id="bar" hidden><i id="bar-fill"></i></div>
+        <div class="batch-out" id="batch-out"><span class="hint" style="margin:0">Runs seeds 1 to N of the selected field type and realism without drawing.</span></div>
       </section>
     </div>
   </div>
 </div>
 
 <script>
-// ================= navigation logic (port of Main/navigation.cpp + the map bookkeeping in main.cpp/movement.cpp) =================
+// =====================================================================================
+// Navigation logic: port of Main/navigation.cpp, plus the map bookkeeping and recovery
+// code from main.cpp (finishTileMove, handleShortMove, blockEdge, timeToReturn, PAUSE)
+// and the ramp loop at the end of fwd() in movement.cpp.
+// =====================================================================================
 const DX = [0, 1, 0, -1], DY = [1, 0, -1, 0], DNAME = "NESW";
-const MAP = 40, NF = 3, START_FLOOR = 1, HOME = MAP / 2;
+const MAP = 40, NF = 3, START_FLOOR = 1, HOME = MAP / 2, NN = NF * MAP * MAP;
 const opp = d => (d + 2) % 4, rot = (b, o) => (b + o + 4) % 4;
 const inB = (x, y) => x >= 0 && x < MAP && y >= 0 && y < MAP;
+const idx = (z, x, y) => (z * MAP + x) * MAP + y;
 const newTile = () => ({ wall: [false, false, false, false], edge: [false, false, false, false], obst: [false, false, false, false],
   vis: false, disc: false, fully: false, elev: false, desc: false, up: 0, type: "blank" });
-function newGrid() { const g = new Array(MAP * MAP); for (let i = 0; i < g.length; i++) g[i] = newTile(); return g; }
+
+// main.cpp timing constants + a simple time model for the robot's actions (seconds)
+const RUN_TIME_S = 480, RETURN_SEC_PER_TILE = 5, RETURN_MARGIN_S = 30;
+const T = { fwd: 2.5, turn90: 1.2, turn180: 2.0, sense: 0.8, blue: 5, rampTile: 3, short: 3.5, black: 3, lop: 10 };
+
+const REALISM = {
+  perfect:   { wallMiss: 0,     wallGhost: 0,     stall: 0,    slip: 0,     rampErr: 0,    blackMiss: 0 },
+  realistic: { wallMiss: 0.01,  wallGhost: 0.01,  stall: 0.03, slip: 0.003, rampErr: 0.10, blackMiss: 0.02 },
+  harsh:     { wallMiss: 0.03,  wallGhost: 0.03,  stall: 0.08, slip: 0.01,  rampErr: 0.25, blackMiss: 0.06 },
+};
+const pct = v => (v * 100).toFixed(v < 0.01 && v > 0 ? 1 : 0) + "%";
+function profileText(p) {
+  if (!p.wallMiss && !p.stall && !p.slip) return "Perfect: sensors never misread and the wheels never slip. Tests the logic only.";
+  return `Per reading: wall missed ${pct(p.wallMiss)}, phantom wall ${pct(p.wallGhost)}. Per move: stall ${pct(p.stall)}, wheel slip ${pct(p.slip)}, black missed ${pct(p.blackMiss)}. Per ramp: tile count off by one ${pct(p.rampErr)}.`;
+}
 
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 const SCENARIOS = {
-  flat:  { minW: 5, maxW: 8, minH: 5, maxH: 8, extra: 0, black: 6, blue: 4, silver: 4, ramp: false },
-  loops: { minW: 5, maxW: 9, minH: 5, maxH: 9, extra: 25, black: 6, blue: 4, silver: 4, ramp: false },
-  big:   { minW: 12, maxW: 16, minH: 12, maxH: 16, extra: 20, black: 5, blue: 3, silver: 3, ramp: false },
-  ramp:  { minW: 4, maxW: 7, minH: 4, maxH: 8, extra: 20, black: 5, blue: 3, silver: 3, ramp: true },
+  flat:    { minW: 5, maxW: 8, minH: 5, maxH: 8, extra: 0, black: 6, blue: 4, silver: 4, ramps: 0 },
+  loops:   { minW: 5, maxW: 9, minH: 5, maxH: 9, extra: 25, black: 6, blue: 4, silver: 4, ramps: 0 },
+  big:     { minW: 12, maxW: 16, minH: 12, maxH: 16, extra: 20, black: 5, blue: 3, silver: 3, ramps: 0 },
+  ramp:    { minW: 4, maxW: 7, minH: 4, maxH: 8, extra: 20, black: 5, blue: 3, silver: 3, ramps: 1 },
+  bigramp: { minW: 7, maxW: 8, minH: 10, maxH: 14, extra: 20, black: 5, blue: 3, silver: 4, ramps: 2 },
 };
 
 class World {
@@ -213,22 +263,37 @@ class World {
   typeAt(x, y) { return this.in(x, y) ? this.type[this.id(x, y)] : "solid"; }
   setWall(x, y, d, v) { const nx = x + DX[d], ny = y + DY[d]; if (!this.in(x, y) || !this.in(nx, ny)) return;
     this.wall[this.id(x, y)][d] = v; this.wall[this.id(nx, ny)][opp(d)] = v; }
+  // tiles reachable from the start without crossing black (ramps are crossed, never stopped on)
+  reach() {
+    const r = new Array(this.W * this.H).fill(false), q = [[this.sx, this.sy]]; r[this.id(this.sx, this.sy)] = true;
+    for (let h = 0; h < q.length; h++) { const [x, y] = q[h];
+      for (let d = 0; d < 4; d++) { const nx = x + DX[d], ny = y + DY[d];
+        if (this.hasWall(x, y, d) || r[this.id(nx, ny)]) continue;
+        const t = this.typeAt(nx, ny); if (t === "black" || t === "solid") continue;
+        r[this.id(nx, ny)] = true; q.push([nx, ny]); } }
+    return r;
+  }
+  // every non-black, non-solid tile can be reached: no area boxed in by black
+  allReachable() { const r = this.reach();
+    for (let i = 0; i < r.length; i++) if (!r[i] && this.type[i] !== "black" && this.type[i] !== "solid") return false; return true; }
 }
 
 function generate(sc, seed) {
   const rnd = mulberry32(seed * 2654435761 + 97);
   const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
-  const rampLen = sc.ramp ? ri(1, 3) : 0;
-  const wA = ri(sc.minW, sc.maxW), wB = sc.ramp ? ri(sc.minW, sc.maxW) : 0;
+  const nR = sc.ramps, rampLen = nR ? ri(1, 3) : 0;
+  const wA = ri(sc.minW, sc.maxW), wB = nR ? ri(sc.minW, sc.maxW) : 0;
   const w = new World(wA + rampLen + wB, ri(sc.minH, sc.maxH)), n = w.W * w.H;
-  const rampRow = ri(0, w.H - 1), levelA = sc.ramp ? ri(0, 1) : 0;
+  const rows = [];
+  while (rows.length < nR) { const r = ri(0, w.H - 1); if (rows.every(o => Math.abs(o - r) >= 2)) rows.push(r); }
+  const levelA = nR ? ri(0, 1) : 0;
   for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
     const i = w.id(x, y);
     if (x < wA) w.level[i] = levelA;
-    else if (x < wA + rampLen) w.type[i] = y === rampRow ? "ramp" : "solid";
+    else if (x < wA + rampLen) w.type[i] = rows.includes(y) ? "ramp" : "solid";
     else w.level[i] = 1 - levelA;
   }
-  for (let reg = 0; reg < (sc.ramp ? 2 : 1); reg++) {
+  for (let reg = 0; reg < (nR ? 2 : 1); reg++) {
     const x0 = reg === 0 ? 0 : wA + rampLen, x1 = reg === 0 ? wA : w.W;
     const seen = new Array(n).fill(false), st = [[ri(x0, x1 - 1), ri(0, w.H - 1)]];
     seen[w.id(st[0][0], st[0][1])] = true;
@@ -244,39 +309,52 @@ function generate(sc, seed) {
     for (let e = 0; e < extra; e++) { const x = ri(x0, x1 - 1), y = ri(0, w.H - 1), d = ri(0, 3), nx = x + DX[d], ny = y + DY[d];
       if (nx >= x0 && nx < x1 && ny >= 0 && ny < w.H) w.setWall(x, y, d, false); }
   }
-  if (sc.ramp) for (let x = wA - 1; x < wA + rampLen; x++) w.setWall(x, rampRow, 1, false);
+  for (const r of rows) for (let x = wA - 1; x < wA + rampLen; x++) w.setWall(x, r, 1, false);
   const plain = []; for (let i = 0; i < n; i++) if (w.type[i] === "floor") plain.push(i);
   const s = plain[ri(0, plain.length - 1)]; w.sx = s % w.W; w.sy = Math.floor(s / w.W);
-  const nearRampEnd = i => sc.ramp && Math.floor(i / w.W) === rampRow && (i % w.W === wA - 1 || i % w.W === wA + rampLen);
+  const nearRampEnd = i => rows.includes(Math.floor(i / w.W)) && (i % w.W === wA - 1 || i % w.W === wA + rampLen);
   for (let i = plain.length - 1; i > 0; i--) { const j = ri(0, i); [plain[i], plain[j]] = [plain[j], plain[i]]; }
   let nb = Math.floor(n * sc.black / 100), nbl = Math.floor(n * sc.blue / 100), nsi = Math.floor(n * sc.silver / 100);
   for (const i of plain) {
     if (i === s || nearRampEnd(i)) continue;
-    if (nb > 0) { w.type[i] = "black"; nb--; } else if (nbl > 0) { w.type[i] = "blue"; nbl--; } else if (nsi > 0) { w.type[i] = "silver"; nsi--; }
+    if (nb > 0) { w.type[i] = "black"; if (w.allReachable()) nb--; else w.type[i] = "floor"; } // never box anything in
+    else if (nbl > 0) { w.type[i] = "blue"; nbl--; } else if (nsi > 0) { w.type[i] = "silver"; nsi--; }
   }
   return w;
 }
 
+// shared scratch buffers for the planners (one robot steps at a time)
+const seenBuf = new Int32Array(NN), qBuf = new Int32Array(NN), firstBuf = new Uint8Array(NN), prevBuf = new Int32Array(NN);
+let stamp = 0;
+
 class Robot {
-  constructor(world) {
-    this.w = world; this.floors = [newGrid(), newGrid(), newGrid()];
+  constructor(world, prof, seed) {
+    this.w = world; this.p = prof; this.rng = mulberry32((seed * 7919) ^ 0x5bd1e995);
+    this.perfect = !prof.wallMiss && !prof.wallGhost && !prof.stall && !prof.slip && !prof.rampErr && !prof.blackMiss;
+    this.tiles = new Array(NN); for (let i = 0; i < NN; i++) this.tiles[i] = newTile();
     this.z = START_FLOOR; this.x = HOME; this.y = HOME; this.dir = 0; this.rx = world.sx; this.ry = world.sy;
-    this.phase = "explore"; this.moves = 0; this.ret = 0; this.blackStops = 0; this.ramps = 0;
-    this.target = null; this.failReason = ""; this.events = [];
-    this.flags = { wall: false, pos: false, floor: false, mismatch: false };
-    this.stand = new Array(world.W * world.H).fill(-1); this.trail = [[this.rx, this.ry]];
-    this.limit = 6 * world.W * world.H + 50; this.checks = null;
+    this.phase = "explore"; this.returning = false; this.timeReturn = false;
+    this.moves = 0; this.ret = 0; this.blackStops = 0; this.ramps = 0; this.shorts = 0; this.lops = 0; this.blocked = 0; this.slips = 0;
+    this.time = 0; this.discCount = 0; this.lostAt = -1; this.lostNow = false; this.consecShort = 0;
+    this.cp = { x: HOME, y: HOME, z: START_FLOOR }; this.realCp = { x: world.sx, y: world.sy }; // x_checkpoint.. / last silver really visited
+    this.shortState = { x: -1, y: -1, z: -1, d: 0, n: 0 };
+    this.target = null; this.failReason = ""; this.events = []; this.flags = { wall: false, mismatch: false };
+    this.visited = new Array(world.W * world.H).fill(false); this.trail = [[this.rx, this.ry]];
+    this.limit = 12 * world.W * world.H + 100; this.result = null;
     this.T(this.z, this.x, this.y).disc = true;
     this.sense();
   }
-  T(z, x, y) { return this.floors[z][x * MAP + y]; }
+  T(z, x, y) { return this.tiles[idx(z, x, y)]; }
   get cur() { return this.T(this.z, this.x, this.y); }
-  note(s) { this.events.unshift(s); if (this.events.length > 40) this.events.pop(); }
+  get live() { return this.phase === "explore" || this.phase === "return"; }
+  note(s) { this.events.unshift(`${clock(this.time)}  ${s}`); if (this.events.length > 60) this.events.pop(); }
+  rand() { return this.rng(); }
+
   // ---- navigation.cpp ----
-  readWallsRel() { const r = []; for (let k = 0; k < 4; k++) r.push(this.w.hasWall(this.rx, this.ry, (this.dir + k) % 4)); return r; }
   checkTileMismatch(ws) { const t = this.cur; if (!t.vis) return false; let m = 0;
     for (let k = 0; k < 4; k++) if (t.wall[(this.dir + k) % 4] !== ws[k]) m++; return m >= 2; }
-  writeWalls(ws) { const t = this.cur; t.disc = true; for (let k = 0; k < 4; k++) t.wall[(this.dir + k) % 4] = ws[k]; }
+  writeWalls(ws) { const t = this.cur; if (!t.disc) this.discCount++; t.disc = true; // a driven-through edge is never stored as a wall
+    for (let k = 0; k < 4; k++) { const a = (this.dir + k) % 4; t.wall[a] = ws[k] && !t.edge[a]; } }
   markEdge(x, y, d) { const nx = x + DX[d], ny = y + DY[d]; if (!inB(nx, ny)) return;
     this.T(this.z, x, y).edge[d] = true; this.T(this.z, nx, ny).edge[opp(d)] = true; }
   updateFully(x, y) { const t = this.T(this.z, x, y); t.vis = true; let all = true;
@@ -288,166 +366,209 @@ class Robot {
     const p = this.T(z, nx, ny);
     if (p.elev && z + 1 < NF) return z + 1; if (p.desc && z - 1 >= 0) return z - 1; return z;
   }
+  // edgeTraversable(): neighbour index or -1
   trav(z, x, y, d) {
-    const nx = x + DX[d], ny = y + DY[d]; if (!inB(nx, ny)) return null;
+    const nx = x + DX[d], ny = y + DY[d]; if (!inB(nx, ny)) return -1;
     const nz = this.neighbourFloor(z, x, y, d, nx, ny), t = this.T(z, x, y), n = this.T(nz, nx, ny), b = opp(d);
-    if (t.wall[d] || t.obst[d] || n.wall[b] || n.obst[b] || n.type === "black") return null;
-    return [nz, nx, ny];
+    if (t.wall[d] || t.obst[d] || n.wall[b] || n.obst[b] || n.type === "black") return -1;
+    return idx(nz, nx, ny);
   }
-  isFrontier(z, x, y) { for (let d = 0; d < 4; d++) { const r = this.trav(z, x, y, d); if (r && !this.T(...r).vis) return true; } return false; }
+  isFrontier(z, x, y) { for (let d = 0; d < 4; d++) { const r = this.trav(z, x, y, d); if (r >= 0 && !this.tiles[r].vis) return true; } return false; }
   planExploreDir() {
     const pref = [this.dir, rot(this.dir, 1), rot(this.dir, -1), rot(this.dir, 2)];
-    for (const d of pref) { const r = this.trav(this.z, this.x, this.y, d); if (r && !this.T(...r).vis) return { dir: d, target: r }; }
-    const key = (z, x, y) => (z * MAP + x) * MAP + y, seen = new Set([key(this.z, this.x, this.y)]), first = new Map();
-    const q = [[this.z, this.x, this.y]];
-    for (let h = 0; h < q.length; h++) {
-      const [z, x, y] = q[h], isStart = h === 0;
-      if (!isStart && this.isFrontier(z, x, y)) return { dir: first.get(key(z, x, y)), target: [z, x, y] };
+    for (const d of pref) { const r = this.trav(this.z, this.x, this.y, d); if (r >= 0 && !this.tiles[r].vis) return { dir: d, target: r }; }
+    stamp++; let head = 0, tail = 0; const s = idx(this.z, this.x, this.y);
+    qBuf[tail++] = s; seenBuf[s] = stamp;
+    while (head < tail) {
+      const c = qBuf[head++], isStart = head === 1, z = (c / (MAP * MAP)) | 0, x = ((c / MAP) | 0) % MAP, y = c % MAP;
+      if (!isStart && this.isFrontier(z, x, y)) return { dir: firstBuf[c], target: c };
       for (let i = 0; i < 4; i++) {
         const d = isStart ? pref[i] : i, r = this.trav(z, x, y, d);
-        if (!r || !this.T(...r).vis) continue; const k = key(...r); if (seen.has(k)) continue;
-        seen.add(k); first.set(k, isStart ? d : first.get(key(z, x, y))); q.push(r);
+        if (r < 0 || !this.tiles[r].vis || seenBuf[r] === stamp) continue;
+        seenBuf[r] = stamp; firstBuf[r] = isStart ? d : firstBuf[c]; qBuf[tail++] = r;
       }
     }
     return null;
   }
+  // BFS(): path of indices from the robot to home, [] if none
   bfsHome(allowBlue, allowObst) {
-    const key = (z, x, y) => (z * MAP + x) * MAP + y, start = [this.z, this.x, this.y], end = [START_FLOOR, HOME, HOME];
-    if (key(...start) === key(...end)) return [start];
-    const prev = new Map([[key(...start), null]]), q = [start];
-    for (let h = 0; h < q.length; h++) {
-      const [z, x, y] = q[h];
+    const s = idx(this.z, this.x, this.y), e = idx(START_FLOOR, HOME, HOME);
+    if (s === e) return [s];
+    stamp++; let head = 0, tail = 0; qBuf[tail++] = s; seenBuf[s] = stamp; prevBuf[s] = -1;
+    while (head < tail) {
+      const c = qBuf[head++], z = (c / (MAP * MAP)) | 0, x = ((c / MAP) | 0) % MAP, y = c % MAP, t = this.tiles[c];
       for (let i = 0; i < 4; i++) {
         const nx = x + DX[i], ny = y + DY[i]; if (!inB(nx, ny)) continue;
-        const nz = this.neighbourFloor(z, x, y, i, nx, ny), t = this.T(z, x, y), n = this.T(nz, nx, ny);
+        const nz = this.neighbourFloor(z, x, y, i, nx, ny), k = idx(nz, nx, ny), n = this.tiles[k];
+        if (seenBuf[k] === stamp) continue;
         let ok = !t.wall[i] && !n.wall[opp(i)] && n.disc && n.type !== "black";
         if (!allowBlue) ok = ok && n.type !== "blue";
         if (!allowObst) ok = ok && !t.obst[i] && !n.obst[opp(i)];
-        const k = key(nz, nx, ny);
-        if (ok && !prev.has(k)) { prev.set(k, [z, x, y]); q.push([nz, nx, ny]); }
+        if (!ok) continue;
+        seenBuf[k] = stamp; prevBuf[k] = c; qBuf[tail++] = k;
+        if (k === e) { const path = []; for (let p = e; p !== -1; p = prevBuf[p]) path.unshift(p); return path; }
       }
     }
-    if (!prev.has(key(...end))) return [];
-    const path = []; let c = end; while (c) { path.unshift(c); c = prev.get(key(...c)); } return path;
+    return [];
   }
   recordRamp() { this.markEdge(this.x, this.y, this.dir); this.writeWalls([false, true, false, true]); this.updateFully(this.x, this.y); }
   elevation() { if (this.z + 1 >= NF) { this.recordRamp(); return; }
     Object.assign(this.cur, { elev: true, up: this.dir }); this.z++; Object.assign(this.cur, { desc: true, up: this.dir }); this.recordRamp(); }
   descend() { if (this.z - 1 < 0) { this.recordRamp(); return; }
     Object.assign(this.cur, { desc: true, up: opp(this.dir) }); this.z--; Object.assign(this.cur, { elev: true, up: opp(this.dir) }); this.recordRamp(); }
-  // ---- main.cpp SENSE_TILE/UPDATE_MAP ----
-  sense() { const ws = this.readWallsRel();
-    if (!this.checkTileMismatch(ws)) this.writeWalls(ws); else { this.flags.mismatch = true; this.fail("wall mismatch at a known tile (position bookkeeping bug)"); }
-    this.updateFully(this.x, this.y); this.stand[this.w.id(this.rx, this.ry)] = this.z; }
-  // ---- fwd() + finishTileMove() ----
+
+  // ---- main.cpp ----
+  sense() { // SENSE_TILE + UPDATE_MAP, with sensor noise
+    const ws = [];
+    for (let k = 0; k < 4; k++) { const real = this.w.hasWall(this.rx, this.ry, (this.dir + k) % 4);
+      const flip = real ? this.rand() < this.p.wallMiss : this.rand() < this.p.wallGhost; ws.push(flip ? !real : real); }
+    if (!this.checkTileMismatch(ws)) this.writeWalls(ws);
+    else { if (this.perfect) this.flags.mismatch = true; this.note("wall reading disagrees with the map, kept the old walls"); }
+    this.updateFully(this.x, this.y); this.time += T.sense;
+    this.visited[this.w.id(this.rx, this.ry)] = true;
+  }
+  blockEdge(x, y, d) { const nx = x + DX[d], ny = y + DY[d]; this.T(this.z, x, y).obst[d] = true; if (inB(nx, ny)) this.T(this.z, nx, ny).obst[opp(d)] = true; }
+  handleShortMove() {
+    const s = this.shortState;
+    if (s.x === this.x && s.y === this.y && s.z === this.z && s.d === this.dir) s.n++;
+    else Object.assign(s, { x: this.x, y: this.y, z: this.z, d: this.dir, n: 1 });
+    if (s.n >= 2) { this.blockEdge(this.x, this.y, this.dir); s.n = 0; this.blocked++; this.note(`two failed moves ${DNAME[this.dir]}: edge blocked`); }
+  }
+  homePath() { let p = this.bfsHome(false, false); if (!p.length) p = this.bfsHome(true, false); if (!p.length) p = this.bfsHome(true, true); return p; }
+  timeToReturn() { // same route as RETURN, plus 5 s per blue tile on it
+    if (this.time + this.discCount * (RETURN_SEC_PER_TILE + 5) + RETURN_MARGIN_S < RUN_TIME_S) return false; // path can't be longer than the known tiles
+    const path = this.homePath(), tiles = path.length ? path.length - 1 : 0, blue = path.filter(i => this.tiles[i].type === "blue").length;
+    return this.time + tiles * RETURN_SEC_PER_TILE + blue * 5 + RETURN_MARGIN_S >= RUN_TIME_S;
+  }
+  lackOfProgress(why) { // referee restart -> PAUSE state: restore checkpoint tile/floor, face gyro zero (N)
+    this.lops++; this.time += T.lop; this.note(`lack of progress (${why}): restarted at the last checkpoint`);
+    this.z = this.cp.z; this.x = this.cp.x; this.y = this.cp.y; this.dir = 0;
+    this.rx = this.realCp.x; this.ry = this.realCp.y; this.consecShort = 0; this.trail.push([this.rx, this.ry]);
+    this.checkSync();
+    if (!this.returning) this.sense();
+  }
+  turnTo(d) { const diff = (d - this.dir + 4) % 4; this.time += diff === 0 ? 0 : diff === 2 ? T.turn180 : T.turn90; this.dir = d; }
+  // fwd() + finishTileMove(): "moved" | "short" | "black" | "onblack"
   moveForward() {
     const w = this.w, d = this.dir;
-    if (w.hasWall(this.rx, this.ry, d)) return "wall";
-    const nx = this.rx + DX[d], ny = this.ry + DY[d];
-    if (w.typeAt(nx, ny) === "black") { const mx = this.x + DX[d], my = this.y + DY[d]; if (inB(mx, my)) this.T(this.z, mx, my).type = "black"; return "black"; }
-    if (w.typeAt(nx, ny) === "ramp") {
+    if (w.hasWall(this.rx, this.ry, d)) { if (this.perfect) this.flags.wall = true; this.time += T.short; return "short"; } // emergency stop at the wall
+    if (this.rand() < this.p.stall) { this.time += T.short; return "short"; }
+    const nx = this.rx + DX[d], ny = this.ry + DY[d], nt = w.typeAt(nx, ny);
+    if (nt === "black") {
+      if (this.rand() < this.p.blackMiss) { this.rx = nx; this.ry = ny; this.time += T.fwd; return "onblack"; }
+      const mx = this.x + DX[d], my = this.y + DY[d]; if (inB(mx, my)) this.T(this.z, mx, my).type = "black";
+      this.time += T.black; return "black";
+    }
+    if (this.rand() < this.p.slip) { // wheels spin in place: encoders say one tile, robot didn't move
+      this.slips++; this.markEdge(this.x, this.y, d); this.x += DX[d]; this.y += DY[d]; this.time += T.fwd;
+      this.applyFloorColour(); this.note("wheel slip: map position moved, robot did not"); return "moved";
+    }
+    if (nt === "ramp") {
       let cnt = 0; while (w.typeAt(this.rx + DX[d] * (cnt + 1), this.ry + DY[d] * (cnt + 1)) === "ramp") cnt++;
       const ax = this.rx + DX[d] * (cnt + 1), ay = this.ry + DY[d] * (cnt + 1);
       const up = w.level[w.id(ax, ay)] > w.level[w.id(this.rx, this.ry)];
-      for (let i = 0; i < cnt; i++) {
+      let counted = cnt;
+      if (this.rand() < this.p.rampErr) { counted = Math.max(0, cnt + (this.rand() < 0.5 ? -1 : 1)); this.note(`ramp miscounted: ${counted} tile(s) instead of ${cnt}`); }
+      for (let i = 0; i < counted; i++) {
         this.markEdge(this.x, this.y, d); this.x += DX[d]; this.y += DY[d];
         this.writeWalls([false, true, false, true]); this.updateFully(this.x, this.y);
         if (i === 0) up ? this.elevation() : this.descend();
-        this.trail.push([this.rx + DX[d] * (i + 1), this.ry + DY[d] * (i + 1)]);
       }
-      this.rx += DX[d] * cnt; this.ry += DY[d] * cnt; this.ramps++;
-      this.note(`ramp ${up ? "up" : "down"} (${cnt} tile${cnt > 1 ? "s" : ""}), now on floor ${this.z}`);
+      for (let i = 1; i <= cnt; i++) this.trail.push([this.rx + DX[d] * i, this.ry + DY[d] * i]);
+      this.rx += DX[d] * cnt; this.ry += DY[d] * cnt; this.ramps++; this.time += T.rampTile * cnt;
+      this.note(`ramp ${up ? "up" : "down"} (${cnt} tile${cnt > 1 ? "s" : ""}), map floor now ${this.z}`);
     }
-    this.markEdge(this.x, this.y, d); this.x += DX[d]; this.y += DY[d]; this.rx += DX[d]; this.ry += DY[d];
-    this.trail.push([this.rx, this.ry]); if (this.trail.length > 400) this.trail.shift();
-    const t = w.typeAt(this.rx, this.ry);
-    if (t === "silver") { this.cur.type = "checkpoint"; this.note("checkpoint recorded"); }
-    if (t === "blue") { this.cur.type = "blue"; this.note("blue tile: 5 s stop"); }
+    this.markEdge(this.x, this.y, d); this.x += DX[d]; this.y += DY[d]; this.rx += DX[d]; this.ry += DY[d]; this.time += T.fwd;
+    this.trail.push([this.rx, this.ry]); if (this.trail.length > 600) this.trail.shift();
+    this.applyFloorColour();
     return "moved";
   }
-  checkPosition() {
-    if (this.x !== this.rx - this.w.sx + HOME || this.y !== this.ry - this.w.sy + HOME) { this.flags.pos = true; this.fail("map position drifted from the real position"); }
-    const ef = START_FLOOR + this.w.level[this.w.id(this.rx, this.ry)] - this.w.level[this.w.id(this.w.sx, this.w.sy)];
-    if (ef >= 0 && ef < NF && ef !== this.z) { this.flags.floor = true; this.fail("currentFloor does not match the real level"); }
+  applyFloorColour() { // finishTileMove(): colour of the tile physically under the robot, recorded at the map position
+    const t = this.w.typeAt(this.rx, this.ry);
+    if (t === "silver") { this.cur.type = "checkpoint"; this.cp = { x: this.x, y: this.y, z: this.z }; this.realCp = { x: this.rx, y: this.ry }; }
+    if (t === "blue" || this.cur.type === "blue") { this.cur.type = "blue"; this.time += T.blue; }
   }
-  fail(r) { if (this.phase !== "failed") { this.phase = "failed"; this.failReason = r; this.note("FAIL: " + r); this.finalChecks(); } }
+  expectedFloor(x, y) { return START_FLOOR + this.w.level[this.w.id(x, y)] - this.w.level[this.w.id(this.w.sx, this.w.sy)]; }
+  checkSync() {
+    const lost = this.x !== this.rx - this.w.sx + HOME || this.y !== this.ry - this.w.sy + HOME || this.z !== this.expectedFloor(this.rx, this.ry);
+    if (lost && !this.lostNow) { this.note("robot is now lost: its map position is wrong"); if (this.lostAt < 0) this.lostAt = this.moves + this.ret; }
+    if (!lost && this.lostNow) this.note("map position matches reality again");
+    this.lostNow = lost;
+  }
+  afterMove(r) {
+    if (r === "moved") { this.consecShort = 0; this.checkSync(); if (!this.returning) this.sense(); }
+    else if (r === "black") { this.blackStops++; this.note(`black tile ahead (${DNAME[this.dir]}), backed off`); }
+    else if (r === "short") {
+      this.shorts++; this.consecShort++; this.handleShortMove();
+      if (!this.returning) this.sense(); // SENSE_TILE again
+      if (this.consecShort >= 4) this.lackOfProgress("stuck");
+    } else if (r === "onblack") this.lackOfProgress("drove onto a black tile");
+  }
   step() {
+    if (!this.live) return;
+    if (this.time >= RUN_TIME_S) { this.end(this.returning ? "8:00 ran out on the way home" : "8:00 ran out while exploring"); return; }
     if (this.phase === "explore") {
+      if (this.timeToReturn()) { this.phase = "return"; this.returning = true; this.timeReturn = true; this.target = null; this.note("time to head home"); return; }
       const p = this.planExploreDir();
-      if (!p) { this.phase = "return"; this.target = null; this.note("maze explored, heading home"); return; }
-      this.target = p.target; this.dir = p.dir;
-      const r = this.moveForward(); this.moves++;
-      if (r === "wall") { this.flags.wall = true; this.fail("planner chose a direction with a real wall"); return; }
-      if (r === "black") { this.blackStops++; this.note(`black tile ahead (${DNAME[this.dir]}), backed off`); return; }
-      this.checkPosition(); if (this.phase !== "explore") return; this.sense();
-      if (this.moves > this.limit) this.fail("exploration did not finish");
-    } else if (this.phase === "return") {
+      if (!p) { this.phase = "return"; this.returning = true; this.target = null; this.note("maze explored, heading home"); return; }
+      this.target = p.target; this.turnTo(p.dir);
+      this.moves++; this.afterMove(this.moveForward());
+      if (this.moves > this.limit) this.end("exploration never finished (looping)");
+    } else {
       if (this.z === START_FLOOR && this.x === HOME && this.y === HOME) {
-        this.phase = "done"; this.note(this.rx === this.w.sx && this.ry === this.w.sy ? "back at the start tile" : "thinks it is home but is not");
-        this.finalChecks(); return;
+        if (this.rx === this.w.sx && this.ry === this.w.sy) { this.phase = "done"; this.note("back at the start tile"); this.finish(); }
+        else this.end("thinks it is home but is not");
+        return;
       }
-      let path = this.bfsHome(false, false); if (!path.length) path = this.bfsHome(true, false); if (!path.length) path = this.bfsHome(true, true);
-      if (path.length < 2) { this.fail("no path home"); return; }
-      const dx = path[1][1] - path[0][1], dy = path[1][2] - path[0][2];
-      this.dir = dy === 0 ? (dx === 1 ? 1 : 3) : (dy === 1 ? 0 : 2); this.target = path[path.length - 1];
-      const r = this.moveForward(); this.ret++;
-      if (r === "wall") { this.flags.wall = true; this.fail("return path went through a real wall"); return; }
-      if (r === "black") { this.fail("return path went onto a black tile"); return; }
-      this.checkPosition(); if (this.ret > this.limit) this.fail("did not reach home");
+      const path = this.homePath();
+      if (path.length < 2) { this.end("no path home in its map"); return; }
+      const a = path[0], b = path[1], dx = (((b / MAP) | 0) % MAP) - (((a / MAP) | 0) % MAP), dy = (b % MAP) - (a % MAP);
+      this.target = path[path.length - 1]; this.turnTo(dy === 0 ? (dx === 1 ? 1 : 3) : (dy === 1 ? 0 : 2));
+      this.ret++; this.afterMove(this.moveForward());
+      if (this.ret > this.limit) this.end("never got home (looping)");
     }
   }
-  reachable() {
-    const w = this.w, reach = new Array(w.W * w.H).fill(false), q = [[w.sx, w.sy]]; reach[w.id(w.sx, w.sy)] = true;
-    for (let h = 0; h < q.length; h++) { const [x, y] = q[h];
-      for (let d = 0; d < 4; d++) { const nx = x + DX[d], ny = y + DY[d];
-        if (w.hasWall(x, y, d) || !w.in(nx, ny) || reach[w.id(nx, ny)]) continue;
-        const t = w.typeAt(nx, ny); if (t === "black" || t === "solid") continue;
-        reach[w.id(nx, ny)] = true; q.push([nx, ny]); } }
-    return reach;
+  end(reason) { if (!this.live && this.phase !== "done") return; this.phase = "failed"; this.failReason = reason; this.note("RUN OVER: " + reason); this.finish(); }
+  runToEnd() { while (this.live) this.step(); }
+  finish() {
+    const w = this.w, reach = w.reach(); let total = 0, covered = 0, wallsOk = 0, wallsAll = 0;
+    for (let i = 0; i < reach.length; i++) {
+      if (!reach[i] || w.type[i] === "ramp") continue; total++; if (this.visited[i]) covered++;
+    }
+    for (let i = 0; i < reach.length; i++) {
+      if (!this.visited[i]) continue; const x = i % w.W, y = (i / w.W) | 0, f = this.expectedFloor(x, y);
+      if (f < 0 || f >= NF) continue; const t = this.T(f, x - w.sx + HOME, y - w.sy + HOME);
+      for (let d = 0; d < 4; d++) { wallsAll++; if (t.vis && t.wall[d] === w.hasWall(x, y, d)) wallsOk++; }
+    }
+    const home = this.phase === "done" && this.time <= RUN_TIME_S, fullCov = covered === total;
+    const r = { home, fullCov, coverage: total ? covered / total : 1, mapAcc: wallsAll ? wallsOk / wallsAll : 1, timeReturn: this.timeReturn,
+      lost: this.lostAt >= 0, lostAtEnd: this.lostNow, lops: this.lops, time: this.time, ramps: this.ramps, reason: this.failReason };
+    r.pass = home && (fullCov || this.timeReturn) && (!this.perfect || (r.mapAcc === 1 && !r.lost && !this.flags.wall && !this.flags.mismatch));
+    if (!r.reason && !r.pass) r.reason = !fullCov && !this.timeReturn ? "finished early and missed part of the field" : this.perfect ? "logic check failed (map, position or wall)" : "did not pass";
+    this.result = r;
   }
-  mapTileFor(i) { const x = i % this.w.W, y = Math.floor(i / this.w.W); return this.T(this.stand[i], x - this.w.sx + HOME, y - this.w.sy + HOME); }
-  finalChecks() {
-    const w = this.w, reach = this.reachable(); let covered = true, mapOk = true;
-    for (let i = 0; i < reach.length; i++) if (reach[i] && w.type[i] !== "ramp" && this.stand[i] < 0) covered = false;
-    for (let i = 0; i < reach.length; i++) { if (this.stand[i] < 0) continue; const t = this.mapTileFor(i), x = i % w.W, y = Math.floor(i / w.W);
-      for (let d = 0; d < 4; d++) if (t.wall[d] !== w.hasWall(x, y, d)) mapOk = false; }
-    const home = this.phase === "done" && this.rx === w.sx && this.ry === w.sy;
-    this.checks = [
-      ["Visited every tile reachable without crossing black", covered],
-      ["Never planned a move into a real wall", !this.flags.wall],
-      ["Map position always matched the real position", !this.flags.pos && !this.flags.mismatch],
-      ["Floor tracking matched the real level", !this.flags.floor],
-      ["Every stored wall matches the real maze", mapOk],
-      ["Returned to the start tile", home],
-    ];
-    if (this.phase === "done" && this.checks.some(c => !c[1])) { this.phase = "failed"; this.failReason = this.checks.find(c => !c[1])[0]; }
-  }
-  runToEnd() { let guard = 0; while ((this.phase === "explore" || this.phase === "return") && guard++ < 20000) this.step(); }
 }
 
 // ================= UI =================
 const $ = id => document.getElementById(id);
+const clock = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const fieldCv = $("field"), floorsEl = $("floors");
-let world, robot, seed = 5, scenario = "ramp", edited = false, timer = null;
+let world, robot, seed = 3, edited = false, timer = null, batchJob = null;
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const prof = () => REALISM[$("realism").value];
 
-function loadField(newSeed) {
-  seed = newSeed; scenario = $("scenario").value; $("seed").value = seed; edited = false;
-  world = generate(SCENARIOS[scenario], seed); resetRun();
-}
-function resetRun() { stop(); robot = new Robot(world); robot.note(`start: floor ${START_FLOOR}, facing N`); render(); }
-function started() { return robot.moves > 0 || robot.ret > 0 || robot.phase !== "explore"; }
+function loadField(newSeed) { seed = newSeed; $("seed").value = seed; edited = false; world = generate(SCENARIOS[$("scenario").value], seed); resetRun(); }
+function resetRun() { stop(); robot = new Robot(world, prof(), seed); robot.note(`start: floor ${START_FLOOR}, facing N`); render(); }
+function started() { return robot.moves > 0 || robot.ret > 0 || !robot.live; }
 function stop() { if (timer) { clearTimeout(timer); timer = null; } $("play").textContent = "Play"; }
 function delay() { const v = +$("speed").value; return Math.round(900 * Math.pow(1 - v / 100, 2)) + 12; }
-function tick() { robot.step(); render(); if (robot.phase === "explore" || robot.phase === "return") timer = setTimeout(tick, delay()); else stop(); }
-function togglePlay() { if (timer) { stop(); return; } if (robot.phase !== "explore" && robot.phase !== "return") return; $("play").textContent = "Pause"; tick(); }
+function tick() { robot.step(); render(); if (robot.live) timer = setTimeout(tick, delay()); else stop(); }
+function togglePlay() { if (timer) { stop(); return; } if (!robot.live) return; $("play").textContent = "Pause"; tick(); }
 
 function setupCanvas(cv, cssW, cssH) {
   const dpr = window.devicePixelRatio || 1; cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
   cv.style.height = cssH + "px"; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); return g;
 }
-
-// draws a W x H board; cell(x,y) -> {fill, mark}; walls(x,y,d) -> null | color
 function drawBoard(cv, W, H, maxPx, cell, walls, extras) {
   const avail = cv.parentElement.clientWidth || 600, pad = 6;
   const cs = Math.max(8, Math.floor(Math.min((avail - pad * 2) / W, (maxPx - pad * 2) / H)));
@@ -467,7 +588,7 @@ function drawBoard(cv, W, H, maxPx, cell, walls, extras) {
   g.stroke();
   g.lineCap = "square"; g.lineWidth = Math.max(2, cs * 0.09);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) for (const d of [0, 1, 2, 3]) {
-    if ((d === 2 && y > 0) || (d === 3 && x > 0)) continue;   // shared edges drawn once (N and E of each tile)
+    if ((d === 2 && y > 0) || (d === 3 && x > 0)) continue;
     const col = walls(x, y, d); if (!col) continue;
     g.strokeStyle = col; g.beginPath();
     const x0 = px(x), y0 = py(y), x1 = x0 + cs, y1 = y0 + cs;
@@ -476,42 +597,44 @@ function drawBoard(cv, W, H, maxPx, cell, walls, extras) {
     g.stroke();
   }
   if (extras) extras(g, cs, px, py);
-  return { cs, px, py, ox, pad };
+  return { cs, px, py };
 }
 function drawArrow(g, cx, cy, r, d, color) {
-  const a = d * Math.PI / 2; g.save(); g.translate(cx, cy); g.rotate(a); // chevron is drawn pointing N; rotate to d
+  g.save(); g.translate(cx, cy); g.rotate(d * Math.PI / 2); // chevron drawn pointing N, rotated to d
   g.strokeStyle = color; g.lineWidth = Math.max(1.5, r * 0.28); g.lineJoin = "round"; g.beginPath();
   g.moveTo(-r * 0.6, r * 0.35); g.lineTo(0, -r * 0.45); g.lineTo(r * 0.6, r * 0.35); g.stroke(); g.restore();
 }
-function drawRobot(g, cx, cy, cs, dir) {
-  const r = cs * 0.3, a = [-Math.PI / 2, 0, Math.PI / 2, Math.PI][dir];
-  g.save(); g.translate(cx, cy); g.rotate(a); g.fillStyle = css("--robot");
-  g.beginPath(); g.roundRect ? g.roundRect(-r, -r, r * 2, r * 2, r * 0.35) : g.rect(-r, -r, r * 2, r * 2); g.fill();
+function drawRobot(g, cx, cy, cs, dir, ghost) {
+  const r = cs * 0.3; g.save(); g.translate(cx, cy); g.rotate(dir * Math.PI / 2 - Math.PI / 2);
+  if (ghost) { g.setLineDash([3, 2]); g.strokeStyle = css("--bad"); g.lineWidth = 2; g.strokeRect(-r, -r, r * 2, r * 2); g.restore(); return; }
+  g.fillStyle = css("--robot"); g.beginPath(); g.roundRect ? g.roundRect(-r, -r, r * 2, r * 2, r * 0.35) : g.rect(-r, -r, r * 2, r * 2); g.fill();
   g.fillStyle = css("--panel"); g.beginPath(); g.moveTo(r * 0.75, 0); g.lineTo(-r * 0.2, -r * 0.5); g.lineTo(-r * 0.2, r * 0.5); g.closePath(); g.fill();
   g.restore();
 }
-function rampUpDir(x, y) { // world ramp tile: direction toward the upper level
+function rampUpDir(x, y) {
   for (const d of [1, 3, 0, 2]) { let cx = x, cy = y; while (world.typeAt(cx, cy) === "ramp") { cx += DX[d]; cy += DY[d]; }
     if (world.in(cx, cy) && world.typeAt(cx, cy) !== "solid" && world.level[world.id(cx, cy)] === 1) return d; }
   return 1;
 }
+const decode = i => [(i / (MAP * MAP)) | 0, ((i / MAP) | 0) % MAP, i % MAP];
 let fieldGeom = null;
 function render() {
-  const w = world, wallC = css("--wall"), reachVisited = robot.stand;
+  const w = world, wallC = css("--wall");
   fieldGeom = drawBoard(fieldCv, w.W, w.H, Math.min(620, window.innerHeight * 0.72), (x, y) => {
     const t = w.typeAt(x, y), i = w.id(x, y);
     const c = { fill: t === "black" ? css("--black") : t === "blue" ? css("--blue") : t === "silver" ? css("--silver") : t === "ramp" ? css("--ramp") : t === "solid" ? css("--solid") : (w.level[i] ? css("--tile-up") : css("--tile")) };
     if (t === "silver") c.sheen = true;
     if (t === "ramp") { c.arrow = rampUpDir(x, y); c.arrowColor = wallC; }
     if (x === w.sx && y === w.sy) { c.text = "S"; c.textColor = css("--muted"); }
-    else if (reachVisited[i] >= 0 && t !== "black") c.dot = css("--muted");
+    else if (robot.visited[i] && t !== "black") c.dot = css("--muted");
     return c;
   }, (x, y, d) => w.hasWall(x, y, d) ? wallC : null, (g, cs, px, py) => {
     if (robot.trail.length > 1) { g.strokeStyle = css("--robot"); g.globalAlpha = 0.28; g.lineWidth = Math.max(2, cs * 0.12); g.lineJoin = "round"; g.beginPath();
       robot.trail.forEach(([x, y], k) => { const X = px(x) + cs / 2, Y = py(y) + cs / 2; k ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke(); g.globalAlpha = 1; }
-    if (robot.target) { const tx = robot.target[1] - HOME + w.sx, ty = robot.target[2] - HOME + w.sy;
+    if (robot.target !== null && robot.live) { const [, mx, my] = decode(robot.target), tx = mx - HOME + w.sx, ty = my - HOME + w.sy;
       if (w.in(tx, ty)) { g.setLineDash([4, 3]); g.strokeStyle = css("--robot"); g.lineWidth = 2; g.strokeRect(px(tx) + 3, py(ty) + 3, cs - 6, cs - 6); g.setLineDash([]); } }
     drawRobot(g, px(robot.rx) + cs / 2, py(robot.ry) + cs / 2, cs, robot.dir);
+    if (robot.lostNow) { const gx = robot.x - HOME + w.sx, gy = robot.y - HOME + w.sy; if (w.in(gx, gy)) drawRobot(g, px(gx) + cs / 2, py(gy) + cs / 2, cs, robot.dir, true); }
   });
   renderFloors(); renderStatus();
 }
@@ -520,43 +643,51 @@ function renderFloors() {
   for (let f = 0; f < NF; f++) { let any = f === robot.z;
     for (let y = 0; y < w.H && !any; y++) for (let x = 0; x < w.W && !any; x++) { const t = robot.T(f, x - w.sx + HOME, y - w.sy + HOME); if (t.vis || t.type === "black") any = true; }
     if (any) used.push(f); }
-  floorsEl.innerHTML = used.map(f => `<div class="floor"><h3>Floor ${f}${f === START_FLOOR ? " · start level" : ""}${f === robot.z ? " · robot is here" : ""}</h3><canvas id="fl${f}" aria-label="Robot's map of floor ${f}"></canvas></div>`).join("");
+  floorsEl.innerHTML = used.map(f => `<div class="floor"><h3>Floor ${f}${f === START_FLOOR ? " · start level" : ""}${f === robot.z ? " · robot thinks it is here" : ""}</h3><canvas id="fl${f}" aria-label="Robot's map of floor ${f}"></canvas></div>`).join("");
   for (const f of used) {
-    const cv = $("fl" + f), mt = (x, y) => robot.T(f, x - w.sx + HOME, y - w.sy + HOME);
-    drawBoard(cv, w.W, w.H, 260, (x, y) => {
+    const mt = (x, y) => robot.T(f, x - w.sx + HOME, y - w.sy + HOME);
+    const wrong = (x, y, d) => { const t = mt(x, y); return t.vis && robot.expectedFloor(x, y) === f && w.typeAt(x, y) !== "solid" && t.wall[d] !== w.hasWall(x, y, d); };
+    drawBoard($("fl" + f), w.W, w.H, 260, (x, y) => {
       const t = mt(x, y), c = { fill: t.vis ? css("--tile") : css("--unknown") };
       if (t.type === "black") c.fill = css("--black"); else if (t.type === "blue") c.fill = css("--blue"); else if (t.type === "checkpoint") { c.fill = css("--silver"); c.sheen = true; }
-      if (t.elev || t.desc) { c.arrow = t.up; c.arrowColor = css("--wall"); } // always points uphill, like the field
+      if (t.elev || t.desc) { c.arrow = t.up; c.arrowColor = css("--wall"); }
       if (f === START_FLOOR && x === w.sx && y === w.sy) { c.text = "S"; c.textColor = css("--muted"); }
       return c;
     }, (x, y, d) => {
       const t = mt(x, y), nx = x + DX[d], ny = y + DY[d], n = w.in(nx, ny) ? mt(nx, ny) : null;
       const known = (t.vis && t.wall[d]) || (n && n.vis && n.wall[opp(d)]);
-      if (!known) return null;
-      const ownerWrong = (t.vis && robot.stand[w.id(x, y)] === f && t.wall[d] !== w.hasWall(x, y, d)) ||
-                         (n && n.vis && robot.stand[w.id(nx, ny)] === f && n.wall[opp(d)] !== w.hasWall(nx, ny, opp(d)));
-      return ownerWrong ? css("--bad") : css("--wall");
+      const bad = wrong(x, y, d) || (n && wrong(nx, ny, opp(d)));
+      if (bad) return css("--bad");
+      return known ? css("--wall") : null;
     }, (g, cs, px, py) => {
-      if (robot.target && robot.target[0] === f) { const tx = robot.target[1] - HOME + w.sx, ty = robot.target[2] - HOME + w.sy;
-        if (w.in(tx, ty)) { g.setLineDash([3, 3]); g.strokeStyle = css("--robot"); g.lineWidth = 2; g.strokeRect(px(tx) + 2, py(ty) + 2, cs - 4, cs - 4); g.setLineDash([]); } }
-      if (robot.z === f) drawRobot(g, px(robot.x - HOME + w.sx) + cs / 2, py(robot.y - HOME + w.sy) + cs / 2, cs, robot.dir);
+      if (robot.z === f) { const gx = robot.x - HOME + w.sx, gy = robot.y - HOME + w.sy; if (w.in(gx, gy)) drawRobot(g, px(gx) + cs / 2, py(gy) + cs / 2, cs, robot.dir); }
     });
   }
 }
 function renderStatus() {
   const ph = robot.phase, pill = $("phase");
-  pill.textContent = { explore: "exploring", return: "returning home", done: "finished", failed: "failed" }[ph];
-  pill.className = "pill " + (ph === "done" ? "ok" : ph === "failed" ? "bad" : "run");
+  pill.textContent = robot.lostNow && robot.live ? "lost" : { explore: "exploring", return: "returning home", done: "finished", failed: "run over" }[ph];
+  pill.className = "pill " + (ph === "done" ? "ok" : ph === "failed" || robot.lostNow ? "bad" : "run");
   $("seedlabel").textContent = `seed ${seed}${edited ? " · edited" : ""}`;
-  $("s-moves").textContent = robot.moves; $("s-ret").textContent = robot.ret;
-  $("s-vis").textContent = robot.stand.filter(v => v >= 0).length; $("s-black").textContent = robot.blackStops;
-  $("s-ramp").textContent = robot.ramps; $("s-floor").textContent = `${robot.z} · ${DNAME[robot.dir]}`;
-  const checks = robot.checks || [["Checks run when the robot finishes", null]];
+  const reach = world.reach(); let tot = 0, cov = 0; for (let i = 0; i < reach.length; i++) if (reach[i] && world.type[i] !== "ramp") { tot++; if (robot.visited[i]) cov++; }
+  $("s-time").textContent = clock(robot.time); $("s-moves").textContent = robot.moves; $("s-ret").textContent = robot.ret;
+  $("s-cov").textContent = Math.round(100 * cov / Math.max(1, tot)) + "%"; $("s-short").textContent = robot.shorts; $("s-lop").textContent = robot.lops;
+  $("s-black").textContent = robot.blackStops; $("s-ramp").textContent = robot.ramps; $("s-floor").textContent = `${robot.z} · ${DNAME[robot.dir]}`;
+  const r = robot.result;
+  const checks = !r ? [["Results appear when the run ends", null]] : [
+    [`Back on the start tile before 8:00 (${clock(r.time)})`, r.home],
+    [r.timeReturn && !r.fullCov ? `Returned early for time, explored ${pct(r.coverage)} of the field` : `Explored ${pct(r.coverage)} of the reachable field`, r.fullCov || r.timeReturn],
+    [`Map walls correct on ${pct(r.mapAcc)} of visited tiles`, r.mapAcc === 1],
+    [r.lost ? (r.lostAtEnd ? "Got lost and never recovered" : "Got lost, then recovered") : "Never lost track of its position", !r.lost],
+    [`${r.lops} lack-of-progress restart${r.lops === 1 ? "" : "s"}`, r.lops === 0],
+  ];
+  if (r && !r.home && r.reason) checks.unshift([r.reason, false]);
   $("checks").innerHTML = checks.map(([t, ok]) => `<li><span class="mark ${ok === null ? "wait" : ok ? "ok" : "bad"}">${ok === null ? "·" : ok ? "✓" : "✗"}</span><span>${t}</span></li>`).join("");
-  $("log").innerHTML = robot.events.slice(0, 14).map(e => `<li>${e}</li>`).join("");
-  const live = ph === "explore" || ph === "return";
-  for (const id of ["play", "step", "finish"]) $(id).disabled = !live;
+  $("log").innerHTML = robot.events.slice(0, 18).map(e => `<li>${e}</li>`).join("");
+  for (const id of ["play", "step", "finish"]) $(id).disabled = !robot.live;
   $("edit-hint").hidden = started();
+  $("profile").textContent = profileText(prof());
+  $("batch-cfg").textContent = `${$("scenario").selectedOptions[0].text} · ${$("realism").value}`;
 }
 
 // ---- editing (before the run starts) ----
@@ -575,41 +706,76 @@ fieldCv.addEventListener("click", ev => {
     world.setWall(x, y, d, !world.hasWall(x, y, d));
   } else {
     if (x === world.sx && y === world.sy) return;
-    const cycle = ["floor", "black", "blue", "silver"]; world.type[world.id(x, y)] = cycle[(cycle.indexOf(t) + 1) % cycle.length];
+    const cycle = ["floor", "black", "blue", "silver"], i = world.id(x, y);
+    world.type[i] = cycle[(cycle.indexOf(t) + 1) % cycle.length];
+    if (world.type[i] === "black" && !world.allReachable()) { world.type[i] = "blue"; robot.note("that black tile would box in part of the field, skipped to blue"); }
   }
   edited = true; resetRun();
 });
 
-// ---- batch ----
-function batch() {
-  const sc = SCENARIOS[$("scenario").value], name = $("scenario").value, out = $("batch-out"), fails = [];
-  let pass = 0, moves = 0, crossed = 0;
-  for (let s = 1; s <= 200; s++) {
-    const r = new Robot(generate(sc, s)); r.runToEnd();
-    if (r.phase === "done") { pass++; moves += r.moves + r.ret; } else fails.push([s, r.failReason]);
-    if (r.ramps) crossed++;
-  }
-  out.innerHTML = `<div class="row"><span class="pill ${fails.length ? "bad" : "ok"}">${pass}/200 passed</span><span>avg ${(moves / Math.max(1, pass)).toFixed(1)} moves</span>${sc.ramp ? `<span>ramp crossed in ${crossed}</span>` : ""}</div>` +
-    (fails.length ? fails.slice(0, 6).map(([s, r]) => `<div class="row"><button class="linkbtn" type="button" data-seed="${s}">seed ${s}</button><span>${r}</span></div>`).join("") : `<span class="hint" style="margin:0">Every ${name} field passed all six checks.</span>`);
+// ---- batch (chunked so the page stays responsive) ----
+function startBatch(n) {
+  if (batchJob) return;
+  const scName = $("scenario").value, sc = SCENARIOS[scName], realism = $("realism").value, p = REALISM[realism];
+  const job = batchJob = { n, s: 1, agg: { pass: 0, home: 0, full: 0, timeRet: 0, cov: 0, acc: 0, lost: 0, lostEnd: 0, lops: 0, time: 0, crossed: 0 }, reasons: new Map(), fails: [] };
+  $("bar").hidden = false; $("batchstop").hidden = false; $("batch200").disabled = $("batch2000").disabled = true;
+  const out = $("batch-out");
+  const chunk = () => {
+    if (batchJob !== job) return;
+    const t0 = performance.now();
+    while (job.s <= n && performance.now() - t0 < 40) {
+      const s = job.s++, r = new Robot(generate(sc, s), p, s); r.runToEnd(); const res = r.result, a = job.agg;
+      a.pass += res.pass; a.home += res.home; a.full += res.fullCov; a.timeRet += res.timeReturn; a.cov += res.coverage; a.acc += res.mapAcc;
+      a.lost += res.lost; a.lostEnd += res.lostAtEnd; a.lops += res.lops; a.time += res.time; a.crossed += res.ramps > 0;
+      if (!res.pass) { job.reasons.set(res.reason, (job.reasons.get(res.reason) || 0) + 1); if (job.fails.length < 8) job.fails.push([s, res.reason]); }
+    }
+    const done = job.s - 1; $("bar-fill").style.width = (100 * done / n) + "%";
+    out.innerHTML = summary(job, done, sc, scName, realism);
+    if (job.s <= n) setTimeout(chunk, 0); else finishBatch();
+  };
+  chunk();
+}
+function finishBatch() { batchJob = null; $("bar").hidden = true; $("batchstop").hidden = true; $("batch200").disabled = $("batch2000").disabled = false; }
+function summary(job, done, sc, scName, realism) {
+  const a = job.agg, k = Math.max(1, done), rowsHtml = [
+    ["Passed (home in time, nothing missed)", pct(a.pass / k)],
+    ["Back on the start tile before 8:00", pct(a.home / k)],
+    ["Explored the whole field", pct(a.full / k)],
+    ["Headed home early because of the clock", pct(a.timeRet / k)],
+    ["Average coverage", pct(a.cov / k)],
+    ["Average map wall accuracy", pct(a.acc / k)],
+    ["Got lost at some point / still lost at the end", `${pct(a.lost / k)} / ${pct(a.lostEnd / k)}`],
+    ["Lack-of-progress restarts per run", (a.lops / k).toFixed(2)],
+    ["Average run time", clock(a.time / k)],
+  ];
+  if (sc.ramps) rowsHtml.push(["Runs that crossed a ramp", pct(a.crossed / k)]);
+  const reasons = [...job.reasons.entries()].sort((x, y) => y[1] - x[1]).slice(0, 5);
+  return `<div class="row"><span class="pill ${a.pass === done ? "ok" : "bad"}">${a.pass}/${done} passed</span><span>${done < job.n ? `running… ${done}/${job.n}` : `${done} fields · ${realism}`}</span></div>` +
+    `<table class="metrics"><tbody>${rowsHtml.map(([l, v]) => `<tr><td>${l}</td><td>${v}</td></tr>`).join("")}</tbody></table>` +
+    (reasons.length ? `<div class="reasons"><b style="font-weight:500">Most common failures</b>${reasons.map(([r, c]) => `<div class="row"><span>${c}×</span><span>${r}</span></div>`).join("")}</div>` : "") +
+    (job.fails.length ? `<div class="reasons"><b style="font-weight:500">Replay a failure</b><div class="row">${job.fails.map(([s]) => `<button class="linkbtn" type="button" data-seed="${s}">seed ${s}</button>`).join("")}</div></div>` : "");
 }
 $("batch-out").addEventListener("click", e => { const b = e.target.closest("[data-seed]"); if (b) loadField(+b.dataset.seed); });
+$("batch200").onclick = () => startBatch(200);
+$("batch2000").onclick = () => startBatch(2000);
+$("batchstop").onclick = () => { if (batchJob) { batchJob = null; finishBatch(); } };
 
 $("load").onclick = () => loadField(Math.max(1, Math.floor(+$("seed").value) || 1));
 $("random").onclick = () => loadField(1 + Math.floor(Math.random() * 99999));
 $("scenario").onchange = () => loadField(seed);
+$("realism").onchange = () => { if (edited) resetRun(); else loadField(seed); };
 $("play").onclick = togglePlay;
 $("step").onclick = () => { stop(); robot.step(); render(); };
 $("finish").onclick = () => { stop(); robot.runToEnd(); render(); };
 $("reset").onclick = resetRun;
-$("batch").onclick = () => { $("batch-out").textContent = "Running…"; setTimeout(batch, 20); };
 document.addEventListener("keydown", e => {
   if (e.target.closest("input, select, textarea")) return;
-  if (e.code === "Space") { e.preventDefault(); togglePlay(); } else if (e.code === "ArrowRight") { stop(); if (robot.phase === "explore" || robot.phase === "return") { robot.step(); render(); } }
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); } else if (e.code === "ArrowRight") { stop(); if (robot.live) { robot.step(); render(); } }
 });
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 80); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", render);
 new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-loadField(5);
+loadField(3);
 </script>
 </body>
 </html>

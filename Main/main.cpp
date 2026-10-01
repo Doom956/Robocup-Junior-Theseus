@@ -300,12 +300,25 @@ const double RETURN_SEC_PER_TILE = 5.0;
 const double RETURN_MARGIN_S = 30.0;
 const std::pair<int, std::pair<int,int>> HOME = {START_FLOOR, {MAP_SIZE/2, MAP_SIZE/2}};
 
+// The route RETURN drives: avoid blue tiles, then allow them, then allow recorded obstacles.
+std::deque<std::pair<int, std::pair<int,int>>> homePath(){
+  syncActiveFloor();
+  std::pair<int, std::pair<int, int>> currentpos = {currentFloor, {x_pos, y_pos}};
+  std::deque<std::pair<int, std::pair<int,int>>> path = BFS(currentpos, m1, m2, m3, HOME, false, false);
+  if(path.empty()) path = BFS(currentpos, m1, m2, m3, HOME, true, false); // allow blue
+  if(path.empty()) path = BFS(currentpos, m1, m2, m3, HOME, true, true);  // allow recorded obstacles
+  return path;
+}
+
 bool timeToReturn(){
   double elapsedS = mazeTime.getTime() / 1000000.0;
-  syncActiveFloor();
-  std::deque<std::pair<int, std::pair<int,int>>> path = BFS({currentFloor, {x_pos, y_pos}}, m1, m2, m3, HOME, true, true);
+  // estimate the same route RETURN will take (it detours around blue tiles), plus
+  // the 5 s stop on every blue tile it can't avoid
+  std::deque<std::pair<int, std::pair<int,int>>> path = homePath();
   int tiles = path.empty() ? 0 : (int)path.size() - 1;
-  return elapsedS + tiles * RETURN_SEC_PER_TILE + RETURN_MARGIN_S >= RUN_TIME_S;
+  int blueTiles = 0;
+  for(const auto &p : path) if(floorGrid(p.first)[p.second.first][p.second.second].getType() == BLUE) blueTiles++;
+  return elapsedS + tiles * RETURN_SEC_PER_TILE + blueTiles * 5.0 + RETURN_MARGIN_S >= RUN_TIME_S;
 }
 
 // Record an obstacle on the edge between (x,y) and its neighbour in direction d
@@ -661,11 +674,7 @@ void loop(){
           }
         }
       }
-      syncActiveFloor();
-      std::pair<int, std::pair<int, int>> currentpos = {currentFloor, {x_pos, y_pos}};
-      std::deque<std::pair<int, std::pair<int,int>>> path = BFS(currentpos, m1, m2, m3, HOME, false, false);
-      if(path.empty()) path = BFS(currentpos, m1, m2, m3, HOME, true, false); // allow blue
-      if(path.empty()) path = BFS(currentpos, m1, m2, m3, HOME, true, true);  // allow recorded obstacles
+      std::deque<std::pair<int, std::pair<int,int>>> path = homePath();
       if(path.size() < 2){
         lcdPrint("no path found");
         while(true) drivetrain.fullstop();

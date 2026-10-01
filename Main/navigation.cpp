@@ -122,10 +122,13 @@ void writeWallsToCurrentTile(bool wallF, bool wallR, bool wallB, bool wallL) {
   Direction absR = rotateDir(currentDir, +1);
   Direction absB = rotateDir(currentDir, +2);
   Direction absL = rotateDir(currentDir, -1);
-  t.setWall(absF, wallF);
-  t.setWall(absR, wallR);
-  t.setWall(absB, wallB);
-  t.setWall(absL, wallL);
+  // An edge the robot has already driven through can't be a wall, so a reading
+  // that says it is is a misread (usually the wall behind the robot right after it
+  // arrived). Storing it could cut off the only route home in BFS().
+  t.setWall(absF, wallF && !t.getEdge(absF));
+  t.setWall(absR, wallR && !t.getEdge(absR));
+  t.setWall(absB, wallB && !t.getEdge(absB));
+  t.setWall(absL, wallL && !t.getEdge(absL));
   // need to mark both ways.
 }
 // FIXME: this still needs to be fixed - the re-sense / position-mismatch logic
