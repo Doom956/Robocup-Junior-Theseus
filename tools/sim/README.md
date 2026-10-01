@@ -75,7 +75,15 @@ the `T` object in `maze_sim.html` to match your robot): forward 2.5 s, 90° turn
 2 s, wall reading 0.8 s, blue tile 5 s, ramp 3 s per tile, failed move 3.5 s, restart 10 s.
 `timeToReturn()` decides when to head home, exactly as on the robot.
 
-With `perfect`, every run must pass: any failure is a bug in the navigation logic.
+With `perfect`, every field is run twice and both must pass, or there is a bug in the navigation
+logic:
+
+1. **no clock**: it must explore every reachable tile, store every wall exactly, and get home
+   (with the clock on, an early trip home would hide a planner that skips parts of the field)
+2. **8-minute clock**: it must get home in time, which checks `timeToReturn()`
+
+The test catches deliberate bugs: a planner that can't see far enough fails 2091 of 5000
+fields, the old ramp bug fails every ramp field, and the old return-time estimate fails 3.
 With faults on, failures are expected; use the numbers to compare code changes:
 
 | Number | Meaning |

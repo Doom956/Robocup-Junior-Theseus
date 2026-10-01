@@ -329,7 +329,8 @@ const seenBuf = new Int32Array(NN), qBuf = new Int32Array(NN), firstBuf = new Ui
 let stamp = 0;
 
 class Robot {
-  constructor(world, prof, seed) {
+  constructor(world, prof, seed, untimed = false) {
+    this.runTime = untimed ? 1e9 : RUN_TIME_S; // the perfect-robot batch also runs each field with no clock
     this.w = world; this.p = prof; this.rng = mulberry32((seed * 7919) ^ 0x5bd1e995);
     this.perfect = !prof.wallMiss && !prof.wallGhost && !prof.stall && !prof.slip && !prof.rampErr && !prof.blackMiss;
     this.tiles = new Array(NN); for (let i = 0; i < NN; i++) this.tiles[i] = newTile();
@@ -437,9 +438,9 @@ class Robot {
   }
   homePath() { let p = this.bfsHome(false, false); if (!p.length) p = this.bfsHome(true, false); if (!p.length) p = this.bfsHome(true, true); return p; }
   timeToReturn() { // same route as RETURN, plus 5 s per blue tile on it
-    if (this.time + this.discCount * (RETURN_SEC_PER_TILE + 5) + RETURN_MARGIN_S < RUN_TIME_S) return false; // path can't be longer than the known tiles
+    if (this.time + this.discCount * (RETURN_SEC_PER_TILE + 5) + RETURN_MARGIN_S < this.runTime) return false; // path can't be longer than the known tiles
     const path = this.homePath(), tiles = path.length ? path.length - 1 : 0, blue = path.filter(i => this.tiles[i].type === "blue").length;
-    return this.time + tiles * RETURN_SEC_PER_TILE + blue * 5 + RETURN_MARGIN_S >= RUN_TIME_S;
+    return this.time + tiles * RETURN_SEC_PER_TILE + blue * 5 + RETURN_MARGIN_S >= this.runTime;
   }
   lackOfProgress(why) { // referee restart -> PAUSE state: restore checkpoint tile/floor, face gyro zero (N)
     this.lops++; this.time += T.lop; this.note(`lack of progress (${why}): restarted at the last checkpoint`);
@@ -507,7 +508,7 @@ class Robot {
   }
   step() {
     if (!this.live) return;
-    if (this.time >= RUN_TIME_S) { this.end(this.returning ? "8:00 ran out on the way home" : "8:00 ran out while exploring"); return; }
+    if (this.time >= this.runTime) { this.end(this.returning ? "8:00 ran out on the way home" : "8:00 ran out while exploring"); return; }
     if (this.phase === "explore") {
       if (this.timeToReturn()) { this.phase = "return"; this.returning = true; this.timeReturn = true; this.target = null; this.note("time to head home"); return; }
       const p = this.planExploreDir();
@@ -541,7 +542,7 @@ class Robot {
       if (f < 0 || f >= NF) continue; const t = this.T(f, x - w.sx + HOME, y - w.sy + HOME);
       for (let d = 0; d < 4; d++) { wallsAll++; if (t.vis && t.wall[d] === w.hasWall(x, y, d)) wallsOk++; }
     }
-    const home = this.phase === "done" && this.time <= RUN_TIME_S, fullCov = covered === total;
+    const home = this.phase === "done" && this.time <= this.runTime, fullCov = covered === total;
     const r = { home, fullCov, coverage: total ? covered / total : 1, mapAcc: wallsAll ? wallsOk / wallsAll : 1, timeReturn: this.timeReturn,
       lost: this.lostAt >= 0, lostAtEnd: this.lostNow, lops: this.lops, time: this.time, ramps: this.ramps, reason: this.failReason };
     r.pass = home && (fullCov || this.timeReturn) && (!this.perfect || (r.mapAcc === 1 && !r.lost && !this.flags.wall && !this.flags.mismatch));
@@ -727,7 +728,11 @@ function startBatch(n) {
     if (batchJob !== job) return;
     const t0 = performance.now();
     while (job.s <= n && performance.now() - t0 < 40) {
-      const s = job.first + job.s++ - 1, r = new Robot(generate(sc, s), p, s); r.runToEnd(); const res = r.result, a = job.agg;
+      const s = job.first + job.s++ - 1, field = generate(sc, s), r = new Robot(field, p, s); r.runToEnd(); const res = r.result, a = job.agg;
+      if (realism === "perfect") { // logic test: with no clock it must explore everything, map it exactly and get home
+        const u = new Robot(generate(sc, s), p, s, true); u.runToEnd();
+        if (!u.result.pass) { res.pass = false; res.reason = "(no clock) " + u.result.reason; }
+      }
       a.pass += res.pass; a.home += res.home; a.full += res.fullCov; a.timeRet += res.timeReturn; a.cov += res.coverage; a.acc += res.mapAcc;
       a.lost += res.lost; a.lostEnd += res.lostAtEnd; a.lops += res.lops; a.time += res.time; a.crossed += res.ramps > 0;
       if (!res.pass) { job.reasons.set(res.reason, (job.reasons.get(res.reason) || 0) + 1); if (job.fails.length < 8) job.fails.push([s, res.reason]); }

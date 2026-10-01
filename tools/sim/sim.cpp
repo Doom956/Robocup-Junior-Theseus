@@ -65,6 +65,7 @@ static const Realism REALISM[] = {
 };
 // main.cpp constants
 static const double RUN_TIME_S = 480.0, RETURN_SEC_PER_TILE = 5.0, RETURN_MARGIN_S = 30.0;
+static double runTimeS = RUN_TIME_S; // the perfect-robot logic test also runs each field with no clock
 // seconds per action (simple model; tune to your robot)
 static const double T_FWD = 2.5, T_TURN90 = 1.2, T_TURN180 = 2.0, T_SENSE = 0.8, T_BLUE = 5.0,
                     T_RAMP_TILE = 3.0, T_SHORT = 3.5, T_BLACK = 3.0, T_LOP = 10.0;
@@ -266,7 +267,7 @@ static bool timeToReturn() {
   auto path = homePath();
   int tiles = path.empty() ? 0 : (int)path.size() - 1, blueTiles = 0;
   for (const auto &p : path) if (floorGrid(p.first)[p.second.first][p.second.second].getType() == BLUE) blueTiles++;
-  return simTime + tiles * RETURN_SEC_PER_TILE + blueTiles * 5.0 + RETURN_MARGIN_S >= RUN_TIME_S;
+  return simTime + tiles * RETURN_SEC_PER_TILE + blueTiles * 5.0 + RETURN_MARGIN_S >= runTimeS;
 }
 
 static std::vector<bool> visitedReal; // tiles the robot really sensed from
@@ -415,7 +416,7 @@ static RunResult runMaze() {
   senseTile();
   bool returning = false;
   while (!r.failed && !returning) {
-    if (simTime >= RUN_TIME_S) { fail("8:00 ran out while exploring"); break; }
+    if (simTime >= runTimeS) { fail("8:00 ran out while exploring"); break; }
     if (timeToReturn()) { r.timeReturn = true; break; }
     Direction next;
     if (!planExploreDir(next)) break; // maze explored -> RETURN
@@ -433,7 +434,7 @@ static RunResult runMaze() {
       else fail("thinks it is home but is not");
       break;
     }
-    if (simTime >= RUN_TIME_S) { fail("8:00 ran out on the way home"); break; }
+    if (simTime >= runTimeS) { fail("8:00 ran out on the way home"); break; }
     auto path = homePath();
     if (path.size() < 2) { fail("no path home in its map"); break; }
     int dx = path[1].second.first - path[0].second.first;
@@ -466,7 +467,7 @@ static RunResult runMaze() {
   r.coverage = total ? (double)covered / total : 1;
   r.mapAcc = wallsAll ? (double)wallsOk / wallsAll : 1;
   r.fullCov = covered == total;
-  r.home = r.done && simTime <= RUN_TIME_S;
+  r.home = r.done && simTime <= runTimeS;
   r.pass = r.home && (r.fullCov || r.timeReturn);
   if (perfectRobot) r.pass = r.pass && r.mapAcc == 1 && !r.lost && !flagWallPlanned && !flagMismatch;
   if (!r.pass && r.reason.empty()) {
@@ -569,6 +570,7 @@ int main(int argc, char **argv) {
   int totalFail = 0;
   for (const Scenario &sc : SCENARIOS) {
     if (only != "all" && only != sc.name) continue;
+    int untimedPass = 0;
     int n = seed >= 0 ? 1 : runs, pass = 0, home = 0, full = 0, timeRet = 0, lost = 0, lostEnd = 0, crossed = 0, lops = 0, firstFailSeed = -1;
     double cov = 0, acc = 0;
     std::map<std::string, int> reasons;
@@ -577,7 +579,20 @@ int main(int argc, char **argv) {
       std::mt19937 rng((unsigned)s * 2654435761u + (unsigned)(&sc - SCENARIOS));
       noise.seed((unsigned)s * 7919u + 12345u);
       world = generate(sc, rng);
-      RunResult r = runMaze();
+      RunResult r;
+      if (perfectRobot) {
+        // 1) no clock: must explore the whole field, map it exactly and get home.
+        //    (With the clock on, an early trip home hides planner bugs that skip tiles.)
+        runTimeS = 1e9;
+        RunResult u = runMaze();
+        runTimeS = RUN_TIME_S;
+        untimedPass += u.pass;
+        // 2) same field with the 8-minute clock: must get home in time
+        r = runMaze();
+        if (!u.pass) { r.pass = false; r.reason = "(no clock) " + u.reason; }
+        else if (!r.pass) r.reason = "(8-min clock) " + r.reason;
+      }
+      else r = runMaze();
       pass += r.pass; home += r.home; full += r.fullCov; timeRet += r.timeReturn; lost += r.lost; lostEnd += r.lostAtEnd;
       crossed += r.rampCrossings > 0; lops += r.lops; cov += r.coverage; acc += r.mapAcc;
       if (!r.pass) { reasons[r.reason]++; if (firstFailSeed < 0) firstFailSeed = (int)s; }
@@ -596,6 +611,7 @@ int main(int argc, char **argv) {
                   sc.name, pass, n, pct((double)pass / n).c_str(), pct((double)home / n).c_str(), pct((double)full / n).c_str(),
                   pct(cov / n).c_str(), pct(acc / n).c_str(), pct((double)lost / n).c_str(), pct((double)lostEnd / n).c_str(), (double)lops / n);
       if (sc.ramps) std::printf("   ramp crossed in %d", crossed);
+      if (perfectRobot) std::printf("\n           no clock: explored everything with an exact map and got home in %d/%d", untimedPass, n);
       std::printf("\n");
       if (!reasons.empty()) {
         std::vector<std::pair<int, std::string>> sorted;
