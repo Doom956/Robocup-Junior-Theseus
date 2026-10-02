@@ -27,16 +27,27 @@
 // Assumptions (tune these to the real robot; see README)
 // =====================================================================================
 struct Params {
-  double motorMaxSpeed = 250;     // wheel surface speed at full PWM, mm/s
-  double motorDeadband = 0.10;    // PWM fraction below which a motor doesn't turn
-  double motorTau = 0.08;         // motor speed time constant, s
-  double motorGainSigma = 0.04;   // per-motor speed difference (fraction)
+  // Motors: Pololu 195.3125:1 Metal Gearmotor 20Dx44L mm 12V (#3493) on a Carobot V3 shield
+  // (TB6612FNG + PCA9685, like the Adafruit Motor Shield V2), powered by a 3S LiPo.
+  double batteryVoltage = 11.8;   // 3S LiPo: 12.6 V full, 11.1 V nominal (assumed part-charged)
+  double noLoadRpmAt12V = 72;     // datasheet
+  double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
+  double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
+  double stictionFactor = 1.3;    // extra friction to start from standstill
+  double robotMassKg = 1.3;       // ASSUMED - weigh the robot
+  double wheelMu = 0.8;           // ASSUMED - silicone wheels on the field's floor
+  double motorTau = 0.05;         // motor + gearbox speed time constant, s
+  double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
   double skidFactor = 1.3;        // skid steering turns slower than the ideal track predicts
   double tractionMean = 0.97, tractionSigma = 0.02, tractionTau = 0.5; // wheel grip (ground speed / wheel speed)
-  double uphillLoss = 0.8, downhillGain = 0.3; // speed change on ramps, x sin(pitch)
   double wallNudgeMm = 0.3;       // how far a wall can shove a turning robot sideways, mm per ms (0 = it jams)
-  double wheelDiameter = 80, encoderCountsPerRev = 975; // as assumed in the code (5 x 195)
+  double wheelDiameter = 80;
+  double encoderCountsPerRev = 5 * 195.3125; // 20 CPR encoder, code counts rising edges of one channel = 5 per motor turn
+  // Gyro: "magnetic" = the BNO055 reports heading from magnetic north (team notes: "the heading is
+  // always global") instead of from the start direction. Maze-to-north angle, deg; -1 = random per run.
+  double gyroMagnetic = 0, gyroMagneticOffsetDeg = -1, gyroMagneticAfterS = 0; // switch to magnetic after this many s of the run
+  double tofMinReliableMm = 30;   // team notes: "can't handle below 30mm"
   double tofNoiseMm = 1.5, tofNoisePct = 0.015, tofOffsetSigma = 5, tofMaxRange = 1200, tofConeDeg = 25, tofPeriodUs = 33000;
   double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.5, pitchNoiseDeg = 0.5;
   double colourNoise = 0.04;
@@ -52,10 +63,14 @@ static bool setParam(const std::string &kv) {
   std::string k = kv.substr(0, eq);
   double v = std::atof(kv.c_str() + eq + 1);
   std::map<std::string, double *> m = {
-    {"motorMaxSpeed", &P.motorMaxSpeed}, {"motorDeadband", &P.motorDeadband}, {"motorTau", &P.motorTau},
+    {"batteryVoltage", &P.batteryVoltage}, {"noLoadRpmAt12V", &P.noLoadRpmAt12V}, {"stallKgcmAt12V", &P.stallKgcmAt12V},
+    {"frictionFracAt12V", &P.frictionFracAt12V}, {"stictionFactor", &P.stictionFactor}, {"robotMassKg", &P.robotMassKg},
+    {"wheelMu", &P.wheelMu}, {"motorTau", &P.motorTau},
     {"motorGainSigma", &P.motorGainSigma}, {"trackWidth", &P.trackWidth}, {"skidFactor", &P.skidFactor},
-    {"tractionMean", &P.tractionMean}, {"tractionSigma", &P.tractionSigma}, {"uphillLoss", &P.uphillLoss},
-    {"downhillGain", &P.downhillGain}, {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
+    {"tractionMean", &P.tractionMean}, {"tractionSigma", &P.tractionSigma},
+    {"gyroMagnetic", &P.gyroMagnetic}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
+    {"tofMinReliableMm", &P.tofMinReliableMm},
+    {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
     {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
@@ -189,15 +204,30 @@ static bool collides(double x, double y, double head) {
 static void lackOfProgress(const char *why);
 
 static void physicsStep(double dt) {
-  // motors -> wheel surface speeds
-  double slope = std::sin(rad(rpitch));
-  double load = slope > 0 ? std::max(0.3, 1 - P.uphillLoss * slope) : 1 - P.downhillGain * slope;
+  // motors -> wheel surface speeds. DC motor: steady speed = no-load speed x (duty - load torque /
+  // stall torque), all scaled to the battery voltage. Load = gearbox friction (more from standstill)
+  // + sideways wheel drag when turning (skid steering) + gravity on a ramp.
+  double V = P.batteryVoltage;
+  double vNoLoad = P.noLoadRpmAt12V * V / 12.0 / 60.0 * M_PI * P.wheelDiameter; // mm/s at full PWM
+  double stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665;
+  double rM = P.wheelDiameter / 2000.0, wheelLoadN = P.robotMassKg * 9.81 / 4;
+  double friction = P.frictionFracAt12V * 12.0 / V;                                       // fraction of stall torque
+  double skidSpin = P.wheelMu * wheelLoadN * (axleOffset / (P.trackWidth / 2)) * rM / stallNm; // turning on the spot
+  double gravity = wheelLoadN * std::sin(rad(rpitch)) * rM / stallNm;                    // nose up = positive
+  double duty[5] = {0, 0, 0, 0, 0};
+  for (int i = 1; i <= 4; i++) {
+    duty[i] = (mot[i].dir == FORWARD ? 1 : mot[i].dir == BACKWARD ? -1 : 0) * mot[i].pwm / 255.0;
+    if (i == 4) duty[i] = -duty[i]; // D is mounted reversed
+  }
+  double dL = (duty[1] + duty[3]) / 2, dR = (duty[2] + duty[4]) / 2;
+  double turning = std::min(1.0, std::fabs(dL - dR) / std::max(1e-9, std::fabs(dL) + std::fabs(dR))); // 0 straight .. 1 spin
   for (int i = 1; i <= 4; i++) {
     Motor &m = mot[i];
-    double duty = (m.dir == FORWARD ? 1 : m.dir == BACKWARD ? -1 : 0) * m.pwm / 255.0;
-    if (i == 4) duty = -duty; // D is mounted reversed
-    double target = std::fabs(duty) < P.motorDeadband ? 0
-                  : (duty > 0 ? 1 : -1) * (std::fabs(duty) - P.motorDeadband) / (1 - P.motorDeadband) * P.motorMaxSpeed * m.gain * load;
+    double d = duty[i];
+    double resist = friction + skidSpin * turning;
+    if (std::fabs(m.speed) < 1) resist *= P.stictionFactor;
+    double eff = std::fabs(d) - resist - gravity * (d >= 0 ? 1 : -1); // driving uphill costs, downhill helps
+    double target = eff > 0 ? (d > 0 ? 1 : -1) * eff * vNoLoad * m.gain : 0;
     m.speed += (target - m.speed) * (1 - std::exp(-dt / P.motorTau));
     // grip wanders slowly (Ornstein-Uhlenbeck)
     m.traction += (P.tractionMean - m.traction) * dt / P.tractionTau + gauss(P.tractionSigma * std::sqrt(2 * dt / P.tractionTau));
@@ -365,6 +395,8 @@ uint16_t VL53L0X::readRangeContinuousMillimeters() {
   // too little light back (only far or grazing surfaces) = out of range
   if (sumW < sumProfile / (P.tofMaxRange * P.tofMaxRange)) return 8190;
   double dist = sumWD / sumW;
+  // below ~30 mm the VL53L0X can't measure properly (team notes); it reads about its minimum, never less
+  if (dist < P.tofMinReliableMm) dist = P.tofMinReliableMm + std::fabs(gauss(5));
   double d = dist + s.offset + gauss(P.tofNoiseMm + P.tofNoisePct * dist);
   return (uint16_t)std::max(0.0, std::round(d));
 }
@@ -394,9 +426,11 @@ Adafruit_DCMotor *Adafruit_MotorShield::getMotor(uint8_t n) {
 }
 
 bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t) { simAdvance(20000); return true; }
+static double magOffsetDeg = 0; // maze "north" vs magnetic north, for gyroMagnetic
 bool Adafruit_BNO055::getEvent(sensors_event_t *e) {
   simAdvance(900);
-  e->orientation.x = (float)wrap360(rhead + gyroBiasDegPerUs * tUs + gauss(P.gyroNoiseDeg));
+  bool magnetic = P.gyroMagnetic > 0 && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
+  e->orientation.x = (float)wrap360(rhead + gyroBiasDegPerUs * tUs + gauss(P.gyroNoiseDeg) + (magnetic ? magOffsetDeg : 0));
   e->orientation.y = 0;
   e->orientation.z = (float)(rpitch + gauss(P.pitchNoiseDeg));
   return true;
@@ -493,21 +527,33 @@ static int selfTest() {
   double y0 = ry;
   drivetrain.fw(150); delay(2000); drivetrain.fullstop(); delay(500);
   int enc = (drivetrain.encoderCountA + drivetrain.encoderCountB + drivetrain.encoderCountD) / 3;
-  std::printf("  moved %.0f mm, encoders A/B/D %d/%d/%d, %.3f mm per count (code assumes %.3f)\n", ry - y0,
+  std::printf("  moved %.0f mm, encoders A/B/D %d/%d/%d, %.4f mm per count (code assumes %.4f = 5 x 195 counts per wheel turn)\n", ry - y0,
               (int)drivetrain.encoderCountA, (int)drivetrain.encoderCountB, (int)drivetrain.encoderCountD, (ry - y0) / std::max(1, enc),
-              M_PI * P.wheelDiameter / P.encoderCountsPerRev);
+              M_PI * wheel_diameter / (wheel_cpr * gear_ratio));
   for (int pwm : {20, 30, 60, 90, 120, 150}) {
     place(450, 120, 0); drivetrain.fw(pwm); delay(1500); double a = ry; delay(1000); double v = ry - a; drivetrain.fullstop(); delay(500);
     std::printf("  fw(%3d): %5.0f mm/s\n", pwm, v);
   }
-  std::printf("TURN drivetrain.turnright(150) for 1 s from rest, centred in a tile\n");
-  place(450, 450, 0);
-  double h0 = 0, unwrapped = 0, last = rhead;
-  (void)h0;
-  drivetrain.turnright(150);
-  for (int k = 0; k < 100; k++) { delay(10); double d = rhead - last; if (d < -180) d += 360; if (d > 180) d -= 360; unwrapped += d; last = rhead; }
-  drivetrain.fullstop(); delay(500);
-  std::printf("  turned %.0f degrees (right = +)\n", unwrapped);
+  std::printf("TURN drivetrain.turnright(pwm), turn rate after 1 s, centred in a tile\n");
+  for (int pwm : {20, 30, 40, 60, 90, 150}) {
+    place(450, 450, 0);
+    double unwrapped = 0, last = rhead;
+    drivetrain.turnright(pwm);
+    for (int k = 0; k < 200; k++) {
+      delay(10); double d = rhead - last; if (d < -180) d += 360; if (d > 180) d -= 360;
+      if (k >= 100) unwrapped += d;
+      last = rhead;
+    }
+    drivetrain.fullstop(); delay(500);
+    std::printf("  turnright(%3d): %5.0f deg/s\n", pwm, unwrapped);
+  }
+  {
+    double V = P.batteryVoltage, stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665, rM = P.wheelDiameter / 2000.0;
+    double fr = P.frictionFracAt12V * 12.0 / V, spin = P.wheelMu * P.robotMassKg * 9.81 / 4 * (axleOffset / (P.trackWidth / 2)) * rM / stallNm;
+    std::printf("MODEL at %.1f V: top speed %.0f mm/s; lowest PWM that moves it straight %.0f (from standstill %.0f); "
+                "lowest PWM that turns it on the spot %.0f\n", V, P.noLoadRpmAt12V * V / 12 / 60 * M_PI * P.wheelDiameter,
+                255 * fr, 255 * fr * P.stictionFactor, 255 * (fr + spin) * P.stictionFactor);
+  }
   std::printf("COLOUR raw r g b c over each tile type\n");
   const char *names[] = {"white", "black", "blue", "silver"};
   int types[] = {field::FLOOR, field::BLACK_T, field::BLUE_T, field::SILVER_T};
@@ -561,6 +607,7 @@ int main(int argc, char **argv) {
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
   for (int i = 1; i <= 7; i++) { tof[i].offset = gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
   gyroBiasDegPerUs = gauss(P.gyroDriftSigmaDegPerMin) / 60e6;
+  magOffsetDeg = P.gyroMagneticOffsetDeg >= 0 ? P.gyroMagneticOffsetDeg : std::uniform_real_distribution<double>(0, 360)(rng);
   rx = (W.sx + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (W.sy + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   rhead = wrap360(gauss(P.placeSigmaDeg));
