@@ -12,6 +12,15 @@
 #define FWD_TIMEOUT_US_PER_TILE 8000000.0
 #define CLIMB_TIMEOUT_US 15000000.0
 #define BACKUP_TIMEOUT_MS 2500
+// absoluteturn(): finished when within this many degrees of the target.
+#define TURN_DONE_DEG 2.0
+// Lowest PWM absoluteturn() uses (same as before). Skid steering may need more than this to
+// turn on the spot at all; bench-test the lowest drivetrain.turnright(pwm) that turns the
+// robot and raise this to it plus a margin (the simulator's estimate is about 41).
+#define TURN_MIN_PWM 20
+
+// true while obstacleavoidance() runs (its closing fwd() must not start another avoidance)
+bool avoidingObstacle = false;
 
 static int avgEncoder(){
   return (drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3;
@@ -92,8 +101,13 @@ void fwd(double dist){ // in mm
   myTime.reset_delta_time();
   
   int front_left = measure(7);int front_right = measure(1);
+  // Obstacle = one front sensor close while the other sees clear space. Not checked for the
+  // fwd() that obstacleavoidance() itself runs at the end: that re-triggered avoidance again
+  // and again (recursion with no limit), leaving the robot stuck until a lack-of-progress
+  // restart, and could overflow the stack.
+  bool canCheckObstacle = !avoidingObstacle;
   // outside loop
-    if(front_left<=OBSTACLE_DIST&&front_left!=-1&&front_right>=MIN_DIST&&front_right!=-1){ // trigger obstacleavoidance
+    if(canCheckObstacle&&front_left<=OBSTACLE_DIST&&front_left!=-1&&front_right>=MIN_DIST&&front_right!=-1){ // trigger obstacleavoidance
       Serial.println("obstacle left");
       int prevdist = obstacleavoidance(1);
       drivetrain.fullstop();
@@ -118,7 +132,7 @@ void fwd(double dist){ // in mm
       fwdActive = false;
       return;
     }
-    else if(front_right<=OBSTACLE_DIST&&front_right!=-1&&front_left>=OBSTACLE_DIST&&front_left!=-1){
+    else if(canCheckObstacle&&front_right<=OBSTACLE_DIST&&front_right!=-1&&front_left>=MIN_DIST&&front_left!=-1){ // same rule as the left side (was >= OBSTACLE_DIST)
       Serial.println("obstacle right");
       int prevdist = obstacleavoidance(0);
       drivetrain.fullstop();
@@ -333,6 +347,11 @@ void fwd(double dist){ // in mm
   // sometimes it barely makes it over the slope
   if(climbed == true){
     for(int i = 0; i<cnt;i++){
+      // Never step off the 40 x 40 map: writing a tile outside it corrupts memory and
+      // crashes the program (it happened after a lost robot counted a long ramp).
+      int nx = x_pos, ny = y_pos;
+      stepForward(currentDir, nx, ny);
+      if(!inBounds(nx, ny)) { Serial.println("ramp would leave the map, stopping the count"); break; }
       Serial.println("adding ramp to map");
       markEdgeBothWays(x_pos, y_pos, currentDir);
       stepForward(currentDir, x_pos, y_pos);
@@ -377,7 +396,6 @@ void absoluteturn(double angle){
   double diff = angle - myGyro.heading();
   while(diff > 180.0)  diff -= 360.0;
   while(diff < -180.0) diff += 360.0;
-  bool turn_right = (diff > 0);
   double init_abs = fabs(diff);
   Serial.print("[TURN] target=");
   Serial.print(angle);
@@ -387,52 +405,35 @@ void absoluteturn(double angle){
   Serial.println(init_abs, 1);
    // create timer to cut of turning
   timer myTimer;
+  // Turning limit: 2 s per 90 deg, but at least 1 s so a small correction gets time to finish.
+  const double turnLimitUs = max(1000000.0, 2.0 * init_abs / 90.0 * 1000000.0);
 
-  if(turn_right){
-    while(true){
-      if(Pausemaze==true) {drivetrain.fullstop(); break;}
-      if(victimPending){ // service camera victim mid-turn
-        drivetrain.fullstop();
-        myPID.pausePID(1); myTimer.pause(1);
-        while(victimPending==true){
-          rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
-        }
-        myPID.pausePID(2); myTimer.pause(2);
+  // One loop for both directions: stop once within TURN_DONE_DEG of the target, and
+  // turn back if it overshoots. (The old loop had no "reached" exit -- it only stopped
+  // when its time ran out -- and steered by |error|, so an overshoot kept turning the
+  // same way. Its minimum power (20) may also be below what turns the robot on the spot,
+  // so near the target it could stall and wait out the clock, stopping short.)
+  while(true){
+    if(Pausemaze==true) {drivetrain.fullstop(); break;}
+    if(victimPending){ // service camera victim mid-turn
+      drivetrain.fullstop();
+      myPID.pausePID(1); myTimer.pause(1);
+      while(victimPending==true){
+        rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
       }
-      // Recompute the wrapped error every tick.
-      double d = angle - myGyro.heading();
-      while(d > 180.0)  d -= 360.0;
-      while(d < -180.0) d += 360.0;
-      
-      if(myTimer.getTime() > 2.0 * init_abs / 90.0 * 1000000.0) break; // turning limit
-
-      MOTORSPEED = myPID.getPID(fabs(d));
-
-      drivetrain.turnright(constrain(MOTORSPEED,20,150));
+      myPID.pausePID(2); myTimer.pause(2);
     }
-  }
+    // Recompute the wrapped error every tick.
+    double d = angle - myGyro.heading();
+    while(d > 180.0)  d -= 360.0;
+    while(d < -180.0) d += 360.0;
 
-  else if(!turn_right) {
-    while(true){
-      if(Pausemaze==true) {drivetrain.fullstop(); break;}
-      if(victimPending){ // service camera victim mid-turn
-        drivetrain.fullstop();
-        myPID.pausePID(1); myTimer.pause(1);
-        while(victimPending==true){
-          rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
-        }
-        myPID.pausePID(2); myTimer.pause(2);
-      }
-      double d = angle - myGyro.heading();
-      while(d > 180.0)  d -= 360.0;
-      while(d < -180.0) d += 360.0;
-      
-      if(myTimer.getTime() > 2.0 * init_abs / 90.0 * 1000000.0) break;
+    if(fabs(d) <= TURN_DONE_DEG) break;            // reached
+    if(myTimer.getTime() > turnLimitUs) break;     // turning limit
 
-      MOTORSPEED = myPID.getPID(fabs(d));
-
-      drivetrain.turnleft(constrain(MOTORSPEED,20,150));
-    }
+    MOTORSPEED = constrain(myPID.getPID(fabs(d)), TURN_MIN_PWM, 150);
+    if(d > 0) drivetrain.turnright(MOTORSPEED);
+    else      drivetrain.turnleft(MOTORSPEED);
   }
   victimtoggle = false;
   Serial.println("finished turning");

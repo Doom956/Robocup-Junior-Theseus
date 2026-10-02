@@ -22,6 +22,7 @@ int  centerLeft();
 int  read_color();
 int  obstacleavoidance(int leftright);
 void stepForward(Direction d, int &x, int &y);
+bool inBounds(int x, int y);
 double pulsesForDistanceMm(double distanceMm);
 void markEdgeBothWays(int x, int y, Direction d);
 void writeWallsToCurrentTile(bool n, bool e, bool s, bool w);

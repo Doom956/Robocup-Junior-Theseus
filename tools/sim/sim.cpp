@@ -10,6 +10,7 @@
 // elevation/descend/neighbourFloor, syncActiveFloor.
 // Copied here because they live in hardware files (keep them in sync):
 //   main.cpp     : SENSE_TILE/UPDATE_MAP, finishTileMove, blockEdge, handleShortMove,
+//                  clearBlockedEdges/restoreBlockedEdges (PLAN_NEXT retry),
 //                  timeToReturn, the RETURN loop, PAUSE (lack-of-progress restart)
 //   movement.cpp : the ramp loop at the end of fwd()
 //
@@ -249,6 +250,26 @@ static void blockEdge(int x, int y, Direction d) {
   mapGrid[x][y].setObstacle(d, true);
   if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE) mapGrid[nx][ny].setObstacle(opposite(d), true);
 }
+struct ClearedEdge { Grid *g; int x, y, d; };
+static ClearedEdge clearedEdges[128];
+static int clearedEdgeCount = 0, exploreRetries = 0;
+static int clearBlockedEdges() {
+  clearedEdgeCount = 0;
+  Grid *grids[] = {&mapGrid, &m1, &m2, &m3};
+  for (Grid *g : grids)
+    for (int x = 0; x < MAP_SIZE; x++)
+      for (int y = 0; y < MAP_SIZE; y++)
+        for (int d = 0; d < 4; d++)
+          if ((*g)[x][y].getObstacle(d) && clearedEdgeCount < 128) {
+            (*g)[x][y].setObstacle(d, false);
+            clearedEdges[clearedEdgeCount++] = {g, x, y, d};
+          }
+  return clearedEdgeCount;
+}
+static void restoreBlockedEdges() {
+  for (int i = 0; i < clearedEdgeCount; i++) (*clearedEdges[i].g)[clearedEdges[i].x][clearedEdges[i].y].setObstacle(clearedEdges[i].d, true);
+  clearedEdgeCount = 0;
+}
 static void handleShortMove() {
   if (x_pos == shortX && y_pos == shortY && currentFloor == shortFloor && currentDir == shortDir) shortMoveCount++;
   else { shortMoveCount = 1; shortX = x_pos; shortY = y_pos; shortFloor = currentFloor; shortDir = currentDir; }
@@ -388,7 +409,7 @@ static void handleMove(RunResult &r, MoveResult m, bool returning, int &consecSh
   else if (m == SHORT) {
     r.shorts++; consecShort++;
     handleShortMove();
-    if (!returning) senseTile(); // SENSE_TILE again
+    senseTile(); // SENSE_TILE again (RETURN re-reads the walls after a failed move too, then keeps heading home)
     if (consecShort >= 4) lackOfProgress(r, returning, consecShort);
   }
   else lackOfProgress(r, returning, consecShort); // ON_BLACK
@@ -405,7 +426,7 @@ static RunResult runMaze() {
   currentDir = NORTH;
   rx = world.sx; ry = world.sy; realCpX = rx; realCpY = ry;
   simTime = 0; rampCrossings = 0; lostNow = false;
-  shortMoveCount = 0; shortX = shortY = shortFloor = -1;
+  shortMoveCount = 0; shortX = shortY = shortFloor = -1; exploreRetries = 0;
   flagWallPlanned = flagMismatch = false;
   visitedReal.assign(world.W * world.H, false);
   const int MOVE_LIMIT = 12 * world.W * world.H + 100;
@@ -419,7 +440,13 @@ static RunResult runMaze() {
     if (simTime >= runTimeS) { fail("8:00 ran out while exploring"); break; }
     if (timeToReturn()) { r.timeReturn = true; break; }
     Direction next;
-    if (!planExploreDir(next)) break; // maze explored -> RETURN
+    bool found = planExploreDir(next);
+    if (!found && exploreRetries < 3 && simTime < RUN_TIME_S - 150 && clearBlockedEdges() > 0) {
+      found = planExploreDir(next);
+      if (found) exploreRetries++;
+      else restoreBlockedEdges();
+    }
+    if (!found) break; // maze explored -> RETURN
     turnTo(next);
     r.moves++;
     handleMove(r, moveForward(), false, consecShort);

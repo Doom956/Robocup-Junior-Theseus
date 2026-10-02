@@ -321,6 +321,32 @@ bool timeToReturn(){
   return elapsedS + tiles * RETURN_SEC_PER_TILE + blueTiles * 5.0 + RETURN_MARGIN_S >= RUN_TIME_S;
 }
 
+// Forget the edges blocked by blockEdge(), on all floors, remembering them so
+// restoreBlockedEdges() can put them back. Returns how many were cleared.
+struct ClearedEdge { Grid *g; uint8_t x, y, d; };
+const int MAX_CLEARED_EDGES = 128;
+ClearedEdge clearedEdges[MAX_CLEARED_EDGES];
+int clearedEdgeCount = 0;
+int exploreRetries = 0;
+int clearBlockedEdges(){
+  clearedEdgeCount = 0;
+  Grid *grids[] = {&mapGrid, &m1, &m2, &m3};
+  for(Grid *g : grids)
+    for(int x = 0; x < MAP_SIZE; x++)
+      for(int y = 0; y < MAP_SIZE; y++)
+        for(int d = 0; d < 4; d++)
+          if((*g)[x][y].getObstacle(d) && clearedEdgeCount < MAX_CLEARED_EDGES){
+            (*g)[x][y].setObstacle(d, false);
+            clearedEdges[clearedEdgeCount++] = {g, (uint8_t)x, (uint8_t)y, (uint8_t)d};
+          }
+  return clearedEdgeCount;
+}
+void restoreBlockedEdges(){
+  for(int i = 0; i < clearedEdgeCount; i++)
+    (*clearedEdges[i].g)[clearedEdges[i].x][clearedEdges[i].y].setObstacle(clearedEdges[i].d, true);
+  clearedEdgeCount = 0;
+}
+
 // Record an obstacle on the edge between (x,y) and its neighbour in direction d
 // (both sides), so the planners stop routing across it.
 void blockEdge(int x, int y, Direction d){
@@ -357,6 +383,14 @@ void handleShortMove(){
 // handle the floor of the tile just entered (blue = 5 s stop, silver = checkpoint).
 // fwd() has already advanced x_pos/y_pos (and the floor) over any ramp tiles.
 void finishTileMove(){
+  // Never step off the 40 x 40 map (only possible once the position is already wrong):
+  // a tile outside it would be written into other memory and crash the program.
+  int nx = x_pos, ny = y_pos;
+  stepForward(currentDir, nx, ny);
+  if(!inBounds(nx, ny)){
+    Serial.println("move would leave the map, position not advanced");
+    return;
+  }
   markEdgeBothWays(x_pos, y_pos, currentDir);
   stepForward(currentDir, x_pos, y_pos); // x_pos/y_pos now = new tile
   int color = read_color();
@@ -528,13 +562,30 @@ void loop(){
     }
     case PLAN_NEXT: {
       Serial.println("plan next");
+      if(returning){ // re-sensed a tile on the way home (failed move): keep heading home
+        state = RETURN;
+        break;
+      }
       if(timeToReturn()){
         Serial.println("time to return home");
         state = RETURN;
         break;
       }
       Direction next;
-      if(planExploreDir(next) == false){
+      bool found = planExploreDir(next);
+      // Nothing left on the map with plenty of time to spare usually means the map is wrong:
+      // edges blocked after failed moves (often a wall end or wheel slip, not a real obstacle).
+      // Clear them and look again before heading home (at most 3 times per run). If that
+      // opens nothing new, put them back so the way home doesn't route through them.
+      if(!found && exploreRetries < 3 && mazeTime.getTime() / 1000000.0 < RUN_TIME_S - 150 && clearBlockedEdges() > 0){
+        found = planExploreDir(next);
+        if(found){
+          exploreRetries++;
+          Serial.println("map looks finished early: cleared blocked edges, exploring again");
+        }
+        else restoreBlockedEdges();
+      }
+      if(found == false){
         Serial.println("maze fully explored");
         lcdPrint("maze explored");
         state = RETURN;
@@ -702,6 +753,12 @@ void loop(){
       }
       if(fwdShort == true){
         handleShortMove();
+        // Re-read this tile's walls before re-planning: the move most likely failed on a
+        // wall the map is missing, and RETURN never senses walls itself, so it drove into
+        // the same wall again and again until a lack-of-progress restart. PLAN_NEXT sends
+        // the robot straight back to RETURN while returning == true.
+        state = SENSE_TILE;
+        if(Pausemaze == true) state = PAUSE;
         break;
       }
       finishTileMove();

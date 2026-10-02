@@ -464,16 +464,42 @@ int centerLeft(){
                   && back  != -1 && back  != 8191 && back  <= SIDE_WALL_MAX_MM;
   if(!wallPresent) return 0;
   double D = (front + back) / 2.0;                       // distance term
-  // For the left wall: being too close (small D) means we need to steer right (positive adjustment).
-  // (TARGET_SIDE_GAP_MM - D) is positive when too close → steers right (away from left wall). ✓
-  // (front - back) is positive when nose points toward left wall → need to steer right. ✓
-  double e = (TARGET_SIDE_GAP_MM - D) + (front - back);
+  // fwd() drives (120 - e) on the left wheels and (120 + e) on the right, so positive e turns
+  // LEFT. center() relies on that: too close to the right wall gives positive e, away from it.
+  // For the left wall it is the other way round: too close (small D) must give negative e
+  // (turn right, away from the wall), so the distance term is (D - ideal), not (ideal - D).
+  // (front - back) is negative when the nose points at the left wall → turns right. ✓
+  double e = (D - TARGET_SIDE_GAP_MM) + (front - back);
   return (int)e;
 }
 
 
+extern bool avoidingObstacle; // movement.cpp: stops the closing fwd() from starting another avoidance
+
+// Black under the colour sensor during the manoeuvre: stop and back off. The turns and
+// short drives below don't go through fwd(), which is the only other black check.
+static bool blackDuringAvoidance(){
+  if(read_color() != -1) return false;
+  Serial.println("black during obstacle avoidance, backing off");
+  drivetrain.fullstop();
+  delay(100);
+  drivetrain.backward(150);
+  delay(400);
+  drivetrain.fullstop();
+  return true;
+}
+
+static int obstacleavoidanceSteps(int leftright);
+
 int obstacleavoidance(int leftright){ // leftright determines to manuver left or right.
-// return distance to wall at front; -2 = paused, -3 = gave up (timeout)
+// return distance to wall at front; -2 = paused, -3 = gave up (timeout or black)
+  avoidingObstacle = true;
+  int result = obstacleavoidanceSteps(leftright);
+  avoidingObstacle = false;
+  return result;
+}
+
+static int obstacleavoidanceSteps(int leftright){
   Serial.println("obstacle avoidance");
   int _ = -1;
   // Whole-manoeuvre limit: PARALLEL <-> BACKTRACK and FWD <-> WIGGLE can otherwise
@@ -543,6 +569,7 @@ int obstacleavoidance(int leftright){ // leftright determines to manuver left or
         delay(300);
         drivetrain.fullstop();
         delay(200);
+        if(blackDuringAvoidance()){ steps = TURN; return -3; }
         steps = PARALLEL;
         break;
       }
@@ -641,6 +668,7 @@ int obstacleavoidance(int leftright){ // leftright determines to manuver left or
         }
         
         Serial.println("fwd step");
+        if(blackDuringAvoidance()){ steps = TURN; return -3; }
         parallel();
         drivetrain.reset_encoderCount(true,true,true);
         delay(200);
