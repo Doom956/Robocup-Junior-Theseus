@@ -212,23 +212,17 @@ void fwd(double dist){ // in mm
       drivetrain.fullstop();
       break;
     }
-    // PID centering — cascade: right wall → left wall → gyro heading hold.
-    // Each fallback only activates when the preferred reference is unavailable.
+    // PID centering — cascade: side walls → gyro heading hold.
 
     double adjustment;
     double _diag_pid_err;
 
-    // 1) Prefer right-wall centering (most reliable in right-wall-following mazes)
-    _diag_pid_err = center();
+    // 1) Side walls: both present -> balance the two gaps; one -> hold TARGET_SIDE_GAP_MM from it.
+    bool sideWall = sideCentringError(_diag_pid_err);
 
-    // 2) Fall back to left-wall centering when no right wall is present
-    if (_diag_pid_err == 0) {
-      _diag_pid_err = centerLeft();
-    }
-
-    // 3) No side wall at all — hold the initial gyro heading so the robot
+    // 2) No side wall at all — hold the initial gyro heading so the robot
     //    doesn't drift in open areas or corridors with only front/back walls.
-    if (_diag_pid_err == 0) {
+    if (!sideWall) {
       double yaw = myGyro.heading() - init_yaw;
       if (yaw > 180)  yaw -= 360;
       if (yaw < -180) yaw += 360;

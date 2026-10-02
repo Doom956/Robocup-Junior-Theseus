@@ -19,6 +19,7 @@ extern volatile bool Pausemaze;
 int  measure(int sensor);
 int  center();
 int  centerLeft();
+bool sideCentringError(double &e);
 int  read_color();
 int  obstacleavoidance(int leftright);
 void stepForward(Direction d, int &x, int &y);

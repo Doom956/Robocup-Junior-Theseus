@@ -473,6 +473,29 @@ int centerLeft(){
   return (int)e;
 }
 
+static bool isSideWall(int v){ return v != -1 && v != 8191 && v <= SIDE_WALL_MAX_MM; }
+
+// Side-wall centring error for fwd(), from one reading of the four side sensors.
+// Positive turns the robot left (fwd() drives 120 - e on the left wheels, 120 + e on the right).
+// Walls on both sides: balance the two gaps. That centres the robot whatever ROBOT_WIDTH_MM
+// says (a wrong width only moves the one-wall target below). One wall: same as center() /
+// centerLeft(). Returns false when neither side has a wall on both of its sensors.
+bool sideCentringError(double &e){
+  int rf = measure(2), rb = measure(3);   // right front / back gaps (mm)
+  int lf = measure(6), lb = measure(5);   // left front / back gaps (mm)
+  bool right = isSideWall(rf) && isSideWall(rb);
+  bool left  = isSideWall(lf) && isSideWall(lb);
+  if(right && left){
+    double offset = ((lf + lb) - (rf + rb)) / 4.0;   // + = right of centre -> turn left
+    double angle  = ((rb - rf) + (lf - lb)) / 2.0;   // + = nose toward the right wall -> turn left
+    e = (int)(offset + angle);
+    return true;
+  }
+  if(right){ e = (int)((TARGET_SIDE_GAP_MM - (rf + rb) / 2.0) + (rb - rf)); return true; }
+  if(left){  e = (int)(((lf + lb) / 2.0 - TARGET_SIDE_GAP_MM) + (lf - lb)); return true; }
+  return false;
+}
+
 
 extern bool avoidingObstacle; // movement.cpp: stops the closing fwd() from starting another avoidance
 
