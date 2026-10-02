@@ -21,3 +21,11 @@ LT fixes
 
 It works tile by tile and the fault rates are estimates, so it tests the navigation decisions,
 not the hardware. Setup, options and how to read the results: [tools/sim/README.md](tools/sim/README.md).
+
+## Physics simulator
+
+`tools/sim/physics/` runs all of `Main/` against a simulated robot (motors from the datasheet,
+distance sensors at their CAD positions, gyro, colour sensor, the referee). Start the batch dashboard
+with `python tools/sim/physics/run_physics.py --serve`; any run can be replayed in 2D or 3D.
+
+**Step-by-step instructions for both simulators: [tools/sim/INSTRUCTIONS.md](tools/sim/INSTRUCTIONS.md).**

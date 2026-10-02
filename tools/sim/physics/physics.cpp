@@ -11,7 +11,8 @@
 //   - a referee: lack-of-progress restart (pause switch) on black or when stuck
 //
 // Usage: physics.exe --scenario NAME --seed S [--ideal] [--verbose] [--trace FILE]
-// Prints one JSON line with the result.
+// Prints one JSON line with the result. --trace writes a recording of the run (one JSON object per
+// line) that viewer.html plays back.
 
 #include "Globals.h"
 #include "world.h"
@@ -57,12 +58,8 @@ struct Params {
 } P;
 
 // --set name=value overrides any of the numbers above
-static bool setParam(const std::string &kv) {
-  size_t eq = kv.find('=');
-  if (eq == std::string::npos) return false;
-  std::string k = kv.substr(0, eq);
-  double v = std::atof(kv.c_str() + eq + 1);
-  std::map<std::string, double *> m = {
+static std::map<std::string, double *> paramTable() {
+  return {
     {"batteryVoltage", &P.batteryVoltage}, {"noLoadRpmAt12V", &P.noLoadRpmAt12V}, {"stallKgcmAt12V", &P.stallKgcmAt12V},
     {"frictionFracAt12V", &P.frictionFracAt12V}, {"stictionFactor", &P.stictionFactor}, {"robotMassKg", &P.robotMassKg},
     {"wheelMu", &P.wheelMu}, {"motorTau", &P.motorTau},
@@ -76,6 +73,14 @@ static bool setParam(const std::string &kv) {
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}};
+}
+
+static bool setParam(const std::string &kv) {
+  size_t eq = kv.find('=');
+  if (eq == std::string::npos) return false;
+  std::string k = kv.substr(0, eq);
+  double v = std::atof(kv.c_str() + eq + 1);
+  std::map<std::string, double *> m = paramTable();
   auto it = m.find(k);
   if (it == m.end()) return false;
   *it->second = v;
@@ -111,11 +116,11 @@ static Motor mot[5];                   // 1 = A (left), 2 = B (right), 3 = C (le
 static double gyroBiasDegPerUs = 0;
 
 // sensor geometry (robot frame: forward, left), by code sensor number 1..7
-struct TofSensor { double fwd = 0, left = 0; int facing = 0; double offset = 0; long lastSample = -1; double phaseUs = 0; bool ok = false; };
+struct TofSensor { double fwd = 0, left = 0, height = 106; int facing = 0; double offset = 0; long lastSample = -1; double phaseUs = 0; bool ok = false; };
 static TofSensor tof[8];
 static int portToSensor[8] = {2, 1, 7, 6, 4, 5, 3, 0}; // inverse of measure()'s portMap; port 7 = colour sensor
 static int muxPort = 0;
-static double colourFwd = 92.8, colourLeft = 0;
+static double colourFwd = 92.8, colourLeft = 0, colourHeight = 23.7;
 static double bodyFront = 99.1, bodyBack = 103.5, bodyHalfWidth = 91.5;
 static double axleOffset = 57.8;
 
@@ -132,6 +137,20 @@ static int syncSamples = 0, lostSamples = 0;
 static std::string lopReasons;
 static std::ofstream trace;
 static double nextTraceUs = 0;
+static int tofLast[8] = {0};            // last reading of each distance sensor, for the trace
+static double gyroLast = 0;
+static std::string lcdText, lcdTraced, serialLine;
+static std::vector<uint32_t> mapTraced; // code's map as last written to the trace
+
+static std::string jsonEsc(const std::string &in) {
+  std::string o;
+  for (char ch : in) {
+    if (ch == '"' || ch == '\\') { o += '\\'; o += ch; }
+    else if ((unsigned char)ch < 0x20) o += ' ';
+    else o += ch;
+  }
+  return o;
+}
 
 static double rad(double d) { return d * M_PI / 180.0; }
 static double wrap360(double a) { a = std::fmod(a, 360.0); return a < 0 ? a + 360 : a; }
@@ -277,6 +296,53 @@ static void physicsStep(double dt) {
   rpitch = std::atan2(W.height(fx, fy) - W.height(bx, by), 2 * axleOffset) * 180 / M_PI;
 }
 
+// one frame of the recording: true pose, what the code believes, sensors, motors, and the tiles of
+// the code's map that changed since the last frame
+static int tileCode(Tile &t) {
+  int c = 0;
+  for (int d = 0; d < 4; d++) c |= t.getWall(d) << d;
+  c |= t.getVisited() << 4 | (int)t.getType() << 5 | t.getElevate() << 7 | t.getDescend() << 8 | t.getDiscovered() << 13;
+  for (int d = 0; d < 4; d++) c |= t.getObstacle(d) << (9 + d); // edges blocked by blockEdge() (or a real obstacle)
+  return c;
+}
+static void traceFrame(double runS) {
+  nextTraceUs = tUs + 50000;
+  char b[320];
+  auto signedPwm = [](int i) { return mot[i].pwm * (mot[i].dir == BACKWARD ? -1 : mot[i].dir == FORWARD ? 1 : 0); };
+  std::snprintf(b, sizeof b, "{\"t\":%d,\"x\":%.1f,\"y\":%.1f,\"h\":%.1f,\"p\":%.1f,\"g\":%.1f,\"mx\":%d,\"my\":%d,\"f\":%d,\"d\":%d,\"s\":%d,\"c\":%d,\"pw\":[%d,%d,%d,%d],\"tof\":[",
+                (int)(runS * 1000), rx, ry, rhead, rpitch, gyroLast, x_pos, y_pos, currentFloor, (int)currentDir, (int)state, (int)inContact,
+                signedPwm(1), signedPwm(2), signedPwm(3), -signedPwm(4));
+  trace << b;
+  for (int i = 1; i <= 7; i++) trace << (i > 1 ? "," : "") << tofLast[i];
+  trace << "]";
+  if (lcdText != lcdTraced) { lcdTraced = lcdText; trace << ",\"lcd\":\"" << jsonEsc(lcdText) << "\""; }
+  if (mapTraced.empty()) mapTraced.assign(NUM_FLOORS * MAP_SIZE * MAP_SIZE, 0);
+  bool first = true;
+  for (int f = 0; f < NUM_FLOORS; f++) {
+    Grid &g = f == currentFloor ? mapGrid : floorGrid(f); // mapGrid is the working copy of the current floor
+    for (int x = 0; x < MAP_SIZE; x++)
+      for (int y = 0; y < MAP_SIZE; y++) {
+        uint32_t c = tileCode(g[x][y]), &prev = mapTraced[(f * MAP_SIZE + x) * MAP_SIZE + y];
+        if (c == prev) continue;
+        prev = c;
+        trace << (first ? ",\"m\":[" : ",") << "[" << f << "," << x << "," << y << "," << c << "]";
+        first = false;
+      }
+  }
+  if (!first) trace << "]";
+  trace << "}\n";
+}
+
+void simSerialOut(const char *text) {
+  if (simSerialEcho) std::fputs(text, stdout);
+  if (!trace.is_open()) return;
+  for (const char *c = text; *c; c++) {
+    if (*c != '\n') { serialLine += *c; continue; }
+    trace << "{\"log\":\"" << jsonEsc(serialLine) << "\",\"t\":" << (runStarted ? (int)((tUs - runStartUs) / 1000) : 0) << "}\n";
+    serialLine.clear();
+  }
+}
+
 static void refereeTick() {
   Pausemaze = switchHigh; // what pauseTask() does every 10 ms
   if (!runStarted) return;
@@ -302,13 +368,7 @@ static void refereeTick() {
     int ef = START_FLOOR + W.level[W.id(tx, ty)] - W.level[W.id(W.sx, W.sy)];
     if (x_pos != tx - W.sx + MAP_SIZE / 2 || y_pos != ty - W.sy + MAP_SIZE / 2 || currentFloor != ef) lostSamples++;
   }
-  if (trace.is_open() && tUs >= nextTraceUs) {
-    nextTraceUs = tUs + 50000;
-    trace << "{\"t\":" << (int)(runS * 1000) << ",\"x\":" << (int)rx << ",\"y\":" << (int)ry << ",\"h\":" << (int)rhead
-          << ",\"mx\":" << x_pos << ",\"my\":" << y_pos << ",\"f\":" << currentFloor << ",\"s\":" << (int)state
-          << ",\"c\":" << (int)inContact << ",\"pw\":[" << mot[1].pwm * (mot[1].dir == BACKWARD ? -1 : 1) << ","
-          << mot[2].pwm * (mot[2].dir == BACKWARD ? -1 : 1) << "]}\n";
-  }
+  if (trace.is_open() && tUs >= nextTraceUs) traceFrame(runS);
 }
 
 static void lackOfProgress(const char *why) {
@@ -323,7 +383,8 @@ static void lackOfProgress(const char *why) {
   rhead = wrap360(gauss(P.placeSigmaDeg)); // placed facing the start direction
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
-  if (trace.is_open()) trace << "{\"event\":\"lop\",\"why\":\"" << why << "\",\"t\":" << (int)((tUs - runStartUs) / 1000) << "}\n";
+  if (trace.is_open()) trace << "{\"event\":\"lop\",\"why\":\"" << why << "\",\"t\":" << (int)((tUs - runStartUs) / 1000)
+                             << ",\"cx\":" << cpX << ",\"cy\":" << cpY << "}\n";
 }
 
 static bool simReady = false; // false while global objects are being constructed (before main)
@@ -393,12 +454,12 @@ uint16_t VL53L0X::readRangeContinuousMillimeters() {
     sumW += w; sumWD += w * d;
   }
   // too little light back (only far or grazing surfaces) = out of range
-  if (sumW < sumProfile / (P.tofMaxRange * P.tofMaxRange)) return 8190;
+  if (sumW < sumProfile / (P.tofMaxRange * P.tofMaxRange)) return tofLast[code] = 8190;
   double dist = sumWD / sumW;
   // below ~30 mm the VL53L0X can't measure properly (team notes); it reads about its minimum, never less
   if (dist < P.tofMinReliableMm) dist = P.tofMinReliableMm + std::fabs(gauss(5));
   double d = dist + s.offset + gauss(P.tofNoiseMm + P.tofNoisePct * dist);
-  return (uint16_t)std::max(0.0, std::round(d));
+  return tofLast[code] = (uint16_t)std::max(0.0, std::round(d));
 }
 
 bool Adafruit_TCS34725::begin() { simAdvance(3000); return true; }
@@ -431,12 +492,12 @@ bool Adafruit_BNO055::getEvent(sensors_event_t *e) {
   simAdvance(900);
   bool magnetic = P.gyroMagnetic > 0 && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
   e->orientation.x = (float)wrap360(rhead + gyroBiasDegPerUs * tUs + gauss(P.gyroNoiseDeg) + (magnetic ? magOffsetDeg : 0));
+  gyroLast = e->orientation.x;
   e->orientation.y = 0;
   e->orientation.z = (float)(rpitch + gauss(P.pitchNoiseDeg));
   return true;
 }
 
-static std::string lcdText;
 size_t LiquidCrystal::print(const char *text) {
   simAdvance(2000);
   std::string s = text;
@@ -470,7 +531,7 @@ static bool loadGeometry(const std::string &path) {
     int code = (int)num(obj, "code_sensor");
     if (code >= 1 && code <= 7) {
       TofSensor &s = tof[code];
-      s.fwd = num(obj, "forward_mm"); s.left = num(obj, "left_mm"); s.ok = true;
+      s.fwd = num(obj, "forward_mm"); s.left = num(obj, "left_mm"); s.height = num(obj, "height_mm"); s.ok = true;
       s.facing = obj.find("\"forward\"") != std::string::npos ? 0 : obj.find("\"right\"") != std::string::npos ? 1
                : obj.find("\"backward\"") != std::string::npos ? 2 : 3;
       found++;
@@ -478,7 +539,7 @@ static bool loadGeometry(const std::string &path) {
     pos = b;
   }
   size_t c = js.find("\"colour_sensor\"");
-  if (c != std::string::npos) { std::string obj = js.substr(c, js.find('}', c) - c); colourFwd = num(obj, "forward_mm"); colourLeft = num(obj, "left_mm"); }
+  if (c != std::string::npos) { std::string obj = js.substr(c, js.find('}', c) - c); colourFwd = num(obj, "forward_mm"); colourLeft = num(obj, "left_mm"); colourHeight = num(obj, "height_mm"); }
   size_t ax = js.find("\"axles_forward_mm\"");
   if (ax != std::string::npos) axleOffset = std::fabs(std::atof(js.c_str() + js.find('[', ax) + 1));
   // body outline = the outer faces of the distance sensors (boards are 1.3 mm thick)
@@ -579,6 +640,13 @@ int main(int argc, char **argv) {
     else if (a == "--geometry" && i + 1 < argc) geomPath = argv[++i];
     else if (a == "--set" && i + 1 < argc) sets.push_back(argv[++i]);
     else if (a == "--selftest") selftest = true;
+    else if (a == "--params") {
+      std::printf("{");
+      bool first = true;
+      for (const auto &kv : paramTable()) { std::printf("%s\"%s\":%g", first ? "" : ",", kv.first.c_str(), *kv.second); first = false; }
+      std::printf("}\n");
+      return 0;
+    }
     else { std::printf("usage: physics --scenario flat|loops|big|ramp|bigramp --seed S [--ideal] [--set name=value]... [--verbose] [--trace FILE] [--geometry robot_geometry.json]\n"); return 2; }
   }
   if (geomPath.empty()) {
@@ -615,7 +683,14 @@ int main(int argc, char **argv) {
   visited.assign(W.W * W.H, false);
   if (!tracePath.empty()) {
     trace.open(tracePath);
-    trace << "{\"field\":{\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg << ",\"tiles\":[";
+    trace << "{\"scenario\":\"" << sc->name << "\",\"seed\":" << seed << ",\"ideal\":" << (ideal ? "true" : "false") << ",\"sets\":\"";
+    for (const std::string &x : sets) trace << jsonEsc(x) << " ";
+    trace << "\",\"robot\":{\"front\":" << bodyFront << ",\"back\":" << bodyBack << ",\"half\":" << bodyHalfWidth << ",\"axle\":" << axleOffset
+          << ",\"track\":" << P.trackWidth << ",\"wheel\":" << P.wheelDiameter << ",\"colour\":[" << colourFwd << "," << colourLeft << "," << colourHeight << "],\"tof\":[";
+    for (int i = 1; i <= 7; i++) trace << (i > 1 ? "," : "") << "[" << tof[i].fwd << "," << tof[i].left << "," << tof[i].facing << "," << tof[i].height << "]";
+    trace << "],\"cone\":" << P.tofConeDeg << "},\"map\":{\"size\":" << MAP_SIZE << ",\"floors\":" << NUM_FLOORS << ",\"start\":" << START_FLOOR << "}";
+    trace << ",\"field\":{\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg
+          << ",\"rampX0\":" << W.rampX0 << ",\"rampLen\":" << W.rampLen << ",\"levelHeight\":[" << W.levelHeight[0] << "," << W.levelHeight[1] << "],\"tiles\":[";
     for (int i = 0; i < W.W * W.H; i++) {
       int walls = 0;
       for (int d = 0; d < 4; d++) walls |= W.wall[i][d] << d;
@@ -654,11 +729,17 @@ int main(int argc, char **argv) {
     for (int d = 0; d < 4; d++) { wallsAll++; if (t.getVisited() && t.getWall(d) == W.hasWall(x, y, d)) wallsOk++; }
   }
   double runS = runStarted ? (tUs - runStartUs) / 1e6 : 0;
-  std::printf("{\"scenario\":\"%s\",\"seed\":%ld,\"ideal\":%s,\"end\":\"%s\",\"home\":%s,\"time_s\":%.1f,\"coverage\":%.3f,"
+  char result[1024];
+  std::snprintf(result, sizeof result, "{\"scenario\":\"%s\",\"seed\":%ld,\"ideal\":%s,\"end\":\"%s\",\"home\":%s,\"time_s\":%.1f,\"coverage\":%.3f,"
               "\"tiles\":%d,\"reachable\":%d,\"map_walls\":%.3f,\"lops\":%d,\"lop_reasons\":\"%s\",\"wall_contact_s\":%.1f,"
               "\"lost_fraction\":%.3f,\"ramp_crossings\":%d,\"ramp_deg\":%.1f,\"last_lcd\":\"%s\"}\n",
               sc->name, seed, ideal ? "true" : "false", reason.c_str(), home ? "true" : "false", runS, total ? (double)covered / total : 1.0,
               covered, total, wallsAll ? (double)wallsOk / wallsAll : 1.0, lops, lopReasons.c_str(), contactUs / 1e6,
-              syncSamples ? (double)lostSamples / syncSamples : 0.0, rampCrossings, W.rampDeg, lcdText.c_str());
+              syncSamples ? (double)lostSamples / syncSamples : 0.0, rampCrossings, W.rampDeg, jsonEsc(lcdText).c_str());
+  if (trace.is_open()) {
+    if (runStarted) traceFrame(runS);
+    trace << "{\"result\":" << std::string(result, std::strlen(result) - 1) << ",\"t\":" << (int)(runS * 1000) << "}\n";
+  }
+  std::fputs(result, stdout);
   return 0;
 }

@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Theseus Physics Replay</title>
+<style>
+/* Shared look for the Theseus simulator pages: a plain desktop tool. Toolbar on top, panes with small
+   title bars, system fonts, colour only where it means something (field colours, ok / warning / problem). */
+:root {
+  --bg: #e8e8e5;
+  --panel: #fafaf8;
+  --raise: #f1f1ee;
+  --bar: #dfdfdb;
+  --ink: #1d1d1b;
+  --muted: #66665f;
+  --line: #c4c4be;
+  --line-soft: #dcdcd7;
+  --sel: #d3deec;
+  --accent: #2a5ea8;
+  --ok: #2e7a32;
+  --warn: #9a6200;
+  --bad: #b8322a;
+  --idle: #8f8f88;
+  /* field colours */
+  --tile: #ffffff;
+  --tile-up: #dde7f3;
+  --unknown: #e2e2de;
+  --wall: #1d1d1b;
+  --black: #121212;
+  --blue: #2463c9;
+  --silver: #a9b0b7;
+  --ramp: #d8c9a3;
+  --solid: #a3a39c;
+  --robot: #d9480f;
+  --robot-body: rgba(217, 72, 15, 0.16);
+  --beam: rgba(0, 133, 154, 0.13);
+  --beam-line: #00859a;
+  --wheel: #2a2a28;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: var(--font-ui);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+    --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+    --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+    --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+    --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+  --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+  --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+  --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+  --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.4 var(--font-ui); }
+code { font-family: var(--font-data); font-size: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 16px; background: var(--bar); border-bottom: 1px solid var(--line); }
+.toolbar .app { font-weight: 600; font-size: 13.5px; margin: 0; }
+.toolbar .doc { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.toolbar .spacer { flex: 1 1 auto; }
+.page { padding-inline: 16px; padding-block: 10px 28px; display: grid; gap: 10px; max-width: 1440px; margin: 0 auto; }
+.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.pane > header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; padding: 3px 4px 3px 10px; background: var(--raise); border-bottom: 1px solid var(--line-soft); border-radius: 3px 3px 0 0; }
+.pane > header h2 { font-size: 12.5px; font-weight: 600; margin: 0 6px 0 0; }
+.pane > header .aside { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pane > .body { padding: 10px; }
+button { font: inherit; font-size: 12.5px; color: var(--ink); background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+button:hover { background: var(--bar); }
+button:active { background: var(--line-soft); }
+button.on { background: var(--sel); border-color: var(--accent); }
+button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); font-weight: 600; }
+button.primary:hover { background: var(--ink); opacity: 0.86; }
+button:disabled { opacity: 0.45; cursor: default; }
+button svg { width: 12px; height: 12px; fill: currentColor; flex: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; }
+.seg > button { border-radius: 0; margin-left: -1px; }
+.seg > button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.seg > button:last-child { border-radius: 0 3px 3px 0; }
+.seg > button.on { position: relative; z-index: 1; }
+select, input[type="number"], input[type="text"], textarea { font: inherit; font-size: 12.5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; min-height: 26px; }
+input[type="number"] { font-family: var(--font-data); width: 84px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); margin: 0; }
+input[type="range"] { accent-color: var(--accent); }
+label.file { display: inline-flex; align-items: center; font-size: 12.5px; background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; }
+label.file:hover { background: var(--bar); }
+label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.lbl { color: var(--muted); font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.chip, .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.chip::before, .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--idle); flex: none; }
+.chip.ok::before, .pill.ok::before { background: var(--ok); }
+.chip.warn::before, .pill.warn::before { background: var(--warn); }
+.chip.bad::before, .pill.bad::before { background: var(--bad); }
+.pill.run::before { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sw { width: 10px; height: 10px; border: 1px solid var(--line); display: inline-block; flex: none; }
+.sw.line { height: 3px; border: 0; }
+.sw.dash { background: transparent; border: 1.5px dashed var(--ok); }
+.scroll { overflow-x: auto; }
+table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.grid th { background: var(--raise); color: var(--muted); font-weight: 600; font-size: 12px; text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.grid td { padding: 3px 8px; border-bottom: 1px solid var(--line-soft); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.grid th:first-child, .grid td:first-child, .grid .l { text-align: left; }
+.num { font-family: var(--font-data); font-size: 12px; }
+dl.props { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: 12.5px; max-width: 480px; }
+dl.props dt { color: var(--muted); }
+dl.props dd { margin: 0; text-align: right; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+canvas { display: block; width: 100%; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* replay viewer: field + transport on the left, inspector on the right, Serial monitor under the field */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 10px; align-items: start; }
+@media (max-width: 980px) { .work { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 10px; min-width: 0; }
+.fieldbox { padding: 8px 10px; }
+#field3d { cursor: grab; touch-action: none; }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; border-top: 1px solid var(--line-soft); background: var(--raise); }
+.transport .spacer { flex: 1 1 auto; }
+#play { min-width: 82px; }
+.clock { font-family: var(--font-data); font-size: 13px; font-variant-numeric: tabular-nums; min-width: 132px; }
+.tl { display: grid; gap: 5px; padding: 6px 10px 8px; border-top: 1px solid var(--line-soft); }
+#timeline { height: 28px; cursor: pointer; touch-action: none; }
+.legend.fieldkey { padding: 6px 10px 8px; border-top: 1px solid var(--line-soft); }
+#note3d { padding: 0 10px 8px; }
+.bars { display: grid; gap: 3px; }
+.bar { display: grid; grid-template-columns: 100px minmax(0, 1fr) 44px; align-items: center; gap: 8px; font-size: 12px; }
+.bar .name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { position: relative; height: 8px; background: var(--raise); border: 1px solid var(--line-soft); overflow: hidden; }
+.bar .fill { position: absolute; top: 0; bottom: 0; background: var(--beam-line); }
+.bar .fill.motor { background: var(--ink); opacity: 0.65; }
+.bar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--muted); }
+.bar .val { font-family: var(--font-data); text-align: right; font-variant-numeric: tabular-nums; }
+.bar.far .val { color: var(--muted); }
+.posline { margin-top: 8px; padding: 2px 0 2px 8px; border-left: 3px solid var(--idle); font-size: 12.5px; }
+.posline.ok { border-color: var(--ok); }
+.posline.bad { border-color: var(--bad); }
+.posline strong { font-weight: 600; }
+.lcd { font-family: var(--font-data); font-size: 12.5px; background: #26301c; color: #bfe07a; border-radius: 2px; padding: 5px 8px; min-height: 28px; letter-spacing: 0.04em; overflow-wrap: anywhere; }
+#log { font-family: var(--font-data); font-size: 12px; line-height: 1.45; height: 240px; overflow: auto; padding: 6px 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#log .t { color: var(--muted); }
+#log .hl { color: var(--warn); }
+#log .now { font-weight: 600; }
+.empty .body { display: grid; gap: 8px; justify-items: start; }
+.empty code { background: var(--raise); border: 1px solid var(--line-soft); padding: 2px 6px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<!-- run_physics.py --view puts the recording here -->
+<script id="trace-data" type="text/plain">/*TRACE-DATA*/</script>
+
+<div class="toolbar">
+  <h1 class="app">Theseus physics replay</h1>
+  <span class="doc" id="subtitle">No recording loaded</span>
+  <span class="spacer"></span>
+  <label class="file" for="file">Open recording…<input type="file" id="file" accept=".jsonl,.json,.txt"></label>
+</div>
+
+<div class="page">
+  <section class="pane empty" id="empty" hidden>
+    <header><h2>No recording loaded</h2></header>
+    <div class="body">
+      <p class="hint">Make one from the repo folder (it opens here by itself):</p>
+      <code>python tools/sim/physics/run_physics.py --scenario loops --seed 7 --view</code>
+      <p class="hint">or open a file made with <code>--trace FILE</code>:</p>
+      <label class="file" for="file2">Open recording…<input type="file" id="file2" accept=".jsonl,.json,.txt"></label>
+    </div>
+  </section>
+
+  <div class="work" id="mainView">
+    <div class="col">
+      <section class="pane" id="player" aria-label="Field and playback">
+        <header>
+          <h2>Field</h2>
+          <div class="seg" role="group" aria-label="View">
+            <button id="v2d" class="on" aria-pressed="true">2D</button>
+            <button id="v3d" aria-pressed="false">3D</button>
+          </div>
+          <div class="seg" id="cams" hidden role="group" aria-label="Camera">
+            <button data-cam="orbit" class="on">Whole field</button>
+            <button data-cam="follow">Around robot</button>
+            <button data-cam="chase">Behind robot</button>
+            <button data-cam="top">From above</button>
+          </div>
+          <div class="aside">
+            <button id="tBeams" class="on" aria-pressed="true">Beams</button>
+            <button id="tTrail" class="on" aria-pressed="true">Trail</button>
+            <button id="tFollow" aria-pressed="false">Zoom to robot</button>
+          </div>
+        </header>
+        <div class="fieldbox">
+          <canvas id="field" aria-label="The real field with the robot drawn to scale"></canvas>
+          <canvas id="field3d" hidden aria-label="3D view of the field and robot"></canvas>
+        </div>
+        <p class="hint" id="note3d" hidden></p>
+        <div class="transport">
+          <div class="seg">
+            <button id="back10" title="Back 10 s (Shift+←)">−10 s</button>
+            <button id="back" title="Back 1 s (←)">−1 s</button>
+          </div>
+          <button class="primary" id="play" title="Play / pause (Space)">Play</button>
+          <div class="seg">
+            <button id="fwd" title="Forward 1 s (→)">+1 s</button>
+            <button id="fwd10" title="Forward 10 s (Shift+→)">+10 s</button>
+          </div>
+          <span class="clock" id="clock">0:00.0 / 0:00</span>
+          <label class="lbl" for="speed">Speed</label>
+          <select id="speed">
+            <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option>
+            <option value="5" selected>5×</option><option value="10">10×</option><option value="25">25×</option><option value="60">60×</option>
+          </select>
+          <span class="spacer"></span>
+          <button id="nextEvent" title="Jump to just before the next restart or lost-position moment">Next problem</button>
+        </div>
+        <div class="tl">
+          <canvas id="timeline" aria-label="Timeline: click or drag to jump"></canvas>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--tile-up)"></i>exploring</span>
+            <span><i class="sw" style="background:var(--robot);opacity:.45"></i>heading home</span>
+            <span><i class="sw" style="background:var(--solid)"></i>paused</span>
+            <span><i class="sw line" style="background:var(--warn)"></i>code's position wrong 4 s+</span>
+            <span><i class="sw line" style="background:var(--bad);width:3px;height:11px"></i>restart</span>
+          </div>
+        </div>
+        <div class="legend fieldkey">
+          <span><i class="sw" style="background:var(--tile)"></i>floor</span>
+          <span><i class="sw" style="background:var(--tile-up)"></i>upper level</span>
+          <span><i class="sw" style="background:var(--ramp)"></i>ramp</span>
+          <span><i class="sw" style="background:var(--black)"></i>black</span>
+          <span><i class="sw" style="background:var(--blue)"></i>blue</span>
+          <span><i class="sw" style="background:var(--silver)"></i>silver</span>
+          <span><i class="sw" style="background:var(--robot-body);border-color:var(--robot)"></i>robot (CAD size)</span>
+          <span><i class="sw line" style="background:var(--beam-line)"></i>distance reading</span>
+          <span><i class="sw dash"></i>tile the code thinks it is on</span>
+        </div>
+      </section>
+
+      <section class="pane">
+        <header><h2>Serial monitor</h2><div class="aside"><span class="hint" id="logCount"></span></div></header>
+        <div id="log" tabindex="0" aria-label="Robot Serial output up to the current time"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="pane">
+        <header><h2>State</h2><div class="aside"><span class="chip" id="stateChip">—</span></div></header>
+        <div class="body">
+          <dl class="props">
+            <dt>Heading (true)</dt><dd id="sHead">—</dd>
+            <dt>Gyro reads</dt><dd id="sGyro">—</dd>
+            <dt>Pitch</dt><dd id="sPitch">—</dd>
+            <dt>Facing (code)</dt><dd id="sDir">—</dd>
+            <dt>Real tile</dt><dd id="sReal">—</dd>
+            <dt>Code thinks</dt><dd id="sCode">—</dd>
+          </dl>
+          <div class="posline" id="posline">—</div>
+          <p class="hint" style="margin-top:8px">Tiles count from the start tile (x east, y north). Floors are the code's m1 / m2 / m3; m2 is the start floor.</p>
+        </div>
+      </section>
+
+      <section class="pane">
+        <header><h2>Motors</h2><div class="aside"><span class="chip" id="contact">no wall contact</span></div></header>
+        <div class="body"><div class="bars" id="motors"></div></div>
+      </section>
+
+      <section class="pane">
+        <header><h2>Distance sensors</h2><div class="aside"><span class="hint">mm</span></div></header>
+        <div class="body"><div class="bars" id="tofs"></div></div>
+      </section>
+
+      <section class="pane">
+        <header><h2>Robot's map</h2><div class="aside"><div class="seg" id="floorTabs"></div></div></header>
+        <div class="body">
+          <canvas id="map" aria-label="The map the robot's code has built so far"></canvas>
+          <div class="legend" style="margin-top:8px">
+            <span><i class="sw" style="background:var(--tile)"></i>visited</span>
+            <span><i class="sw" style="background:var(--unknown)"></i>not visited</span>
+            <span><i class="sw line" style="background:var(--bad)"></i>imagined wall</span>
+            <span><i class="sw dash" style="border-color:var(--bad)"></i>missed wall</span>
+            <span><i class="sw line" style="background:var(--warn);height:5px"></i>blocked after failed moves</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane">
+        <header><h2>LCD</h2></header>
+        <div class="body"><div class="lcd" id="lcd">&nbsp;</div></div>
+      </section>
+
+      <section class="pane">
+        <header><h2>Result</h2><div class="aside"><span class="chip" id="resultChip">—</span></div></header>
+        <div class="body"><dl class="props" id="result"></dl></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const S = 300;                       // tile size, mm
+const STATES = ["SENSE_TILE", "CENTERING", "UPDATE_MAP", "PLAN_NEXT", "VICTIM_DETECT", "EXECUTE_MOVE",
+  "BOTCHED_TURN_RECOVERY", "BOTCHED_FWD_RECOVERY", "BACKPEDAL", "PAUSE", "RETURN"];
+const DIRS = ["N", "E", "S", "W"];
+const DX = [0, 1, 0, -1], DY = [1, 0, -1, 0];
+const TOF_NAMES = ["", "1 front-right", "2 right-front", "3 right-back", "4 back", "5 left-back", "6 left-front", "7 front-left"];
+const FLOOR_NAMES = ["m1", "m2", "m3"];
+const FIELD_TYPE = { FLOOR: 0, BLACK: 1, BLUE: 2, SILVER: 3, RAMP: 4, SOLID: 5 };
+const LOST_MS = 4000;
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+let R = null;                        // the loaded recording
+let T = 0, playing = false, speed = 5, lastNow = null, dirty = true;
+let showBeams = true, showTrail = true, follow = false, mapFloor = null;
+let fieldLayer = null, fieldLayerKey = "";
+
+// ---------------------------------------------------------------- loading
+function parseTrace(text) {
+  const rec = { header: null, frames: [], logs: [], events: [], result: null };
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    let o;
+    try { o = JSON.parse(line); } catch (e) { continue; }
+    if (o.field) rec.header = o;
+    else if ("log" in o) rec.logs.push(o);
+    else if (o.event) rec.events.push(o);
+    else if (o.result) rec.result = o.result;
+    else if ("x" in o) rec.frames.push(o);
+  }
+  if (!rec.header || !rec.frames.length) return null;
+  const h = rec.header, F = h.field;
+  h.robot = h.robot || { front: 99.1, back: 103.5, half: 91.5, axle: 57.8, track: 156, wheel: 80, colour: [92.8, 0],
+    tof: [[98.4, -80.2, 0], [88.3, -90.8, 1], [-87.7, -90.8, 1], [-102.8, 0, 2], [-87.7, 90.8, 3], [88.3, 90.8, 3], [98.4, 80.2, 0]], cone: 25 };
+  h.map = h.map || { size: 40, floors: 3, start: 1 };
+  F.type = F.tiles.map(t => t[0]); F.level = F.tiles.map(t => t[1]); F.walls = F.tiles.map(t => t[2]);
+  F.id = (x, y) => y * F.W + x;
+  F.in = (x, y) => x >= 0 && y >= 0 && x < F.W && y < F.H;
+  F.wall = (x, y, d) => !F.in(x, y) || !!(F.walls[F.id(x, y)] >> d & 1);
+  rec.endT = rec.frames[rec.frames.length - 1].t;
+  rec.logs.sort((a, b) => a.t - b.t);
+  buildMaps(rec);
+  buildChecks(rec);
+  return rec;
+}
+
+// the code's map changes a few tiles at a time; keep a full copy every K frames and replay the changes after it
+const K = 100;
+function buildMaps(rec) {
+  const m = rec.header.map, N = m.floors * m.size * m.size;
+  const cur = new Int32Array(N);
+  rec.snaps = [];
+  rec.frames.forEach((f, i) => {
+    if (f.m) for (const [fl, x, y, c] of f.m) cur[(fl * m.size + x) * m.size + y] = c;
+    if (i % K === 0) rec.snaps.push(cur.slice());
+  });
+  rec.work = new Int32Array(N);
+  rec.workAt = -1;
+}
+function mapAt(rec, i) {
+  if (rec.workAt === i) return rec.work;
+  const m = rec.header.map, k = Math.floor(i / K);
+  rec.work.set(rec.snaps[k]);
+  for (let j = k * K + 1; j <= i; j++) {
+    const f = rec.frames[j];
+    if (f.m) for (const [fl, x, y, c] of f.m) rec.work[(fl * m.size + x) * m.size + y] = c;
+  }
+  rec.workAt = i;
+  return rec.work;
+}
+
+// where the robot really is vs where the code thinks it is
+function posCheck(rec, f) {
+  const F = rec.header.field, m = rec.header.map;
+  const tx = Math.floor(f.x / S), ty = Math.floor(f.y / S);
+  const bx = f.mx - m.size / 2 + F.sx, by = f.my - m.size / 2 + F.sy;
+  const startLevel = F.level[F.id(F.sx, F.sy)];
+  const onField = F.in(tx, ty), onRamp = onField && F.type[F.id(tx, ty)] === FIELD_TYPE.RAMP;
+  const realFloor = onField && !onRamp ? m.start + F.level[F.id(tx, ty)] - startLevel : null;
+  const off = onField && !onRamp && (bx !== tx || by !== ty || realFloor !== f.f);
+  return { tx, ty, bx, by, onRamp, realFloor, off };
+}
+function buildChecks(rec) {
+  rec.lost = []; rec.returns = []; rec.pauses = [];
+  let lostStart = null, retStart = null, pauseStart = null;
+  const fr = rec.frames;
+  fr.forEach((f, i) => {
+    const c = posCheck(rec, f);
+    if (c.off && lostStart === null) lostStart = f.t;
+    if (!c.off && !c.onRamp && lostStart !== null) { if (f.t - lostStart >= LOST_MS) rec.lost.push([lostStart, f.t]); lostStart = null; }
+    if (f.s === 10 && retStart === null) retStart = f.t;
+    if (f.s !== 10 && retStart !== null) { rec.returns.push([retStart, f.t]); retStart = null; }
+    if (f.s === 9 && pauseStart === null) pauseStart = f.t;
+    if (f.s !== 9 && pauseStart !== null) { rec.pauses.push([pauseStart, f.t]); pauseStart = null; }
+  });
+  if (lostStart !== null && rec.endT - lostStart >= LOST_MS) rec.lost.push([lostStart, rec.endT]);
+  if (retStart !== null) rec.returns.push([retStart, rec.endT]);
+  if (pauseStart !== null) rec.pauses.push([pauseStart, rec.endT]);
+  rec.problems = [...rec.events.map(e => e.t), ...rec.lost.map(l => l[0])].sort((a, b) => a - b);
+  // trail, broken where the referee picked the robot up
+  rec.trail = [];
+  let seg = [];
+  fr.forEach((f, i) => {
+    if (i && Math.hypot(f.x - fr[i - 1].x, f.y - fr[i - 1].y) > 120) { rec.trail.push(seg); seg = []; }
+    seg.push(i);
+  });
+  rec.trail.push(seg);
+}
+
+function load(text) {
+  const rec = parseTrace(text);
+  if (!rec) { showEmpty(true, "That file is not a recording from the physics simulator."); return; }
+  R = rec; T = 0; playing = false; mapFloor = null; fieldLayerKey = "";
+  showEmpty(false);
+  const h = R.header, F = h.field;
+  const kind = { flat: "small field, no loops", loops: "field with loops", big: "big field", ramp: "two levels joined by a ramp", bigramp: "big field with two ramps" }[h.scenario] || h.scenario;
+  $("subtitle").textContent = [`${h.scenario} (${kind})`, `seed ${h.seed}`, `${F.W} × ${F.H} tiles`, F.rampLen ? `ramp ${F.rampDeg.toFixed(0)}°` : null,
+    h.ideal ? "ideal robot" : "realistic robot", h.sets && h.sets.trim() ? h.sets.trim() : null].filter(Boolean).join(" · ");
+  buildBars();
+  renderResult();
+  updatePlayButton();
+  dirty = true;
+}
+function showEmpty(on, msg) {
+  $("empty").hidden = !on;
+  $("player").hidden = on;
+  $("mainView").hidden = on;
+  if (msg) $("empty").querySelector("p").textContent = msg;
+}
+
+// ---------------------------------------------------------------- time helpers
+function frameIndex(t) {
+  const fr = R.frames;
+  let lo = 0, hi = fr.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (fr[mid].t <= t) lo = mid; else hi = mid - 1; }
+  return lo;
+}
+function lerpAngle(a, b, u) { let d = ((b - a) % 360 + 540) % 360 - 180; return a + d * u; }
+function poseAt(t) {
+  const i = frameIndex(t), a = R.frames[i], b = R.frames[Math.min(i + 1, R.frames.length - 1)];
+  const u = b.t > a.t ? Math.min(1, (t - a.t) / (b.t - a.t)) : 0;
+  if (Math.hypot(b.x - a.x, b.y - a.y) > 120) return { i, x: a.x, y: a.y, h: a.h };  // picked up by the referee
+  return { i, x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, h: lerpAngle(a.h, b.h, u) };
+}
+function fmt(ms, tenths = true) {
+  const s = Math.max(0, ms) / 1000, m = Math.floor(s / 60), r = s - m * 60;
+  return `${m}:${(tenths ? r.toFixed(1) : Math.floor(r).toString()).padStart(tenths ? 4 : 2, "0")}`;
+}
+
+// ---------------------------------------------------------------- canvas helpers
+function sizeCanvas(cv, cssH) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+  cv.style.height = cssH + "px";
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(cssH * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(cssH * dpr); }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h: cssH, dpr };
+}
+
+// view: which part of the field (mm) is on screen
+function fieldView(cv) {
+  const F = R.header.field, pad = 12, w = cv.clientWidth;
+  const maxH = Math.max(260, Math.min(window.innerHeight * 0.72, 760));
+  let x0 = 0, y0 = 0, x1 = F.W * S, y1 = F.H * S;
+  if (follow) {
+    const p = poseAt(T), r = 1.6 * S;
+    x0 = p.x - r * 1.4; x1 = p.x + r * 1.4; y0 = p.y - r; y1 = p.y + r;
+  }
+  const sc = Math.min((w - 2 * pad) / (x1 - x0), (maxH - 2 * pad) / (y1 - y0));
+  const h = follow ? Math.min(maxH, (y1 - y0) * sc + 2 * pad) : (y1 - y0) * sc + 2 * pad;
+  const ox = (w - (x1 - x0) * sc) / 2, oy = pad;
+  return { sc, h, P: (x, y) => [ox + (x - x0) * sc, oy + (y1 - y) * sc] };
+}
+
+function drawTiles(ctx, V) {
+  const F = R.header.field, sc = V.sc;
+  const col = { floor: css("--tile"), up: css("--tile-up"), black: css("--black"), blue: css("--blue"), silver: css("--silver"),
+    ramp: css("--ramp"), solid: css("--solid"), wall: css("--wall"), muted: css("--muted"), robot: css("--robot") };
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) {
+    const i = F.id(x, y), t = F.type[i];
+    const [px, py] = V.P(x * S, (y + 1) * S);
+    let fill = F.level[i] && F.rampLen ? col.up : col.floor;
+    if (t === FIELD_TYPE.BLACK) fill = col.black;
+    if (t === FIELD_TYPE.BLUE) fill = col.blue;
+    if (t === FIELD_TYPE.SILVER) fill = col.silver;
+    if (t === FIELD_TYPE.RAMP) fill = col.ramp;
+    if (t === FIELD_TYPE.SOLID) fill = col.solid;
+    ctx.fillStyle = fill;
+    ctx.fillRect(px, py, S * sc + 0.5, S * sc + 0.5);
+    if (t === FIELD_TYPE.RAMP) {     // arrow pointing uphill
+      const left = F.level[F.id(F.rampX0 - 1, y)], right = F.level[F.id(F.rampX0 + F.rampLen, y)];
+      const up = F.levelHeight[right] > F.levelHeight[left] ? 1 : -1, cx = px + S * sc / 2, cy = py + S * sc / 2, a = S * sc * 0.25;
+      ctx.strokeStyle = col.muted; ctx.lineWidth = Math.max(1.5, sc * 8);
+      ctx.beginPath(); ctx.moveTo(cx - a * up, cy); ctx.lineTo(cx + a * up, cy);
+      ctx.moveTo(cx + a * up - a * 0.5 * up, cy - a * 0.5); ctx.lineTo(cx + a * up, cy); ctx.lineTo(cx + a * up - a * 0.5 * up, cy + a * 0.5); ctx.stroke();
+    }
+  }
+  // grid
+  ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= F.W; x++) { const [a, b] = V.P(x * S, 0), [c, d] = V.P(x * S, F.H * S); ctx.moveTo(a, b); ctx.lineTo(c, d); }
+  for (let y = 0; y <= F.H; y++) { const [a, b] = V.P(0, y * S), [c, d] = V.P(F.W * S, y * S); ctx.moveTo(a, b); ctx.lineTo(c, d); }
+  ctx.stroke();
+  // start tile
+  const [sx, sy] = V.P((F.sx + 0.5) * S, (F.sy + 0.5) * S);
+  ctx.fillStyle = col.muted; ctx.font = `600 ${Math.max(10, S * sc * 0.28)}px ${css("--font-display")}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("START", sx, sy);
+  // walls
+  ctx.strokeStyle = col.wall; ctx.lineCap = "round"; ctx.lineWidth = Math.max(2, sc * 12);
+  ctx.beginPath();
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) for (let d = 0; d < 4; d++) {
+    if (!F.wall(x, y, d)) continue;
+    const seg = edge(x, y, d), [a, b] = V.P(seg[0], seg[1]), [c, e] = V.P(seg[2], seg[3]);
+    ctx.moveTo(a, b); ctx.lineTo(c, e);
+  }
+  ctx.stroke();
+}
+function edge(x, y, d) {
+  const x0 = x * S, y0 = y * S;
+  return [[x0, y0 + S, x0 + S, y0 + S], [x0 + S, y0, x0 + S, y0 + S], [x0, y0, x0 + S, y0], [x0, y0, x0, y0 + S]][d];
+}
+
+function drawField() {
+  const cv = $("field");
+  const V = fieldView(cv);
+  const { ctx, w, h, dpr } = sizeCanvas(cv, V.h);
+  ctx.clearRect(0, 0, w, h);
+  // static field layer, redrawn only when the size or theme changes (not when following the robot)
+  const key = [w, h, dpr, css("--tile"), follow].join("|");
+  if (follow) drawTiles(ctx, V);
+  else {
+    if (key !== fieldLayerKey) {
+      fieldLayer = document.createElement("canvas");
+      fieldLayer.width = Math.round(w * dpr); fieldLayer.height = Math.round(h * dpr);
+      const lc = fieldLayer.getContext("2d"); lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawTiles(lc, V);
+      fieldLayerKey = key;
+    }
+    ctx.drawImage(fieldLayer, 0, 0, w, h);
+  }
+  const p = poseAt(T), f = R.frames[p.i], c = posCheck(R, f), sc = V.sc;
+  // trail
+  if (showTrail) {
+    ctx.strokeStyle = css("--robot"); ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(1.2, sc * 6); ctx.lineJoin = "round";
+    for (const seg of R.trail) {
+      if (seg[0] > p.i) break;
+      ctx.beginPath();
+      for (const j of seg) { if (j > p.i) break; const [a, b] = V.P(R.frames[j].x, R.frames[j].y); j === seg[0] ? ctx.moveTo(a, b) : ctx.lineTo(a, b); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // tile the code thinks it is on
+  const F = R.header.field;
+  if (c.bx >= -2 && c.by >= -2 && c.bx < F.W + 2 && c.by < F.H + 2) {
+    const inset = S * 0.08, [a, b] = V.P(c.bx * S + inset, (c.by + 1) * S - inset);
+    ctx.strokeStyle = c.off ? css("--bad") : css("--ok"); ctx.lineWidth = Math.max(2, sc * 9); ctx.setLineDash([sc * 30, sc * 20]);
+    ctx.strokeRect(a, b, (S - 2 * inset) * sc, (S - 2 * inset) * sc);
+    ctx.setLineDash([]);
+    const [cx, cy] = V.P((c.bx + 0.5) * S, (c.by + 0.5) * S), d = f.d, len = S * 0.3 * sc;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    const ax = DX[d], ay = -DY[d];
+    ctx.moveTo(cx + ax * len, cy + ay * len);
+    ctx.lineTo(cx + ax * len * 0.55 - ay * len * 0.22, cy + ay * len * 0.55 + ax * len * 0.22);
+    ctx.lineTo(cx + ax * len * 0.55 + ay * len * 0.22, cy + ay * len * 0.55 - ax * len * 0.22);
+    ctx.fill();
+  }
+  drawRobot(ctx, V, p, f);
+}
+
+function robotToWorld(p, fwd, left) {
+  const h = p.h * Math.PI / 180;
+  return [p.x + fwd * Math.sin(h) - left * Math.cos(h), p.y + fwd * Math.cos(h) + left * Math.sin(h)];
+}
+function drawRobot(ctx, V, p, f) {
+  const r = R.header.robot, sc = V.sc;
+  // beams
+  if (showBeams) {
+    const half = (r.cone || 25) / 2;
+    r.tof.forEach(([fw, lf, facing], k) => {
+      const d = f.tof[k];
+      const [ox, oy] = robotToWorld(p, fw, lf), a = p.h + [0, 90, 180, -90][facing];
+      const [cx, cy] = V.P(ox, oy);
+      const out = !(d > 0 && d < 8000), len = out ? 450 : d;
+      const a0 = (a - half - 90) * Math.PI / 180, a1 = (a + half - 90) * Math.PI / 180;
+      ctx.fillStyle = css("--beam");
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, len * sc, a0, a1); ctx.closePath(); ctx.fill();
+      const ex = cx + Math.sin(a * Math.PI / 180) * len * sc, ey = cy - Math.cos(a * Math.PI / 180) * len * sc;
+      ctx.strokeStyle = css("--beam-line"); ctx.lineWidth = Math.max(1, sc * 5);
+      if (out) { ctx.setLineDash([4, 4]); ctx.globalAlpha = 0.5; }
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      if (!out) { ctx.fillStyle = css("--beam-line"); ctx.beginPath(); ctx.arc(ex, ey, Math.max(2, sc * 10), 0, 2 * Math.PI); ctx.fill(); }
+    });
+  }
+  // body, in the robot's own frame: forward = up, left = left
+  const [cx, cy] = V.P(p.x, p.y);
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(p.h * Math.PI / 180); ctx.scale(sc, sc);
+  ctx.fillStyle = css("--robot-body");
+  ctx.fillRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  ctx.fillStyle = css("--wheel");
+  for (const fa of [r.axle, -r.axle]) for (const side of [-1, 1]) ctx.fillRect(side * r.track / 2 - 9, -fa - r.wheel / 2, 18, r.wheel);
+  ctx.strokeStyle = f.c ? css("--bad") : css("--robot"); ctx.lineWidth = f.c ? 7 : 4;
+  ctx.strokeRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  ctx.fillStyle = css("--robot");
+  ctx.beginPath(); ctx.moveTo(0, -r.front + 8); ctx.lineTo(-22, -r.front + 40); ctx.lineTo(22, -r.front + 40); ctx.closePath(); ctx.fill();
+  for (const [fw, lf] of r.tof) { ctx.fillStyle = css("--beam-line"); ctx.fillRect(-lf - 6, -fw - 6, 12, 12); }
+  ctx.strokeStyle = css("--ink"); ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(-r.colour[1], -r.colour[0], 9, 0, 2 * Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- the robot's map
+function drawMap() {
+  const cv = $("map"), m = R.header.map, F = R.header.field, i = frameIndex(T), f = R.frames[i];
+  const grid = mapAt(R, i);
+  const floor = mapFloor === null ? f.f : mapFloor;
+  const off = m.size / 2;
+  // tabs: floors that have anything on them
+  const used = [];
+  for (let fl = 0; fl < m.floors; fl++) {
+    let any = fl === m.start || fl === f.f;
+    for (let k = fl * m.size * m.size; !any && k < (fl + 1) * m.size * m.size; k++) if (grid[k] & 16) any = true;
+    if (any) used.push(fl);
+  }
+  const tabs = $("floorTabs"), want = used.map(fl => `${fl}${fl === floor ? "*" : ""}${fl === f.f ? "r" : ""}`).join(",") + (mapFloor === null ? "a" : "");
+  if (tabs.dataset.k !== want) {
+    tabs.dataset.k = want; tabs.innerHTML = "";
+    for (const fl of used) {
+      const b = document.createElement("button");
+      b.textContent = FLOOR_NAMES[fl] + (fl === m.start ? " (start)" : "") + (fl === f.f ? " ●" : "");
+      b.className = fl === floor ? "on" : ""; b.setAttribute("aria-pressed", fl === floor);
+      b.title = mapFloor === null ? "Showing the floor the code thinks it is on. Click to pin a floor." : "Click again to follow the robot";
+      b.onclick = () => { mapFloor = mapFloor === fl ? null : fl; dirty = true; };
+      tabs.appendChild(b);
+    }
+  }
+  // extent: the field, plus anything mapped outside it
+  let x0 = 0, y0 = 0, x1 = F.W - 1, y1 = F.H - 1;
+  for (let x = 0; x < m.size; x++) for (let y = 0; y < m.size; y++) {
+    if (!grid[(floor * m.size + x) * m.size + y]) continue;
+    const fx = x - off + F.sx, fy = y - off + F.sy;
+    x0 = Math.min(x0, fx); x1 = Math.max(x1, fx); y0 = Math.min(y0, fy); y1 = Math.max(y1, fy);
+  }
+  const nW = x1 - x0 + 1, nH = y1 - y0 + 1, pad = 8, w = cv.clientWidth;
+  const t = Math.min((w - 2 * pad) / nW, 420 / nH);
+  const hgt = nH * t + 2 * pad, ox = (w - nW * t) / 2;
+  const { ctx } = sizeCanvas(cv, hgt);
+  ctx.clearRect(0, 0, w, hgt);
+  const P = (fx, fy) => [ox + (fx - x0) * t, pad + (y1 - fy) * t];   // top-left of field tile (fx, fy)
+  const startLevel = F.level[F.id(F.sx, F.sy)];
+  const typeCol = [css("--tile"), css("--blue"), css("--silver"), css("--black")];
+  for (let fy = y0; fy <= y1; fy++) for (let fx = x0; fx <= x1; fx++) {
+    const mx = fx - F.sx + off, my = fy - F.sy + off;
+    const c = mx >= 0 && my >= 0 && mx < m.size && my < m.size ? grid[(floor * m.size + mx) * m.size + my] : 0;
+    const [px, py] = P(fx, fy);
+    ctx.fillStyle = css("--unknown");
+    if (c & 16) ctx.fillStyle = typeCol[c >> 5 & 3];
+    if (c & (128 | 256)) ctx.fillStyle = css("--ramp");
+    ctx.fillRect(px + 0.5, py + 0.5, t - 1, t - 1);
+  }
+  // walls, checked against the real field on tiles the robot visited on this floor
+  const lw = Math.max(2, t * 0.07);
+  for (let fy = y0; fy <= y1; fy++) for (let fx = x0; fx <= x1; fx++) {
+    const mx = fx - F.sx + off, my = fy - F.sy + off;
+    if (mx < 0 || my < 0 || mx >= m.size || my >= m.size) continue;
+    const c = grid[(floor * m.size + mx) * m.size + my];
+    if (!(c & (16 | 8192 | 15 | 7680))) continue;
+    const realHere = F.in(fx, fy) && F.type[F.id(fx, fy)] !== FIELD_TYPE.RAMP && m.start + F.level[F.id(fx, fy)] - startLevel === floor;
+    const [px, py] = P(fx, fy);
+    const segs = [[px, py, px + t, py], [px + t, py, px + t, py + t], [px, py + t, px + t, py + t], [px, py, px, py + t]];
+    for (let d = 0; d < 4; d++) {
+      if (c >> (9 + d) & 1) {        // edge blocked after failed moves: a short bar across the middle of the edge
+        const s = segs[d], mx2 = (s[0] + s[2]) / 2, my2 = (s[1] + s[3]) / 2, ix = (s[0] - mx2) * 0.45, iy = (s[1] - my2) * 0.45;
+        ctx.strokeStyle = css("--warn"); ctx.lineWidth = Math.max(3, t * 0.12); ctx.lineCap = "butt";
+        ctx.beginPath(); ctx.moveTo(mx2 - ix, my2 - iy); ctx.lineTo(mx2 + ix, my2 + iy); ctx.stroke();
+      }
+    }
+    for (let d = 0; d < 4; d++) {
+      const code = !!(c >> d & 1), real = realHere ? F.wall(fx, fy, d) : null;
+      const checked = (c & 16) && realHere;
+      if (!code && !(checked && real)) continue;
+      const s = segs[d];
+      ctx.lineWidth = lw; ctx.lineCap = "round";
+      if (code && checked && !real) ctx.strokeStyle = css("--bad");
+      else if (!code) { ctx.strokeStyle = css("--bad"); ctx.setLineDash([t * 0.12, t * 0.1]); }
+      else ctx.strokeStyle = css("--wall");
+      ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  // start + where the code thinks it is
+  const [spx, spy] = P(F.sx, F.sy);
+  ctx.fillStyle = css("--muted"); ctx.font = `600 ${Math.max(9, t * 0.26)}px ${css("--font-display")}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (floor === m.start) ctx.fillText("S", spx + t / 2, spy + t / 2);
+  if (f.f === floor) {
+    const fx = f.mx - off + F.sx, fy = f.my - off + F.sy, [px, py] = P(fx, fy), cx = px + t / 2, cy = py + t / 2, d = f.d;
+    ctx.fillStyle = css("--robot");
+    ctx.beginPath(); ctx.arc(cx, cy, t * 0.26, 0, 2 * Math.PI); ctx.fill();
+    ctx.strokeStyle = css("--panel"); ctx.lineWidth = Math.max(2, t * 0.08);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + DX[d] * t * 0.26, cy - DY[d] * t * 0.26); ctx.stroke();
+  }
+}
+
+// ---------------------------------------------------------------- side panels
+function buildBars() {
+  $("motors").innerHTML = ["Left front (A)", "Right front (B)", "Left back (C)", "Right back (D)"].map((n, k) =>
+    `<div class="bar"><span class="name">${n}</span><span class="track"><span class="mid"></span><span class="fill motor" id="mf${k}"></span></span><span class="val" id="mv${k}"></span></div>`).join("");
+  $("tofs").innerHTML = TOF_NAMES.slice(1).map((n, k) =>
+    `<div class="bar" id="tb${k}"><span class="name">${n}</span><span class="track"><span class="fill" id="tf${k}" style="left:0"></span></span><span class="val" id="tv${k}"></span></div>`).join("");
+}
+let lastLogIdx = -2;
+function renderPanels() {
+  const p = poseAt(T), f = R.frames[p.i], c = posCheck(R, f), F = R.header.field, m = R.header.map;
+  $("clock").textContent = `${fmt(T)} / ${fmt(R.endT, false)}`;
+  const st = STATES[f.s] || f.s;
+  const chip = $("stateChip");
+  chip.textContent = st;
+  chip.className = "chip" + (f.s === 10 ? " warn" : f.s === 9 ? "" : "");
+  $("sHead").textContent = `${p.h.toFixed(1)}°`;
+  const gerr = ((f.g - f.h) % 360 + 540) % 360 - 180;
+  $("sGyro").textContent = `${f.g.toFixed(1)}° (${gerr >= 0 ? "+" : ""}${gerr.toFixed(1)})`;
+  $("sPitch").textContent = `${f.p.toFixed(1)}°`;
+  $("sDir").textContent = DIRS[f.d];
+  const realFloor = c.realFloor === null ? "ramp" : FLOOR_NAMES[c.realFloor] || c.realFloor;
+  $("sReal").textContent = F.in(c.tx, c.ty) ? `${c.tx - F.sx}, ${c.ty - F.sy} · ${realFloor}` : "off the field";
+  $("sCode").textContent = `${c.bx - F.sx}, ${c.by - F.sy} · ${FLOOR_NAMES[f.f] || f.f}`;
+  const pl = $("posline");
+  if (c.onRamp) { pl.className = "posline"; pl.innerHTML = "<strong>On the ramp.</strong> The code counts ramp tiles as it climbs."; }
+  else if (!c.off) { pl.className = "posline ok"; pl.innerHTML = "<strong>Map position matches.</strong> The code's tile is the tile the robot is on."; }
+  else {
+    const dx = c.bx - c.tx, dy = c.by - c.ty, parts = [];
+    if (dy) parts.push(`${Math.abs(dy)} ${dy > 0 ? "north" : "south"}`);
+    if (dx) parts.push(`${Math.abs(dx)} ${dx > 0 ? "east" : "west"}`);
+    const fl = c.realFloor !== f.f ? ` and on floor ${FLOOR_NAMES[f.f]} instead of ${FLOOR_NAMES[c.realFloor]}` : "";
+    const moving = [1, 5, 6, 7, 8, 10].includes(f.s) ? " (normal for a moment during a move; a problem if it stays)" : "";
+    pl.className = "posline bad";
+    pl.innerHTML = `<strong>Code's position is off</strong>: it thinks it is ${parts.length ? parts.join(" and ") + " tile" + (Math.abs(dx) + Math.abs(dy) > 1 ? "s" : "") + " away" : "on the right tile"}${fl}${moving}.`;
+  }
+  const ct = $("contact");
+  ct.textContent = f.c ? "pressing on a wall" : "no wall contact";
+  ct.className = "chip" + (f.c ? " bad" : "");
+  f.pw.forEach((v, k) => {
+    const el = $("mf" + k), frac = Math.min(1, Math.abs(v) / 255) * 50;
+    el.style.left = (v >= 0 ? 50 : 50 - frac) + "%"; el.style.width = frac + "%";
+    $("mv" + k).textContent = v;
+  });
+  f.tof.forEach((d, k) => {
+    const out = !(d > 0 && d < 8000);
+    $("tb" + k).className = "bar" + (out ? " far" : "");
+    $("tf" + k).style.width = (out ? 0 : Math.min(100, d / 6)) + "%";
+    $("tv" + k).textContent = d === 0 ? "—" : out ? "none" : d;
+  });
+  // LCD: last message up to now
+  let lcd = "";
+  for (let j = p.i; j >= 0; j--) if (R.frames[j].lcd !== undefined) { lcd = R.frames[j].lcd; break; }
+  $("lcd").textContent = lcd || " ";
+  renderLog();
+}
+function esc(s) { return s.replace(/[&<>]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch]); }
+function renderLog() {
+  const logs = R.logs;
+  let lo = -1, hi = logs.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (logs[mid].t <= T) lo = mid; else hi = mid - 1; }
+  if (lo === lastLogIdx) return;
+  lastLogIdx = lo;
+  const from = Math.max(0, lo - 249), box = $("log");
+  let html = "";
+  for (let j = from; j <= lo; j++) {
+    const l = logs[j], hl = /obstacle|timeout|stuck|fail|botch|black|short|lost|LOP|abort/i.test(l.log);
+    html += `<div class="${j === lo ? "now " : ""}${hl ? "hl" : ""}"><span class="t">${fmt(l.t)}</span>  ${esc(l.log)}</div>`;
+  }
+  box.innerHTML = html || '<span class="t">nothing printed yet</span>';
+  box.scrollTop = box.scrollHeight;
+  $("logCount").textContent = `${lo + 1} of ${logs.length} lines`;
+}
+function renderResult() {
+  const r = R.result, box = $("result"), chip = $("resultChip");
+  if (!r) { box.innerHTML = "<dt>Result</dt><dd>none (the run was cut short)</dd>"; chip.textContent = "—"; return; }
+  const said = { home: "said “back to start”", time: "8:00 ran out", "no path": "found no path home" }[r.end] || r.end;
+  chip.textContent = r.home ? "home" : r.end === "home" ? "thought it was home" : "not home";
+  chip.className = "chip " + (r.home ? "ok" : "bad");
+  const items = [
+    ["Run ended", `${said} at ${fmt(r.time_s * 1000, false)}`],
+    ["Really on the start tile", r.home ? "yes" : "no"],
+    ["Field explored", `${Math.round(r.coverage * 100)}% (${r.tiles} of ${r.reachable} tiles)`],
+    ["Map walls right", `${Math.round(r.map_walls * 100)}%`],
+    ["Restarts", r.lops ? `${r.lops}: ${r.lop_reasons}` : "none"],
+    ["Pressed on walls", `${r.wall_contact_s.toFixed(1)} s`],
+  ];
+  items.push(["Replay with", `--scenario ${R.header.scenario} --seed ${R.header.seed}${R.header.ideal ? " --ideal" : ""} --view`]);
+  box.innerHTML = items.map(([k, v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join("");
+}
+
+// ---------------------------------------------------------------- timeline
+function drawTimeline() {
+  const cv = $("timeline"), { ctx, w, h } = sizeCanvas(cv, 34), end = R.endT || 1, X = t => t / end * w;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = css("--tile-up"); ctx.fillRect(0, 4, w, h - 12);
+  ctx.globalAlpha = 0.45; ctx.fillStyle = css("--robot");
+  for (const [a, b] of R.returns) ctx.fillRect(X(a), 4, Math.max(1, X(b) - X(a)), h - 12);
+  ctx.globalAlpha = 1; ctx.fillStyle = css("--solid");
+  for (const [a, b] of R.pauses) ctx.fillRect(X(a), 4, Math.max(1, X(b) - X(a)), h - 12);
+  ctx.fillStyle = css("--warn");
+  for (const [a, b] of R.lost) ctx.fillRect(X(a), h - 7, Math.max(2, X(b) - X(a)), 5);
+  ctx.fillStyle = css("--bad");
+  for (const e of R.events) ctx.fillRect(X(e.t) - 1.5, 0, 3, h);
+  // minute ticks
+  ctx.fillStyle = css("--muted"); ctx.font = `11px ${css("--font-data")}`; ctx.textBaseline = "top";
+  for (let s = 60; s * 1000 < end; s += 60) { ctx.fillRect(X(s * 1000), 4, 1, 5); }
+  // playhead
+  ctx.fillStyle = css("--ink"); ctx.fillRect(X(T) - 1, 0, 2, h);
+  ctx.beginPath(); ctx.moveTo(X(T) - 6, 0); ctx.lineTo(X(T) + 6, 0); ctx.lineTo(X(T), 7); ctx.fill();
+}
+function seekFromEvent(e) {
+  const r = $("timeline").getBoundingClientRect();
+  T = Math.max(0, Math.min(R.endT, (e.clientX - r.left) / r.width * R.endT));
+  dirty = true;
+}
+
+// ---------------------------------------------------------------- 3D (three.js, loaded the first time 3D is opened)
+// World: x = east, y = up, z = south (so north is -z); millimetres, like the simulator.
+const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+const WALL_H = 150, WALL_T = 12;            // RCJ walls are at least 15 cm high
+const COL3 = { floor: 0xf2f1ec, black: 0x151515, blue: 0x2a68d4, silver: 0xc3c9cf, ramp: 0xe3dccb, solid: 0x5a646d,
+  skirt: 0xb8b3a5, wall: 0xf6f5f0, ground: 0x48515a, body: 0xdf511a, chassis: 0x2b3640, wheel: 0x1b1f22, sensor: 0x00a3b8 };
+let view3d = false, cam3 = "orbit", G = null, threeLoading = null;
+
+function loadThree() {
+  if (window.THREE) return Promise.resolve();
+  if (!threeLoading) threeLoading = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = THREE_URL; s.onload = res; s.onerror = () => { threeLoading = null; rej(new Error("three.js did not load")); };
+    document.head.appendChild(s);
+  });
+  return threeLoading;
+}
+// floor height (mm) at a field point; ramps rise linearly between the two levels (as in world.h)
+function floorH(px, py) {
+  const F = R.header.field, x = Math.floor(px / S), y = Math.floor(py / S);
+  if (!F.in(x, y) || !F.levelHeight) return 0;
+  const i = F.id(x, y), t = F.type[i];
+  if (t === FIELD_TYPE.RAMP) {
+    const f = Math.min(1, Math.max(0, (px - F.rampX0 * S) / (F.rampLen * S)));
+    const hA = F.levelHeight[F.level[F.id(F.rampX0 - 1, y)]], hB = F.levelHeight[F.level[F.id(F.rampX0 + F.rampLen, y)]];
+    return hA + (hB - hA) * f;
+  }
+  if (t === FIELD_TYPE.SOLID) return 0;
+  return F.levelHeight[F.level[i]];
+}
+const V3 = (x, y, h) => [x, h, -y];   // field (x, y, height) -> three.js
+
+function build3D() {
+  const T3 = THREE, F = R.header.field, rb = R.header.robot, cv = $("field3d");
+  if (!G) {
+    const renderer = new T3.WebGLRenderer({ canvas: cv, antialias: true });
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T3.PCFSoftShadowMap;
+    G = { renderer, orbit: null };
+    attachOrbit(cv);
+  } else if (G.scene) G.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); });
+  const scene = new T3.Scene();
+  const mat = (color, extra = {}) => new T3.MeshStandardMaterial(Object.assign({ color, roughness: 0.85, metalness: 0, side: T3.DoubleSide }, extra));
+  const meshFrom = (pos, material, shadows = true) => {
+    const g = new T3.BufferGeometry();
+    g.setAttribute("position", new T3.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    const m = new T3.Mesh(g, material);
+    m.receiveShadow = true; m.castShadow = shadows;
+    return m;
+  };
+  const quad = (arr, a, b, c, d) => arr.push(...a, ...b, ...c, ...a, ...c, ...d);
+  const W = F.W * S, H = F.H * S;
+
+  // floor tiles (top surface + vertical sides where a tile is higher than its neighbour)
+  const tops = { floor: [], black: [], blue: [], silver: [], ramp: [], solid: [] }, skirt = [];
+  const kind = t => ["floor", "black", "blue", "silver", "ramp", "solid"][t] || "floor";
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) {
+    const i = F.id(x, y), x0 = x * S, y0 = y * S, x1 = x0 + S, y1 = y0 + S, e = 1;
+    const h = (px, py) => floorH(Math.min(x1 - e, Math.max(x0 + e, px)), Math.min(y1 - e, Math.max(y0 + e, py)));
+    quad(tops[kind(F.type[i])], V3(x0, y0, h(x0, y0)), V3(x1, y0, h(x1, y0)), V3(x1, y1, h(x1, y1)), V3(x0, y1, h(x0, y1)));
+    if (F.type[i] === FIELD_TYPE.SOLID) continue;
+    const edges = [[x0, y1, x1, y1], [x1, y0, x1, y1], [x0, y0, x1, y0], [x0, y0, x0, y1]];
+    edges.forEach(([ax, ay, bx, by], d) => {
+      const nx = x + DX[d], ny = y + DY[d];
+      const nh = (px, py) => F.in(nx, ny) && F.type[F.id(nx, ny)] !== FIELD_TYPE.SOLID ? floorH(px + DX[d] * 2, py + DY[d] * 2) : 0;
+      const ha = h(ax, ay), hb = h(bx, by), la = Math.min(ha, nh(ax + (bx > ax ? 2 : 0), ay + (by > ay ? 2 : 0))), lb = Math.min(hb, nh(bx - (bx > ax ? 2 : 0), by - (by > ay ? 2 : 0)));
+      if (ha - la > 1 || hb - lb > 1) quad(skirt, V3(ax, ay, la), V3(bx, by, lb), V3(bx, by, hb), V3(ax, ay, ha));
+    });
+  }
+  scene.add(meshFrom(tops.floor, mat(COL3.floor), false), meshFrom(tops.black, mat(COL3.black), false), meshFrom(tops.blue, mat(COL3.blue), false),
+    meshFrom(tops.silver, mat(COL3.silver, { metalness: 0.65, roughness: 0.3 }), false), meshFrom(tops.ramp, mat(COL3.ramp), false),
+    meshFrom(tops.solid, mat(COL3.solid), false), meshFrom(skirt, mat(COL3.skirt), false));
+
+  // walls: one prism per wall, following the floor on both sides (sloped along a ramp)
+  const walls = [];
+  const addWall = (x, y, d) => {
+    const x0 = x * S, y0 = y * S;
+    const [ax, ay, bx, by] = [[x0, y0 + S, x0 + S, y0 + S], [x0 + S, y0, x0 + S, y0 + S], [x0, y0, x0 + S, y0], [x0, y0, x0, y0 + S]][d];
+    const nx = x + DX[d], ny = y + DY[d], inA = F.in(x, y), inB = F.in(nx, ny);
+    const ux = Math.sign(bx - ax), uy = Math.sign(by - ay), px = DX[d] * WALL_T / 2, py = DY[d] * WALL_T / 2;
+    const heights = (ex, ey) => {
+      const hs = [];
+      if (inA) hs.push(floorH(ex - DX[d] * 2, ey - DY[d] * 2));
+      if (inB) hs.push(floorH(ex + DX[d] * 2, ey + DY[d] * 2));
+      return [Math.min(...hs), Math.max(...hs) + WALL_H];
+    };
+    const [ba, ta] = heights(ax + ux * 2, ay + uy * 2), [bb, tb] = heights(bx - ux * 2, by - uy * 2);
+    const sx = ax - ux * WALL_T / 2, sy = ay - uy * WALL_T / 2, ex = bx + ux * WALL_T / 2, ey = by + uy * WALL_T / 2;
+    const A0 = V3(sx + px, sy + py, ba), A1 = V3(sx - px, sy - py, ba), A2 = V3(sx - px, sy - py, ta), A3 = V3(sx + px, sy + py, ta);
+    const B0 = V3(ex + px, ey + py, bb), B1 = V3(ex - px, ey - py, bb), B2 = V3(ex - px, ey - py, tb), B3 = V3(ex + px, ey + py, tb);
+    quad(walls, A0, B0, B3, A3); quad(walls, A1, B1, B2, A2); quad(walls, A3, B3, B2, A2); quad(walls, A0, A1, A2, A3); quad(walls, B0, B1, B2, B3);
+  };
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) {
+    if (F.wall(x, y, 0)) addWall(x, y, 0);
+    if (F.wall(x, y, 1)) addWall(x, y, 1);
+    if (y === 0 && F.wall(x, y, 2)) addWall(x, y, 2);
+    if (x === 0 && F.wall(x, y, 3)) addWall(x, y, 3);
+  }
+  scene.add(meshFrom(walls, mat(COL3.wall, { roughness: 0.7 })));
+
+  // ground around the field, START label
+  const ground = new T3.Mesh(new T3.PlaneGeometry(W + 900, H + 900), mat(COL3.ground, { side: T3.FrontSide }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, -2, -H / 2); ground.receiveShadow = true;
+  scene.add(ground);
+  const lc = document.createElement("canvas"); lc.width = 256; lc.height = 256;
+  const lx = lc.getContext("2d"); lx.fillStyle = "rgba(60,70,80,0.75)"; lx.font = "600 60px " + css("--font-ui"); lx.textAlign = "center"; lx.textBaseline = "middle"; lx.fillText("START", 128, 128);
+  const label = new T3.Mesh(new T3.PlaneGeometry(S * 0.8, S * 0.8), new T3.MeshBasicMaterial({ map: new T3.CanvasTexture(lc), transparent: true, depthWrite: false }));
+  label.rotation.x = -Math.PI / 2;
+  label.position.set((F.sx + 0.5) * S, floorH((F.sx + 0.5) * S, (F.sy + 0.5) * S) + 1, -(F.sy + 0.5) * S);
+  scene.add(label);
+
+  // lights
+  scene.add(new T3.HemisphereLight(0xffffff, 0x8a9096, 0.7));
+  const sun = new T3.DirectionalLight(0xffffff, 0.75), span = Math.max(W, H) * 0.75 + 400;
+  sun.position.set(W / 2 - 1800, 4200, -H / 2 + 2600); sun.target.position.set(W / 2, 0, -H / 2);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005;
+  Object.assign(sun.shadow.camera, { left: -span, right: span, top: span, bottom: -span, near: 100, far: 12000 });
+  scene.add(sun, sun.target);
+
+  // robot, in its own frame: forward = -z, left = -x, up = +y (sizes from the CAD)
+  const robot = new T3.Group(); robot.rotation.order = "YXZ";
+  const L = rb.front + rb.back, Wd = 2 * rb.half, zc = -(rb.front - rb.back) / 2;
+  const at = (fw, lf, h) => new T3.Vector3(-lf, h, -fw);
+  const chassis = new T3.Mesh(new T3.BoxGeometry(Wd - 10, 6, L - 6), mat(COL3.chassis, { side: T3.FrontSide }));
+  chassis.position.set(0, 28, zc); chassis.castShadow = true; robot.add(chassis);
+  const bodyGeo = new T3.BoxGeometry(Wd, 100, L);
+  const body = new T3.Mesh(bodyGeo, mat(COL3.body, { transparent: true, opacity: 0.22, depthWrite: false, side: T3.FrontSide }));
+  body.position.set(0, 72, zc); robot.add(body);
+  const outline = new T3.LineSegments(new T3.EdgesGeometry(bodyGeo), new T3.LineBasicMaterial({ color: COL3.body }));
+  outline.position.copy(body.position); robot.add(outline);
+  const shadowBox = new T3.Mesh(new T3.BoxGeometry(Wd, 90, L), new T3.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  shadowBox.position.copy(body.position); shadowBox.castShadow = true; robot.add(shadowBox);   // the see-through body still casts a shadow
+  for (const fa of [rb.axle, -rb.axle]) for (const side of [-1, 1]) {
+    const w = new T3.Mesh(new T3.CylinderGeometry(rb.wheel / 2, rb.wheel / 2, 18, 24), mat(COL3.wheel, { side: T3.FrontSide }));
+    w.rotation.z = Math.PI / 2; w.position.copy(at(fa, side * rb.track / 2, rb.wheel / 2)); w.castShadow = true; robot.add(w);
+  }
+  const nose = new T3.Mesh(new T3.ConeGeometry(18, 40, 3), mat(COL3.body, { side: T3.FrontSide }));
+  nose.rotation.x = -Math.PI / 2; nose.position.set(0, 124, -(rb.front - 35)); robot.add(nose);
+  const colourH = rb.colour[2] !== undefined ? rb.colour[2] : 23.7;
+  const eye = new T3.Mesh(new T3.CylinderGeometry(10, 10, 4, 20), mat(0x101010, { side: T3.FrontSide }));
+  eye.position.copy(at(rb.colour[0], rb.colour[1], colourH)); robot.add(eye);
+  const beams = [];
+  const coneGeo = new T3.ConeGeometry(1, 1, 24, 1, true); coneGeo.translate(0, -0.5, 0);   // apex at the origin, opening along -y
+  rb.tof.forEach(([fw, lf, facing, hgt], k) => {
+    const h = hgt !== undefined ? hgt : (facing === 2 ? 42.7 : 106.3);
+    const board = new T3.Mesh(new T3.BoxGeometry(16, 13, 4), mat(COL3.sensor, { side: T3.FrontSide }));
+    const pivot = new T3.Group(); pivot.rotation.order = "YXZ";
+    pivot.position.copy(at(fw, lf, h)); pivot.rotation.y = -[0, 90, 180, 270][facing] * Math.PI / 180;
+    board.position.z = 2; pivot.add(board);
+    const aim = new T3.Group(); aim.rotation.x = Math.PI / 2; pivot.add(aim);   // -y of `aim` points along the beam
+    const cone = new T3.Mesh(coneGeo, new T3.MeshBasicMaterial({ color: COL3.sensor, transparent: true, opacity: 0.12, depthWrite: false, side: T3.DoubleSide }));
+    const line = new T3.Line(new T3.BufferGeometry().setFromPoints([new T3.Vector3(0, 0, 0), new T3.Vector3(0, -1, 0)]), new T3.LineBasicMaterial({ color: COL3.sensor }));
+    const dot = new T3.Mesh(new T3.SphereGeometry(7, 12, 8), new T3.MeshBasicMaterial({ color: COL3.sensor }));
+    aim.add(cone, line, dot);
+    robot.add(pivot);
+    beams.push({ cone, line, dot });
+  });
+  scene.add(robot);
+
+  // the tile the code thinks it is on: a square frame with an arrow for the direction it thinks it faces
+  const believed = new T3.Group();
+  const frameMat = new T3.MeshBasicMaterial({ color: 0x1e8549 }), fs = S * 0.84, bar = 14;
+  for (const [x, z, w, d] of [[0, -fs / 2, fs, bar], [0, fs / 2, fs, bar], [-fs / 2, 0, bar, fs], [fs / 2, 0, bar, fs]]) {
+    const b = new T3.Mesh(new T3.BoxGeometry(w, 4, d), frameMat); b.position.set(x, 2, z); believed.add(b);
+  }
+  const arrow = new T3.Mesh(new T3.ConeGeometry(30, 60, 3), frameMat);
+  arrow.rotation.x = -Math.PI / 2; arrow.position.set(0, 4, -fs / 2 + 50);
+  const arrowPivot = new T3.Group(); arrowPivot.add(arrow); believed.add(arrowPivot);
+  scene.add(believed);
+
+  // trail, one line per stretch between referee pick-ups
+  const trailMat = new T3.LineBasicMaterial({ color: COL3.body, transparent: true, opacity: 0.6 });
+  const trails = R.trail.map(seg => {
+    const pts = [];
+    for (const j of seg) { const f = R.frames[j]; pts.push(f.x, floorH(f.x, f.y) + 6, -f.y); }
+    const g = new T3.BufferGeometry(); g.setAttribute("position", new T3.Float32BufferAttribute(pts, 3));
+    const line = new T3.Line(g, trailMat); line.frustumCulled = false; scene.add(line);
+    return { line, seg };
+  });
+
+  const camera = new T3.PerspectiveCamera(42, 1.6, 20, 60000);
+  Object.assign(G, { scene, camera, robot, beams, believed, frameMat, arrowPivot, outline, trails, rec: R, W, H });
+  setCam(cam3);
+}
+
+// camera: an orbit around a target point (drag = turn, wheel = zoom, right/Shift-drag = move)
+function setCam(mode) {
+  cam3 = mode;
+  for (const b of document.querySelectorAll("[data-cam]")) { b.classList.toggle("on", b.dataset.cam === mode); b.setAttribute("aria-pressed", b.dataset.cam === mode); }
+  if (!G || !G.scene) return;
+  const span = Math.max(G.W, G.H);
+  if (mode === "orbit") G.orbit = { theta: -0.35, phi: 0.9, r: span * 0.95 + 500, tx: G.W / 2, ty: 0, tz: -G.H / 2 };
+  if (mode === "top") G.orbit = { theta: 0, phi: 0.001, r: span * 1.35 + 600, tx: G.W / 2, ty: 0, tz: -G.H / 2 };
+  if (mode === "follow") G.orbit = { theta: -0.5, phi: 0.85, r: 1300, tx: 0, ty: 0, tz: 0 };
+  if (mode === "chase") G.orbit = { theta: 0, phi: 1.1, r: 750, tx: 0, ty: 0, tz: 0 };
+  dirty = true;
+}
+function attachOrbit(cv) {
+  let last = null;
+  cv.addEventListener("contextmenu", e => e.preventDefault());
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); last = { x: e.clientX, y: e.clientY }; cv.style.cursor = "grabbing"; });
+  cv.addEventListener("pointerup", () => { last = null; cv.style.cursor = "grab"; });
+  cv.addEventListener("pointermove", e => {
+    if (!last || !G || !G.orbit) return;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y, o = G.orbit;
+    last = { x: e.clientX, y: e.clientY };
+    if ((e.buttons & 2) || e.shiftKey) {
+      if (cam3 === "follow" || cam3 === "chase") return;       // these stay on the robot
+      const k = o.r * 0.0016, c = Math.cos(o.theta), s = Math.sin(o.theta);
+      o.tx -= (dx * c + dy * s) * k; o.tz -= (-dx * s + dy * c) * k;   // grab-and-drag the ground
+    } else {
+      o.theta -= dx * 0.008;
+      if (cam3 !== "top") o.phi = Math.min(1.52, Math.max(0.05, o.phi - dy * 0.006));
+    }
+    dirty = true;
+  });
+  cv.addEventListener("wheel", e => { if (!G || !G.orbit) return; e.preventDefault(); G.orbit.r = Math.min(30000, Math.max(250, G.orbit.r * Math.exp(e.deltaY * 0.001))); dirty = true; }, { passive: false });
+}
+
+function draw3D() {
+  if (!G || !G.scene || G.rec !== R) return;
+  const T3 = THREE, cv = $("field3d"), w = cv.clientWidth, h = Math.round(Math.max(300, Math.min(window.innerHeight * 0.72, w * 0.66)));
+  cv.style.height = h + "px";
+  const dpr = window.devicePixelRatio || 1;
+  if (G.size !== `${w}x${h}x${dpr}`) { G.renderer.setPixelRatio(dpr); G.renderer.setSize(w, h, false); G.camera.aspect = w / h; G.camera.updateProjectionMatrix(); G.size = `${w}x${h}x${dpr}`; }
+  G.scene.background = new T3.Color(css("--panel"));
+
+  const p = poseAt(T), f = R.frames[p.i], c = posCheck(R, f), F = R.header.field;
+  const gy = floorH(p.x, p.y);
+  G.robot.position.set(p.x, gy, -p.y);
+  G.robot.rotation.set(f.p * Math.PI / 180, -p.h * Math.PI / 180, 0);
+  G.outline.material.color.setHex(f.c ? 0xef3b3b : COL3.body);
+  G.beams.forEach((b, k) => {
+    const d = f.tof[k], ok = showBeams && d > 0 && d < 8000;
+    b.cone.visible = b.line.visible = b.dot.visible = ok;
+    if (!ok) return;
+    const r = d * Math.tan((R.header.robot.cone || 25) / 2 * Math.PI / 180);
+    b.cone.scale.set(r, d, r); b.line.scale.set(1, d, 1); b.dot.position.set(0, -d, 0);
+  });
+  const inField = c.bx >= 0 && c.by >= 0 && c.bx < F.W && c.by < F.H;
+  G.believed.visible = inField || (c.bx >= -2 && c.by >= -2 && c.bx < F.W + 2 && c.by < F.H + 2);
+  G.believed.position.set((c.bx + 0.5) * S, (inField ? floorH((c.bx + 0.5) * S, (c.by + 0.5) * S) : 0) + 2, -(c.by + 0.5) * S);
+  G.frameMat.color.set(c.off ? css("--bad") : css("--ok"));
+  G.arrowPivot.rotation.y = -f.d * Math.PI / 2;
+  for (const t of G.trails) {
+    let n = 0;
+    for (const j of t.seg) { if (j > p.i) break; n++; }
+    t.line.visible = showTrail && n > 1;
+    t.line.geometry.setDrawRange(0, n);
+  }
+  // camera
+  const o = G.orbit;
+  if (cam3 === "follow") { o.tx = p.x; o.ty = gy + 60; o.tz = -p.y; }
+  let target = new T3.Vector3(o.tx, o.ty, o.tz);
+  if (cam3 === "chase") {
+    const hr = p.h * Math.PI / 180, fx = Math.sin(hr), fz = -Math.cos(hr);
+    target = new T3.Vector3(p.x + fx * 260, gy + 70, -p.y + fz * 260);
+    const back = o.r * Math.sin(o.phi), up = o.r * Math.cos(o.phi);
+    G.camera.position.set(p.x - fx * back, gy + 120 + up, -p.y - fz * back);
+  } else {
+    G.camera.position.set(o.tx + o.r * Math.sin(o.phi) * Math.sin(o.theta), o.ty + o.r * Math.cos(o.phi), o.tz + o.r * Math.sin(o.phi) * Math.cos(o.theta));
+  }
+  G.camera.up.set(0, 1, 0);
+  if (cam3 === "top") G.camera.up.set(0, 0, -1);
+  G.camera.lookAt(target);
+  G.renderer.render(G.scene, G.camera);
+}
+
+function set3D(on) {
+  view3d = on;
+  $("v2d").classList.toggle("on", !on); $("v2d").setAttribute("aria-pressed", !on);
+  $("v3d").classList.toggle("on", on); $("v3d").setAttribute("aria-pressed", on);
+  $("field").hidden = on; $("field3d").hidden = !on; $("cams").hidden = !on; $("note3d").hidden = !on; $("tFollow").hidden = on;
+  if (!on) { dirty = true; return; }
+  $("note3d").textContent = "Loading 3D…";
+  loadThree().then(() => {
+    try { if (!G || G.rec !== R) build3D(); }
+    catch (e) { $("note3d").textContent = "3D could not start in this browser (it needs WebGL). The 2D view still works."; return; }
+    $("note3d").textContent = "Drag to turn the view, scroll to zoom, right-drag or Shift-drag to move it. Walls are 150 mm high; sensors sit at their CAD heights.";
+    dirty = true;
+  }).catch(() => { $("note3d").textContent = "3D needs an internet connection the first time, to load the three.js library. The 2D view works offline."; });
+}
+
+// ---------------------------------------------------------------- loop + controls
+function render() {
+  if (!R) return;
+  if (view3d) { if (window.THREE && G && G.rec !== R) build3D(); draw3D(); } else drawField();
+  drawMap(); renderPanels(); drawTimeline();
+}
+function tick(now) {
+  if (R && playing) {
+    if (lastNow !== null) { T = Math.min(R.endT, T + (now - lastNow) * speed); dirty = true; }
+    if (T >= R.endT) { playing = false; updatePlayButton(); }
+  }
+  lastNow = playing ? now : null;
+  if (dirty) { dirty = false; render(); }
+  requestAnimationFrame(tick);
+}
+const ICON_PLAY = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.2l8 4.8-8 4.8z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.6v9H2.5zM6.9 1.5h2.6v9H6.9z"/></svg>';
+function updatePlayButton() { $("play").innerHTML = playing ? ICON_PAUSE + "Pause" : ICON_PLAY + (R && T >= R.endT ? "Replay" : "Play"); }
+function togglePlay() {
+  if (!R) return;
+  if (!playing && T >= R.endT) T = 0;
+  playing = !playing; updatePlayButton(); dirty = true;
+}
+function step(ms) { if (!R) return; T = Math.max(0, Math.min(R.endT, T + ms)); dirty = true; updatePlayButton(); }
+function toggle(btn, get, set) {
+  btn.onclick = () => { set(!get()); btn.classList.toggle("on", get()); btn.setAttribute("aria-pressed", get()); fieldLayerKey = ""; dirty = true; };
+}
+
+$("play").onclick = togglePlay;
+$("back").onclick = () => step(-1000);
+$("fwd").onclick = () => step(1000);
+$("back10").onclick = () => step(-10000);
+$("fwd10").onclick = () => step(10000);
+$("speed").onchange = e => { speed = +e.target.value; };
+$("nextEvent").onclick = () => {
+  if (!R) return;
+  const next = R.problems.find(t => t > T + 300);
+  if (next === undefined) return;
+  T = Math.max(0, next - 3000); playing = false; updatePlayButton(); dirty = true;
+};
+toggle($("tBeams"), () => showBeams, v => showBeams = v);
+toggle($("tTrail"), () => showTrail, v => showTrail = v);
+toggle($("tFollow"), () => follow, v => follow = v);
+$("v2d").onclick = () => set3D(false);
+$("v3d").onclick = () => set3D(true);
+for (const b of document.querySelectorAll("[data-cam]")) b.onclick = () => setCam(b.dataset.cam);
+const tl = $("timeline");
+tl.addEventListener("pointerdown", e => { if (!R) return; tl.setPointerCapture(e.pointerId); seekFromEvent(e); });
+tl.addEventListener("pointermove", e => { if (R && tl.hasPointerCapture(e.pointerId)) seekFromEvent(e); });
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea")) return;
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+  if (e.code === "ArrowRight") { e.preventDefault(); step(e.shiftKey ? 10000 : 1000); }
+  if (e.code === "ArrowLeft") { e.preventDefault(); step(e.shiftKey ? -10000 : -1000); }
+});
+for (const id of ["file", "file2"]) $(id).onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => load(String(fr.result));
+  fr.readAsText(file);
+};
+window.addEventListener("resize", () => { dirty = true; });
+try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { fieldLayerKey = ""; dirty = true; }); } catch (e) {}
+new MutationObserver(() => { fieldLayerKey = ""; dirty = true; }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+const embedded = $("trace-data").textContent;
+if (embedded.trim() && embedded.trim() !== "/*TRACE" + "-DATA*/") load(embedded);
+else showEmpty(true);
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

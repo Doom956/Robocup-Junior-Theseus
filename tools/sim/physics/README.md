@@ -20,14 +20,63 @@ python tools/sim/physics/run_physics.py --scenario ramp --runs 300
 python tools/sim/physics/run_physics.py --ideal               # no noise, drift or motor differences
 python tools/sim/physics/run_physics.py --random              # a new block of fields
 python tools/sim/physics/run_physics.py --scenario loops --seed 7 --verbose   # one field + the robot's Serial output
+python tools/sim/physics/run_physics.py --scenario loops --seed 7 --view      # one field, watch it in the browser
 python tools/sim/physics/run_physics.py --selftest            # calibration experiments (see below)
+python tools/sim/physics/run_physics.py --serve               # the batch dashboard in the browser (below)
 ```
 
-It rebuilds from the current `Main/` every time. One 8-minute match takes about 1-2 seconds; fields
-run in parallel. Each result line shows: back on the start tile, explored everything, average
+It rebuilds from the current `Main/` every time. One 8-minute match takes a few seconds; fields
+run in parallel (about 4 minutes for 1000 runs on 14 cores). Each result line shows: back on the start tile, explored everything, average
 coverage, map wall accuracy, how often the code's map position was wrong, lack-of-progress restarts,
 time spent pressed against walls, and how runs ended (`home`, `time` = 8:00 ran out, `no path`).
-`--trace FILE` (with `--seed`) writes the robot's real and believed position every 50 ms.
+`--trace FILE` (with `--seed`) writes a recording of the run (see below).
+
+## Batch dashboard
+
+```
+python tools/sim/physics/run_physics.py --serve
+```
+
+Opens a page in your browser for running batches, like the batch test on the logic simulator's page:
+pick the field type, how many fields (20 / 200 / 500 / 2000 or any number), the same fields every time
+or new random ones, realistic or ideal robot, any simulator setting, and optional `#define` changes to try.
+"Run batch" runs them on all CPU cores and shows, while it runs:
+
+- per field type: back home (with the ± you'd expect from chance), "wrong tile" (it said it was home but
+  wasn't), explored everything, average explored, map walls right, lost >20% of the time, restarts, time
+  pressed on walls
+- how runs ended, as a bar per field type, and a chart of how much of the field each run explored
+- every run in a sortable, filterable table, each with a **Watch** button that records that run and opens
+  it in the replay viewer (below)
+- all batches run since the server started, so you can compare: same fields + one change = a fair test
+
+The server only listens on this PC and rebuilds the firmware whenever a file in `Main/` changes, so you
+can edit code in VS Code and press "Run batch" again. Ctrl+C in the terminal stops it.
+
+## Watching a run
+
+`--view` (with `--seed`) records the run and opens it in your browser (the dashboard's **Watch** button
+does the same). The page is saved as `tools/sim/physics/replays/<field>-seed<N>.html` and works on its
+own: double-click it later or send it to a teammate. It shows:
+
+- **Field**, in **2D** or **3D**: the real field with the robot drawn to scale from the CAD, its wheels,
+  the 7 distance sensor beams (25° cone and the reading each sensor returned), the colour sensor, the path
+  it drove, and a box on the tile the code *thinks* it is on (green when right, red when wrong). The robot
+  outline turns red while it is pressed on a wall. In 2D, "Zoom on robot" follows it up close. 3D shows
+  the walls (150 mm), ramps and upper levels, the robot tilting on the ramp, and the sensors at their CAD
+  heights; cameras: whole field, around the robot, behind the robot, from above. Drag to turn, scroll to
+  zoom, right-drag to move. 3D loads the three.js library from the internet the first time.
+- **Now**: the firmware's state (`SENSE_TILE`, `EXECUTE_MOVE`, `RETURN`...), true heading vs what the gyro
+  reports, pitch, the real tile vs the code's tile, PWM on all 4 motors, every distance reading.
+- **Robot's map**: the map the code has built so far, per floor (m1 / m2 / m3). Walls it imagined are solid
+  red, real walls it missed are dashed red, and edges it blocked after two failed moves are amber.
+- **Serial monitor**: everything the firmware printed, in step with the replay.
+- **Timeline**: exploring, heading home (`RETURN`) and paused stretches; amber where the code's position
+  was wrong for 4 s or more; red marks at lack-of-progress restarts. Click to jump; "Next problem" jumps to
+  just before the next restart or lost-position moment.
+
+Keys: Space play/pause, ← → 1 s, Shift+← → 10 s. A batch run lists failed fields under `replay:`; add
+`--view` to any of them. `tools/sim/physics/viewer.html` can also open a file made with `--trace`.
 
 ## What is simulated
 

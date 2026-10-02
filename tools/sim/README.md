@@ -1,5 +1,7 @@
 # Maze simulator
 
+Step-by-step instructions for this and the physics simulator: [INSTRUCTIONS.md](INSTRUCTIONS.md).
+
 Two tools:
 
 - **`run_sim.bat`**: runs the robot's **real** navigation code (`Main/navigation.cpp`,
@@ -121,8 +123,9 @@ copied into `sim.cpp` (`moveForward()` = `fwd()` + `finishTileMove()`, `senseTil
 restart). **If you change those parts of `main.cpp`/`movement.cpp`, update `sim.cpp` to match.**
 
 `physics/` is a second simulator that runs the real firmware (all of `Main/`) against a simulated
-robot with motors, encoders, distance sensors placed from the CAD, gyro and colour sensor. See
-[physics/README.md](physics/README.md).
+robot with motors, encoders, distance sensors placed from the CAD, gyro and colour sensor.
+`run_physics.py --serve` opens a batch dashboard in the browser, and `--view` (or the dashboard's Watch
+button) replays any run in 2D or 3D. See [physics/README.md](physics/README.md).
 
 `cad/` holds the robot's sensor positions taken from the CAD (`robot_geometry.md` / `.json`) and
 the script that extracts them from a STEP export. The physics simulator reads them.

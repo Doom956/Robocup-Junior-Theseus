@@ -54,29 +54,32 @@ class String {
 };
 inline String operator+(const char *a, const String &b) { return String(std::string(a) + b.s); }
 
-// Serial output goes to stdout only with --verbose. Serial3/Serial4 (victim cameras) never receive anything.
+// Serial output goes to stdout only with --verbose (and into the trace for the replay viewer).
+// Serial3/Serial4 (victim cameras) never receive anything.
 extern bool simSerialEcho;
+void simSerialOut(const char *text); // in physics.cpp
 class SimSerial {
  public:
   void begin(unsigned long) {}
   int available() { return 0; }
   int read() { return -1; }
-  template <class T> void print(T v) { if (simSerialEcho) out(v); }
-  template <class T> void print(T v, int) { if (simSerialEcho) out(v); }
-  template <class T> void println(T v) { if (simSerialEcho) { out(v); std::putchar('\n'); } }
+  template <class T> void print(T v) { out(v); }
+  template <class T> void print(T v, int) { out(v); }
+  template <class T> void println(T v) { out(v); simSerialOut("\n"); }
   template <class T> void println(T v, int) { println(v); }
-  void println() { if (simSerialEcho) std::putchar('\n'); }
+  void println() { simSerialOut("\n"); }
  private:
-  void out(const char *v) { std::fputs(v, stdout); }
-  void out(char *v) { std::fputs(v, stdout); }
-  void out(const String &v) { std::fputs(v.c_str(), stdout); }
-  void out(bool v) { std::printf("%d", v ? 1 : 0); }
-  void out(char v) { std::putchar(v); }
-  void out(int v) { std::printf("%d", v); }
-  void out(unsigned v) { std::printf("%u", v); }
-  void out(long v) { std::printf("%ld", v); }
-  void out(unsigned long v) { std::printf("%lu", v); }
-  void out(float v) { std::printf("%.2f", v); }
-  void out(double v) { std::printf("%.2f", v); }
+  char b[32];
+  void out(const char *v) { simSerialOut(v); }
+  void out(char *v) { simSerialOut(v); }
+  void out(const String &v) { simSerialOut(v.c_str()); }
+  void out(bool v) { simSerialOut(v ? "1" : "0"); }
+  void out(char v) { b[0] = v; b[1] = 0; simSerialOut(b); }
+  void out(int v) { std::snprintf(b, sizeof b, "%d", v); simSerialOut(b); }
+  void out(unsigned v) { std::snprintf(b, sizeof b, "%u", v); simSerialOut(b); }
+  void out(long v) { std::snprintf(b, sizeof b, "%ld", v); simSerialOut(b); }
+  void out(unsigned long v) { std::snprintf(b, sizeof b, "%lu", v); simSerialOut(b); }
+  void out(float v) { std::snprintf(b, sizeof b, "%.2f", v); simSerialOut(b); }
+  void out(double v) { std::snprintf(b, sizeof b, "%.2f", v); simSerialOut(b); }
 };
 extern SimSerial Serial, Serial3, Serial4;

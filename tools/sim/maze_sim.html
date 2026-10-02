@@ -4,122 +4,163 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Theseus Maze Simulator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: control strip on top, the real field on the left, the robot's own map + run checks on the right; stacks on phones. */
+/* Shared look for the Theseus simulator pages: a plain desktop tool. Toolbar on top, panes with small
+   title bars, system fonts, colour only where it means something (field colours, ok / warning / problem). */
 :root {
-  --bg: #edf0f2;
-  --panel: #ffffff;
-  --ink: #16212b;
-  --muted: #5b6a76;
-  --line: #d2dae0;
-  --tile: #fbfbf8;
-  --tile-up: #e6ecf6;
-  --unknown: #e3e8ec;
-  --wall: #16212b;
-  --black: #111316;
-  --blue: #2a68d4;
-  --silver: #a7b1bc;
-  --ramp: #d9c7a0;
-  --solid: #9aa6b0;
-  --robot: #df511a;
-  --ok: #1e8549;
-  --bad: #c42e2e;
-  --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --font-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --bg: #e8e8e5;
+  --panel: #fafaf8;
+  --raise: #f1f1ee;
+  --bar: #dfdfdb;
+  --ink: #1d1d1b;
+  --muted: #66665f;
+  --line: #c4c4be;
+  --line-soft: #dcdcd7;
+  --sel: #d3deec;
+  --accent: #2a5ea8;
+  --ok: #2e7a32;
+  --warn: #9a6200;
+  --bad: #b8322a;
+  --idle: #8f8f88;
+  /* field colours */
+  --tile: #ffffff;
+  --tile-up: #dde7f3;
+  --unknown: #e2e2de;
+  --wall: #1d1d1b;
+  --black: #121212;
+  --blue: #2463c9;
+  --silver: #a9b0b7;
+  --ramp: #d8c9a3;
+  --solid: #a3a39c;
+  --robot: #d9480f;
+  --robot-body: rgba(217, 72, 15, 0.16);
+  --beam: rgba(0, 133, 154, 0.13);
+  --beam-line: #00859a;
+  --wheel: #2a2a28;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: var(--font-ui);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1317; --panel: #151d24; --ink: #e2e9ee; --muted: #8e9fac; --line: #26323c;
-    --tile: #1e2730; --tile-up: #1f2b3c; --unknown: #192128; --wall: #dfe6eb; --black: #040506;
-    --blue: #3b7de6; --silver: #7f8b97; --ramp: #7a6a48; --solid: #3a4650; --robot: #ff6a2c;
-    --ok: #3cbf72; --bad: #ef5b5b; color-scheme: dark;
+    --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+    --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+    --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+    --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+    --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e1317; --panel: #151d24; --ink: #e2e9ee; --muted: #8e9fac; --line: #26323c;
-  --tile: #1e2730; --tile-up: #1f2b3c; --unknown: #192128; --wall: #dfe6eb; --black: #040506;
-  --blue: #3b7de6; --silver: #7f8b97; --ramp: #7a6a48; --solid: #3a4650; --robot: #ff6a2c;
-  --ok: #3cbf72; --bad: #ef5b5b; color-scheme: dark;
+  --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+  --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+  --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+  --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+  --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45; padding-inline: 16px; padding-block: 18px 32px; }
-.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 14px; }
-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
-h1 { font-family: var(--font-display); font-weight: 600; font-size: 24px; letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
-header p { margin: 0; color: var(--muted); max-width: 70ch; }
-h2 { font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; color: var(--muted); }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
-.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
-.field { display: grid; gap: 4px; }
-.field label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-select, input[type="number"] { font: inherit; font-family: var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-height: 34px; }
-input[type="number"] { width: 92px; }
-input[type="range"] { width: 140px; accent-color: var(--robot); }
-.btns { display: flex; flex-wrap: wrap; gap: 8px; }
-button { font: inherit; font-weight: 500; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 6px 12px; min-height: 34px; cursor: pointer; }
-button:hover { border-color: var(--muted); }
-button.primary { background: var(--robot); border-color: var(--robot); color: #fff; }
-button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--robot); outline-offset: 2px; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.4 var(--font-ui); }
+code { font-family: var(--font-data); font-size: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 16px; background: var(--bar); border-bottom: 1px solid var(--line); }
+.toolbar .app { font-weight: 600; font-size: 13.5px; margin: 0; }
+.toolbar .doc { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.toolbar .spacer { flex: 1 1 auto; }
+.page { padding-inline: 16px; padding-block: 10px 28px; display: grid; gap: 10px; max-width: 1440px; margin: 0 auto; }
+.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.pane > header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; padding: 3px 4px 3px 10px; background: var(--raise); border-bottom: 1px solid var(--line-soft); border-radius: 3px 3px 0 0; }
+.pane > header h2 { font-size: 12.5px; font-weight: 600; margin: 0 6px 0 0; }
+.pane > header .aside { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pane > .body { padding: 10px; }
+button { font: inherit; font-size: 12.5px; color: var(--ink); background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+button:hover { background: var(--bar); }
+button:active { background: var(--line-soft); }
+button.on { background: var(--sel); border-color: var(--accent); }
+button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); font-weight: 600; }
+button.primary:hover { background: var(--ink); opacity: 0.86; }
 button:disabled { opacity: 0.45; cursor: default; }
-.main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
-.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; margin-bottom: 10px; }
-.hint { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
-canvas { display: block; width: 100%; touch-action: manipulation; }
-#field { cursor: crosshair; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.sw { width: 13px; height: 13px; border-radius: 2px; border: 1px solid var(--line); display: inline-block; }
-.side { display: grid; gap: 14px; min-width: 0; }
-.status { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
-.stat { display: grid; gap: 2px; }
-.stat b { font-family: var(--font-data); font-weight: 500; font-size: 18px; font-variant-numeric: tabular-nums; }
-.stat small { color: var(--muted); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
-.pill { font-family: var(--font-data); font-size: 12px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); white-space: nowrap; }
-.pill.run { color: var(--robot); border-color: var(--robot); }
-.pill.ok { color: var(--ok); border-color: var(--ok); }
-.pill.bad { color: var(--bad); border-color: var(--bad); }
-.checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
-.checks li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; }
+button svg { width: 12px; height: 12px; fill: currentColor; flex: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; }
+.seg > button { border-radius: 0; margin-left: -1px; }
+.seg > button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.seg > button:last-child { border-radius: 0 3px 3px 0; }
+.seg > button.on { position: relative; z-index: 1; }
+select, input[type="number"], input[type="text"], textarea { font: inherit; font-size: 12.5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; min-height: 26px; }
+input[type="number"] { font-family: var(--font-data); width: 84px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); margin: 0; }
+input[type="range"] { accent-color: var(--accent); }
+label.file { display: inline-flex; align-items: center; font-size: 12.5px; background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; }
+label.file:hover { background: var(--bar); }
+label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.lbl { color: var(--muted); font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.chip, .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.chip::before, .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--idle); flex: none; }
+.chip.ok::before, .pill.ok::before { background: var(--ok); }
+.chip.warn::before, .pill.warn::before { background: var(--warn); }
+.chip.bad::before, .pill.bad::before { background: var(--bad); }
+.pill.run::before { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sw { width: 10px; height: 10px; border: 1px solid var(--line); display: inline-block; flex: none; }
+.sw.line { height: 3px; border: 0; }
+.sw.dash { background: transparent; border: 1.5px dashed var(--ok); }
+.scroll { overflow-x: auto; }
+table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.grid th { background: var(--raise); color: var(--muted); font-weight: 600; font-size: 12px; text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.grid td { padding: 3px 8px; border-bottom: 1px solid var(--line-soft); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.grid th:first-child, .grid td:first-child, .grid .l { text-align: left; }
+.num { font-family: var(--font-data); font-size: 12px; }
+dl.props { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: 12.5px; max-width: 480px; }
+dl.props dt { color: var(--muted); }
+dl.props dd { margin: 0; text-align: right; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+canvas { display: block; width: 100%; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* logic simulator: controls in a strip, the field on the left, run details / robot's map / batch test on the right */
+.strip .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.strip .sep { width: 1px; align-self: stretch; background: var(--line-soft); margin: 0 4px; }
+.strip .profile { padding: 0 10px 8px; }
+input[type="range"] { width: 120px; }
+.work { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 10px; align-items: start; }
+@media (max-width: 900px) { .work { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 10px; min-width: 0; }
+#field { cursor: crosshair; touch-action: manipulation; }
+.checks { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line-soft); display: grid; gap: 3px; font-size: 12.5px; }
+.checks li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; align-items: start; }
 .mark { font-family: var(--font-data); font-weight: 600; text-align: center; }
 .mark.ok { color: var(--ok); } .mark.bad { color: var(--bad); } .mark.wait { color: var(--muted); }
-.floors { display: grid; gap: 12px; }
-.floor h3 { font-family: var(--font-data); font-weight: 500; font-size: 12px; margin: 0 0 6px; color: var(--muted); }
-.log { font-family: var(--font-data); font-size: 12px; color: var(--muted); max-height: 168px; overflow-y: auto; margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.log { font-family: var(--font-data); font-size: 11.5px; color: var(--muted); max-height: 168px; overflow-y: auto; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line-soft); list-style: none; display: grid; gap: 2px; }
 .log li { overflow-wrap: anywhere; }
 .log li:first-child { color: var(--ink); }
-.batch-out { font-family: var(--font-data); font-size: 12.5px; margin-top: 10px; display: grid; gap: 4px; }
+.floors { display: grid; gap: 10px; }
+.floor h3 { font-size: 12px; font-weight: 600; margin: 0 0 4px; color: var(--muted); }
+.batch-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+label.check { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12.5px; cursor: pointer; }
+.bar { height: 6px; background: var(--raise); border: 1px solid var(--line-soft); overflow: hidden; margin-top: 8px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.batch-out { font-size: 12.5px; margin-top: 8px; display: grid; gap: 4px; }
 .batch-out .row { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
-.linkbtn { border: none; background: none; padding: 0; min-height: 0; color: var(--robot); text-decoration: underline; cursor: pointer; font: inherit; }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+.metrics { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
+.metrics td { padding: 3px 0; border-top: 1px solid var(--line-soft); }
+.metrics td:last-child { text-align: right; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
+.reasons { display: grid; gap: 2px; margin-top: 8px; }
+.linkbtn { border: none; background: none; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
+.linkbtn:hover { background: none; }
+.ghost-note { color: var(--bad); }
 </style>
 </head>
 <body>
+<div class="toolbar">
+  <h1 class="app">Theseus maze simulator</h1>
+  <span class="doc">Logic test: the robot's exploration and return code (port of <code>Main/navigation.cpp</code>), tile by tile</span>
+</div>
 
-<style>
-.metrics { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
-.metrics td { padding: 4px 0; border-top: 1px solid var(--line); }
-.metrics td:last-child { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
-.bar { height: 6px; border-radius: 3px; background: var(--unknown); overflow: hidden; margin-top: 10px; }
-.bar i { display: block; height: 100%; width: 0; background: var(--robot); }
-.profile { font-size: 11.5px; color: var(--muted); max-width: 46ch; }
-.ghost-note { color: var(--bad); }
-.reasons { display: grid; gap: 3px; margin-top: 8px; }
-</style>
-
-<div class="wrap">
-  <header>
-    <h1>Theseus Maze Simulator</h1>
-    <p>Runs the robot's exploration planner on RCJ Rescue Maze fields with black, blue and silver tiles and ramps. The realism setting adds the faults a real run has (misread walls, stalls, wheel slip, miscounted ramps, missed black tiles, the 8-minute clock) and sends each one through the same recovery code as <code>Main/</code>. It works tile by tile: the robot is always centred in a tile facing N, E, S or W, and each fault is a fixed chance, not a model of where the sensors sit or how the motors behave. It tests the decision logic, not the hardware.</p>
-  </header>
-
-  <section class="panel controls" aria-label="Field and playback controls">
-    <div class="field">
-      <label for="scenario">Field</label>
+<div class="page">
+  <section class="pane strip" aria-label="Field and playback controls">
+    <div class="body controls">
+      <label class="lbl" for="scenario">Field</label>
       <select id="scenario">
         <option value="flat">Small, no loops</option>
         <option value="loops">Medium with loops</option>
@@ -127,89 +168,92 @@ canvas { display: block; width: 100%; touch-action: manipulation; }
         <option value="ramp">Two levels + ramp</option>
         <option value="bigramp" selected>Large + two ramps</option>
       </select>
-    </div>
-    <div class="field">
-      <label for="realism">Robot realism</label>
+      <label class="lbl" for="realism">Robot</label>
       <select id="realism">
         <option value="perfect">Perfect sensors and wheels</option>
         <option value="realistic" selected>Realistic faults</option>
         <option value="harsh">Harsh faults</option>
       </select>
-    </div>
-    <div class="field">
-      <label for="seed">Seed</label>
+      <label class="lbl" for="seed">Seed</label>
       <input id="seed" type="number" min="1" step="1" value="3">
-    </div>
-    <div class="btns">
-      <button id="load" type="button">Load seed</button>
-      <button id="random" type="button">New random field</button>
-    </div>
-    <div class="btns">
+      <div class="seg">
+        <button id="load" type="button">Load seed</button>
+        <button id="random" type="button">New random field</button>
+      </div>
+      <span class="sep" aria-hidden="true"></span>
       <button id="play" class="primary" type="button">Play</button>
-      <button id="step" type="button">Step</button>
-      <button id="finish" type="button">Run to end</button>
-      <button id="reset" type="button">Reset run</button>
-    </div>
-    <div class="field">
-      <label for="speed">Speed</label>
+      <div class="seg">
+        <button id="step" type="button">Step</button>
+        <button id="finish" type="button">Run to end</button>
+        <button id="reset" type="button">Reset run</button>
+      </div>
+      <label class="lbl" for="speed">Speed</label>
       <input id="speed" type="range" min="0" max="100" value="60">
     </div>
-    <p class="profile" id="profile"></p>
+    <p class="hint profile" id="profile"></p>
   </section>
 
-  <div class="main">
-    <section class="panel" aria-labelledby="field-h">
-      <div class="head">
+  <div class="work">
+    <section class="pane" aria-labelledby="field-h">
+      <header>
         <h2 id="field-h">Real field</h2>
-        <span id="phase" class="pill run">exploring</span>
+        <span class="hint" id="seedlabel">seed 3</span>
+        <div class="aside"><span id="phase" class="pill run">exploring</span></div>
+      </header>
+      <div class="body">
+        <div><canvas id="field" aria-label="The real maze with the robot's position"></canvas></div>
+        <div class="legend" aria-hidden="true" style="margin-top:8px">
+          <span><i class="sw" style="background:var(--tile)"></i>tile</span>
+          <span><i class="sw" style="background:var(--tile-up)"></i>upper level</span>
+          <span><i class="sw" style="background:var(--black)"></i>black</span>
+          <span><i class="sw" style="background:var(--blue)"></i>blue (5 s stop)</span>
+          <span><i class="sw" style="background:var(--silver)"></i>silver checkpoint</span>
+          <span><i class="sw" style="background:var(--ramp)"></i>ramp (arrow = uphill)</span>
+          <span><i class="sw" style="background:var(--robot)"></i>robot / next target</span>
+          <span><i class="sw" style="border:1.5px dashed var(--bad)"></i>where it thinks it is (when lost)</span>
+        </div>
+        <p class="hint" id="edit-hint" style="margin-top:8px">Before Play or Step you can edit the field: click near a tile edge to add or remove a wall, click a tile to cycle plain → black → blue → silver, Shift-click to move the start. Keys: Space play/pause, → step.</p>
+        <p class="hint" style="margin-top:6px">The robot is always centred and square in a tile, and each fault is a fixed chance. For motors, sensors and timing use the physics simulator (<code>run_physics.py</code>).</p>
       </div>
-      <canvas id="field" aria-label="The real maze with the robot's position"></canvas>
-      <div class="legend" aria-hidden="true">
-        <span><i class="sw" style="background:var(--tile)"></i>tile</span>
-        <span><i class="sw" style="background:var(--tile-up)"></i>upper level</span>
-        <span><i class="sw" style="background:var(--black)"></i>black</span>
-        <span><i class="sw" style="background:var(--blue)"></i>blue (5 s stop)</span>
-        <span><i class="sw" style="background:var(--silver)"></i>silver checkpoint</span>
-        <span><i class="sw" style="background:var(--ramp)"></i>ramp (arrow points uphill)</span>
-        <span><i class="sw" style="background:var(--robot)"></i>robot / next target</span>
-        <span><i class="sw" style="border:2px dashed var(--bad)"></i>where the robot thinks it is (when lost)</span>
-      </div>
-      <p class="hint" id="edit-hint">Edit before pressing Play or Step: click near a tile edge to add or remove a wall, click a tile to cycle plain → black → blue → silver, Shift-click to move the start. Black tiles that would wall off part of the field are refused. Keys: Space play/pause, → step.</p>
     </section>
 
-    <div class="side">
-      <section class="panel" aria-labelledby="run-h">
-        <div class="head"><h2 id="run-h">This run</h2><span id="seedlabel" class="pill">seed 3</span></div>
-        <div class="status">
-          <div class="stat"><small>Clock</small><b id="s-time">0:00</b></div>
-          <div class="stat"><small>Explore moves</small><b id="s-moves">0</b></div>
-          <div class="stat"><small>Return moves</small><b id="s-ret">0</b></div>
-          <div class="stat"><small>Coverage</small><b id="s-cov">0%</b></div>
-          <div class="stat"><small>Short moves</small><b id="s-short">0</b></div>
-          <div class="stat"><small>Restarts (LoP)</small><b id="s-lop">0</b></div>
-          <div class="stat"><small>Black stops</small><b id="s-black">0</b></div>
-          <div class="stat"><small>Ramp crossings</small><b id="s-ramp">0</b></div>
-          <div class="stat"><small>Floor · heading</small><b id="s-floor">1 · N</b></div>
+    <div class="col">
+      <section class="pane" aria-labelledby="run-h">
+        <header><h2 id="run-h">This run</h2></header>
+        <div class="body">
+          <dl class="props">
+            <dt>Clock</dt><dd id="s-time">0:00</dd>
+            <dt>Coverage</dt><dd id="s-cov">0%</dd>
+            <dt>Explore moves</dt><dd id="s-moves">0</dd>
+            <dt>Return moves</dt><dd id="s-ret">0</dd>
+            <dt>Short moves</dt><dd id="s-short">0</dd>
+            <dt>Restarts (lack of progress)</dt><dd id="s-lop">0</dd>
+            <dt>Black stops</dt><dd id="s-black">0</dd>
+            <dt>Ramp crossings</dt><dd id="s-ramp">0</dd>
+            <dt>Floor · heading</dt><dd id="s-floor">1 · N</dd>
+          </dl>
+          <ul class="checks" id="checks"></ul>
+          <ul class="log" id="log" aria-live="polite"></ul>
         </div>
-        <ul class="checks" id="checks"></ul>
-        <ul class="log" id="log" aria-live="polite"></ul>
       </section>
 
-      <section class="panel" aria-labelledby="map-h">
-        <div class="head"><h2 id="map-h">Robot's map</h2><span class="pill">red wall = map is wrong</span></div>
-        <div class="floors" id="floors"></div>
+      <section class="pane" aria-labelledby="map-h">
+        <header><h2 id="map-h">Robot's map</h2><div class="aside"><span class="hint">red wall = map is wrong</span></div></header>
+        <div class="body"><div class="floors" id="floors"></div></div>
       </section>
 
-      <section class="panel" aria-labelledby="batch-h">
-        <div class="head"><h2 id="batch-h">Batch test</h2><span class="pill" id="batch-cfg"></span></div>
-        <div class="btns">
-          <button id="batch200" type="button">Run 200 fields</button>
-          <button id="batch2000" type="button">Run 2000 fields</button>
-          <button id="batchstop" type="button" hidden>Stop</button>
+      <section class="pane" aria-labelledby="batch-h">
+        <header><h2 id="batch-h">Batch test</h2><div class="aside"><span class="hint" id="batch-cfg"></span></div></header>
+        <div class="body">
+          <div class="batch-btns">
+            <button id="batch200" type="button">Run 200 fields</button>
+            <button id="batch2000" type="button">Run 2000 fields</button>
+            <button id="batchstop" type="button" hidden>Stop</button>
+          </div>
+          <label class="check"><input id="fixedseeds" type="checkbox"> Same fields every time (seeds 1 to N), to compare two versions of the code</label>
+          <div class="bar" id="bar" hidden><i id="bar-fill"></i></div>
+          <div class="batch-out" id="batch-out"><span class="hint">Runs a new random set of fields of the selected type and robot, without drawing.</span></div>
         </div>
-        <label class="hint" style="display:flex;gap:8px;align-items:center"><input id="fixedseeds" type="checkbox"> Same fields every time (seeds 1 to N), for comparing two versions of the code</label>
-        <div class="bar" id="bar" hidden><i id="bar-fill"></i></div>
-        <div class="batch-out" id="batch-out"><span class="hint" style="margin:0">Each batch runs a new random set of fields of the selected type and realism, without drawing.</span></div>
       </section>
     </div>
   </div>

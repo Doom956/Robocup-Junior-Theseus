@@ -4,15 +4,18 @@ Usage (from the repo folder):
   python tools/sim/physics/run_physics.py                          # 100 fields of each type, realistic robot
   python tools/sim/physics/run_physics.py --scenario ramp --runs 300
   python tools/sim/physics/run_physics.py --ideal                  # no noise, drift or motor differences
-  python tools/sim/physics/run_physics.py --set motorDeadband=0.05 --set motorMaxSpeed=300
+  python tools/sim/physics/run_physics.py --set robotMassKg=1.5 --set batteryVoltage=12.4
   python tools/sim/physics/run_physics.py --random                 # a new block of fields
   python tools/sim/physics/run_physics.py --scenario loops --seed 7 --verbose   # one field, robot's Serial output
+  python tools/sim/physics/run_physics.py --scenario loops --seed 7 --view      # one field, watch it in the browser
+  python tools/sim/physics/run_physics.py --serve                   # batch dashboard in the browser
 """
 import argparse, collections, concurrent.futures, json, os, random, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 EXE = os.path.join(HERE, "physics.exe" if os.name == "nt" else "physics")
+GEOMETRY = os.path.normpath(os.path.join(HERE, "..", "cad", "robot_geometry.json"))
 SCENARIOS = ["flat", "loops", "big", "ramp", "bigramp"]
 
 
@@ -48,7 +51,11 @@ def firmware_copy(defines, patches=()):
     return dst
 
 
-def build(defines=(), patches=()):
+class BuildError(Exception):
+    pass
+
+
+def build(defines=(), patches=(), exe=EXE):
     gpp = "g++"
     tool = os.path.join(os.path.expanduser("~"), ".platformio", "packages", "toolchain-gccmingw32", "bin")
     env = dict(os.environ)
@@ -58,14 +65,21 @@ def build(defines=(), patches=()):
     main = firmware_copy(defines, patches)
     srcs = [os.path.join(main, f) for f in sorted(os.listdir(main)) if f.endswith(".cpp")]
     cmd = [gpp, "-std=gnu++14", "-O2", "-static", "-I", os.path.join(HERE, "hw"), "-I", main,
-           os.path.join(HERE, "physics.cpp"), *srcs, "-o", EXE]
+           os.path.join(HERE, "physics.cpp"), *srcs, "-o", exe]
     r = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if r.returncode != 0:
-        sys.exit("build failed:\n" + r.stderr[-4000:])
+        raise BuildError(r.stderr[-4000:])
 
 
-def run_one(scenario, seed, extra):
-    r = subprocess.run([EXE, "--scenario", scenario, "--seed", str(seed), *extra], capture_output=True, text=True)
+def write_replay(trace_path, out_path):
+    """viewer.html with the recording built in, so the page works on its own (double-click to open)."""
+    page = open(os.path.join(HERE, "viewer.html"), encoding="utf-8").read()
+    data = open(trace_path, encoding="utf-8").read().replace("</", "<\\/")  # can't end the <script> early
+    open(out_path, "w", encoding="utf-8").write(page.replace("/*TRACE-DATA*/", data, 1))
+
+
+def run_one(scenario, seed, extra, exe=EXE):
+    r = subprocess.run([exe, "--scenario", scenario, "--seed", str(seed), "--geometry", GEOMETRY, *extra], capture_output=True, text=True)
     line = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else "{}"
     try:
         return json.loads(line)
@@ -91,14 +105,38 @@ def main():
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--trace")
+    ap.add_argument("--view", action="store_true", help="with --seed: record the run and open it in the browser")
     ap.add_argument("--no-build", action="store_true")
+    ap.add_argument("--serve", action="store_true", help="open the batch dashboard in the browser")
+    ap.add_argument("--port", type=int, default=8765)
     a = ap.parse_args()
+    if a.serve:
+        import server
+        server.main(a.port)
+        return
     if not a.no_build:
-        build(a.fw, a.patch)
+        try:
+            build(a.fw, a.patch)
+        except BuildError as e:
+            sys.exit("build failed:\n" + str(e))
     extra = (["--ideal"] if a.ideal else []) + [x for s in a.set for x in ("--set", s)]
     if a.selftest:
         sys.exit(subprocess.run([EXE, "--selftest", *extra]).returncode)
 
+    if a.view and a.seed is None:
+        sys.exit("--view needs --seed (pick one from the 'replay:' lines of a batch run)")
+    if a.seed is not None and a.view:  # one field, recorded and opened in the browser
+        import tempfile, webbrowser
+        sc = SCENARIOS[1] if a.scenario == "all" else a.scenario
+        trace = a.trace or os.path.join(tempfile.mkdtemp(prefix="trace_"), "trace.jsonl")
+        r = subprocess.run([EXE, "--scenario", sc, "--seed", str(a.seed), *extra, "--trace", trace], capture_output=True, text=True)
+        print(r.stdout.strip().splitlines()[-1] if r.stdout.strip() else "(no result)")
+        os.makedirs(os.path.join(HERE, "replays"), exist_ok=True)
+        out = os.path.join(HERE, "replays", f"{sc}-seed{a.seed}{'-ideal' if a.ideal else ''}.html")
+        write_replay(trace, out)
+        print("replay: " + out)
+        webbrowser.open("file:///" + out.replace(os.sep, "/"))
+        sys.exit(0)
     if a.seed is not None:  # one field
         sc = SCENARIOS[1] if a.scenario == "all" else a.scenario
         cmd = [EXE, "--scenario", sc, "--seed", str(a.seed), *extra] + (["--verbose"] if a.verbose else []) + (["--trace", a.trace] if a.trace else [])
@@ -126,7 +164,7 @@ def main():
         print(f"         ended: {dict(ends)}   restarts: {dict(why)}")
         bad = [r for r in res if not r.get("home")][:5]
         if bad:
-            print("         replay: " + "  ".join(f"--scenario {sc} --seed {r.get('seed')}" for r in bad))
+            print("         replay: " + "  ".join(f"--scenario {sc} --seed {r.get('seed')}" for r in bad) + "   (add --view to watch one)")
 
 
 if __name__ == "__main__":

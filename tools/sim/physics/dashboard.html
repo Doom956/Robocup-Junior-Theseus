@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Theseus Physics Dashboard</title>
+<style>
+/* Shared look for the Theseus simulator pages: a plain desktop tool. Toolbar on top, panes with small
+   title bars, system fonts, colour only where it means something (field colours, ok / warning / problem). */
+:root {
+  --bg: #e8e8e5;
+  --panel: #fafaf8;
+  --raise: #f1f1ee;
+  --bar: #dfdfdb;
+  --ink: #1d1d1b;
+  --muted: #66665f;
+  --line: #c4c4be;
+  --line-soft: #dcdcd7;
+  --sel: #d3deec;
+  --accent: #2a5ea8;
+  --ok: #2e7a32;
+  --warn: #9a6200;
+  --bad: #b8322a;
+  --idle: #8f8f88;
+  /* field colours */
+  --tile: #ffffff;
+  --tile-up: #dde7f3;
+  --unknown: #e2e2de;
+  --wall: #1d1d1b;
+  --black: #121212;
+  --blue: #2463c9;
+  --silver: #a9b0b7;
+  --ramp: #d8c9a3;
+  --solid: #a3a39c;
+  --robot: #d9480f;
+  --robot-body: rgba(217, 72, 15, 0.16);
+  --beam: rgba(0, 133, 154, 0.13);
+  --beam-line: #00859a;
+  --wheel: #2a2a28;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: var(--font-ui);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+    --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+    --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+    --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+    --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+  --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+  --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+  --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+  --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.4 var(--font-ui); }
+code { font-family: var(--font-data); font-size: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 16px; background: var(--bar); border-bottom: 1px solid var(--line); }
+.toolbar .app { font-weight: 600; font-size: 13.5px; margin: 0; }
+.toolbar .doc { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.toolbar .spacer { flex: 1 1 auto; }
+.page { padding-inline: 16px; padding-block: 10px 28px; display: grid; gap: 10px; max-width: 1440px; margin: 0 auto; }
+.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.pane > header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; padding: 3px 4px 3px 10px; background: var(--raise); border-bottom: 1px solid var(--line-soft); border-radius: 3px 3px 0 0; }
+.pane > header h2 { font-size: 12.5px; font-weight: 600; margin: 0 6px 0 0; }
+.pane > header .aside { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pane > .body { padding: 10px; }
+button { font: inherit; font-size: 12.5px; color: var(--ink); background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+button:hover { background: var(--bar); }
+button:active { background: var(--line-soft); }
+button.on { background: var(--sel); border-color: var(--accent); }
+button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); font-weight: 600; }
+button.primary:hover { background: var(--ink); opacity: 0.86; }
+button:disabled { opacity: 0.45; cursor: default; }
+button svg { width: 12px; height: 12px; fill: currentColor; flex: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; }
+.seg > button { border-radius: 0; margin-left: -1px; }
+.seg > button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.seg > button:last-child { border-radius: 0 3px 3px 0; }
+.seg > button.on { position: relative; z-index: 1; }
+select, input[type="number"], input[type="text"], textarea { font: inherit; font-size: 12.5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; min-height: 26px; }
+input[type="number"] { font-family: var(--font-data); width: 84px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); margin: 0; }
+input[type="range"] { accent-color: var(--accent); }
+label.file { display: inline-flex; align-items: center; font-size: 12.5px; background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; }
+label.file:hover { background: var(--bar); }
+label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.lbl { color: var(--muted); font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.chip, .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.chip::before, .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--idle); flex: none; }
+.chip.ok::before, .pill.ok::before { background: var(--ok); }
+.chip.warn::before, .pill.warn::before { background: var(--warn); }
+.chip.bad::before, .pill.bad::before { background: var(--bad); }
+.pill.run::before { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sw { width: 10px; height: 10px; border: 1px solid var(--line); display: inline-block; flex: none; }
+.sw.line { height: 3px; border: 0; }
+.sw.dash { background: transparent; border: 1.5px dashed var(--ok); }
+.scroll { overflow-x: auto; }
+table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.grid th { background: var(--raise); color: var(--muted); font-weight: 600; font-size: 12px; text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.grid td { padding: 3px 8px; border-bottom: 1px solid var(--line-soft); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.grid th:first-child, .grid td:first-child, .grid .l { text-align: left; }
+.num { font-family: var(--font-data); font-size: 12px; }
+dl.props { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: 12.5px; max-width: 480px; }
+dl.props dt { color: var(--muted); }
+dl.props dd { margin: 0; text-align: right; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+canvas { display: block; width: 100%; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* dashboard: batch setup in a sidebar on the left, results on the right */
+.work { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 10px; align-items: start; }
+@media (max-width: 900px) { .work { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 10px; min-width: 0; }
+.form { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 10px; align-items: center; }
+.form > label, .form > .lbl { color: var(--muted); font-size: 12px; }
+.form .inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.form select { width: 100%; }
+label.check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-size: 12.5px; }
+.actions { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line-soft); }
+.actions #run { flex: 1 1 auto; }
+details.more { border-top: 1px solid var(--line-soft); }
+details.more > summary { cursor: pointer; padding: 6px 10px; font-size: 12.5px; font-weight: 600; background: var(--raise); }
+details.more > summary .hint { font-weight: 400; margin-left: 4px; }
+details.more > .body { padding: 8px 10px 10px; }
+.params { display: grid; gap: 4px; }
+.param { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 8px; font-size: 12px; }
+.param span { overflow-wrap: anywhere; font-family: var(--font-data); font-size: 11.5px; }
+.param small { display: block; font-family: var(--font-ui); color: var(--muted); font-size: 11.5px; }
+.param.changed input { border-color: var(--accent); background: var(--sel); }
+textarea { width: 100%; min-height: 64px; resize: vertical; font-family: var(--font-data); }
+.progress { display: grid; gap: 6px; }
+.bar { height: 6px; background: var(--raise); border: 1px solid var(--line-soft); overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+.progress-line { display: flex; flex-wrap: wrap; gap: 2px 16px; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; }
+pre.err { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-data); font-size: 12px; color: var(--bad); background: var(--raise); border-left: 3px solid var(--bad); padding: 6px 10px; max-height: 300px; overflow: auto; margin: 0; }
+.grid tr.total td { font-weight: 600; border-top: 1px solid var(--line); }
+.grid th.sortable { cursor: pointer; user-select: none; }
+.grid th.sortable:hover { color: var(--ink); }
+.grid th.sorted { color: var(--ink); }
+.grid tr.current td { background: var(--sel); }
+.grid tr.clickable { cursor: pointer; }
+.grid tr.clickable:hover td { background: var(--raise); }
+.pm { color: var(--muted); font-size: 11px; }
+.why { color: var(--muted); font-size: 12px; white-space: normal !important; text-align: left !important; min-width: 160px; }
+a.watch { color: var(--accent); font-size: 12.5px; }
+.charts { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.charts h3 { font-size: 12.5px; font-weight: 600; margin: 0 0 8px; }
+.ends { display: grid; gap: 5px; }
+.endrow { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; }
+.stack { display: flex; height: 14px; background: var(--raise); }
+.stack > div { height: 100%; }
+svg text { font-family: var(--font-data); font-size: 10.5px; fill: var(--muted); }
+.reasons { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.subbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); }
+.more-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; }
+.empty-note { color: var(--muted); padding: 10px 0; text-align: left !important; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <h1 class="app">Theseus physics batches</h1>
+  <span class="doc">Real firmware from <code>Main/</code> on the physics simulator. Rebuilt when <code>Main/</code> changes.</span>
+  <span class="spacer"></span>
+  <span class="hint" id="buildNote"></span>
+</div>
+
+<div class="page">
+  <div class="work">
+    <div class="col">
+      <section class="pane" aria-labelledby="setup-h">
+        <header><h2 id="setup-h">New batch</h2></header>
+        <div class="body form">
+          <label for="scenario">Field type</label>
+          <select id="scenario">
+            <option value="all">All five types</option>
+            <option value="flat">flat (5–8 tiles, no loops)</option>
+            <option value="loops">loops (5–9 tiles)</option>
+            <option value="big">big (12–16 tiles)</option>
+            <option value="ramp">ramp (two levels)</option>
+            <option value="bigramp">bigramp (two ramps)</option>
+          </select>
+          <label for="runs">Fields / type</label>
+          <div class="inline">
+            <input type="number" id="runs" min="1" max="5000" value="200">
+            <div class="seg">
+              <button data-runs="20" type="button">20</button>
+              <button data-runs="200" type="button">200</button>
+              <button data-runs="2000" type="button">2000</button>
+            </div>
+          </div>
+          <span class="lbl">Fields</span>
+          <div class="inline">
+            <label class="check"><input type="checkbox" id="same" checked> same each time, from seed</label>
+            <input type="number" id="start" min="1" value="1" aria-label="First seed" style="width:70px">
+          </div>
+          <label for="robot">Robot</label>
+          <select id="robot">
+            <option value="real">Realistic (noise, drift, slip)</option>
+            <option value="ideal">Ideal (no noise)</option>
+          </select>
+          <span class="lbl">Time</span>
+          <span class="hint" id="estimate"></span>
+        </div>
+        <div class="actions">
+          <button class="primary" id="run" type="button">Run batch</button>
+          <button id="stop" type="button" hidden>Stop</button>
+        </div>
+        <details class="more" id="paramsBox">
+          <summary>Simulator settings <span class="hint" id="paramsNote">defaults</span></summary>
+          <div class="body">
+            <div class="params" id="params"><span class="hint">Loading…</span></div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button id="resetParams" type="button">Reset to defaults</button><span class="hint">Sources: physics/README.md</span></div>
+          </div>
+        </details>
+        <details class="more">
+          <summary>Code change <span class="hint">#define, Main/ untouched</span></summary>
+          <div class="body">
+            <p class="hint" style="margin-bottom:6px">One per line, e.g. <code>ROBOT_WIDTH_MM=183</code>. Built from a copy of Main/.</p>
+            <textarea id="fw" spellcheck="false" placeholder="ROBOT_WIDTH_MM=183"></textarea>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="pane" id="progressBox" hidden aria-live="polite">
+        <header><h2>Progress</h2></header>
+        <div class="body progress">
+          <div class="bar"><div id="bar"></div></div>
+          <div class="progress-line" id="progressLine"></div>
+          <pre class="err" id="error" hidden></pre>
+        </div>
+      </section>
+
+      <section class="pane" id="resultsBox" hidden>
+        <header><h2 id="resultsTitle">Results</h2><div class="aside"><span class="hint" id="resultsCfg"></span></div></header>
+        <div class="body">
+          <div class="scroll"><table class="grid" id="summary"></table></div>
+          <p class="hint" style="margin-top:6px">± = how far another batch of the same size would usually land by chance (95%). Wrong tile = said it was home but wasn't.</p>
+          <div class="charts">
+            <div>
+              <h3>How runs ended</h3>
+              <div class="ends" id="ends"></div>
+              <div class="legend" style="margin-top:6px">
+                <span><i class="sw" style="background:var(--ok)"></i>home</span>
+                <span><i class="sw" style="background:var(--warn)"></i>wrong tile</span>
+                <span><i class="sw" style="background:var(--idle)"></i>8:00 ran out</span>
+                <span><i class="sw" style="background:var(--bad)"></i>no path / crashed</span>
+              </div>
+              <div class="reasons" id="reasons"></div>
+            </div>
+            <div>
+              <h3>Field explored <span class="hint" id="histNote"></span></h3>
+              <svg id="hist" viewBox="0 0 420 190" role="img" aria-label="How many runs explored each share of the field" style="width:100%;max-width:520px;height:auto;display:block"></svg>
+              <div class="legend"><span><i class="sw" style="background:var(--ok)"></i>got home</span><span><i class="sw" style="background:var(--idle)"></i>didn't</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="runsBox" hidden>
+        <header><h2>Runs</h2><div class="aside"><div class="seg" id="filters"></div></div></header>
+        <div class="subbar"><div class="seg" id="typeTabs"></div></div>
+        <div class="scroll"><table class="grid" id="runTable"></table></div>
+        <div class="more-row"><button id="moreRuns" type="button" hidden>Show more</button><span class="hint" id="runsNote"></span></div>
+      </section>
+
+      <section class="pane" id="historyBox" hidden>
+        <header><h2>Batches this session</h2><div class="aside"><span class="hint">Click one to show it</span></div></header>
+        <div class="scroll"><table class="grid" id="history"></table></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const pct = v => `${Math.round(v * 100)}%`;
+const fmtS = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const TYPES = ["flat", "loops", "big", "ramp", "bigramp"];
+const PARAM_HELP = {
+  batteryVoltage: "3S LiPo voltage, V", robotMassKg: "robot mass, kg (assumed)", wheelMu: "wheel grip on the floor (assumed)",
+  noLoadRpmAt12V: "motor speed, RPM (datasheet)", stallKgcmAt12V: "motor stall torque (datasheet)", skidFactor: "how much slower skid turns are (assumed)",
+  trackWidth: "left-right wheel spacing, mm", motorGainSigma: "difference between motors", tractionMean: "average wheel grip",
+  gyroMagnetic: "1 = BNO055 heading from magnetic north", gyroDriftSigmaDegPerMin: "gyro drift, °/min", tofNoiseMm: "distance sensor noise, mm",
+  tofOffsetSigma: "per-sensor fixed error, mm", tofMinReliableMm: "VL53L0X shortest reliable reading", rampMinDeg: "shallowest ramp, °", rampMaxDeg: "steepest ramp, °",
+  runTimeS: "match length, s", stuckTimeoutS: "referee restart after no progress, s", placeSigmaMm: "how accurately the robot is placed, mm",
+};
+let info = null, defaults = {}, viewId = null, polling = null, cache = {};   // cache: batch id -> {meta, results}
+let filter = "all", typeFilter = "all", sortKey = null, sortDir = 1, shown = 100;
+
+// ---------------------------------------------------------------- setup form
+function store(k, v) { try { localStorage.setItem("phys." + k, JSON.stringify(v)); } catch (e) {} }
+function recall(k, d) { try { const v = localStorage.getItem("phys." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
+function renderParams() {
+  const saved = recall("params", {});
+  const names = Object.keys(defaults).sort((a, b) => (PARAM_HELP[b] ? 1 : 0) - (PARAM_HELP[a] ? 1 : 0) || a.localeCompare(b));
+  $("params").innerHTML = names.map(n => {
+    const v = saved[n] !== undefined ? saved[n] : defaults[n];
+    return `<label class="param${v !== defaults[n] ? " changed" : ""}" for="p_${n}"><span>${n}${PARAM_HELP[n] ? `<small>${esc(PARAM_HELP[n])}</small>` : ""}</span>`
+      + `<input type="number" step="any" id="p_${n}" data-p="${n}" value="${v}"></label>`;
+  }).join("");
+  updateParamNote();
+}
+function changedParams() {
+  const out = {};
+  for (const el of document.querySelectorAll("[data-p]")) {
+    const n = el.dataset.p, v = parseFloat(el.value);
+    if (!isNaN(v) && v !== defaults[n]) out[n] = v;
+  }
+  return out;
+}
+function updateParamNote() {
+  const ch = changedParams(), k = Object.keys(ch);
+  $("paramsNote").textContent = k.length ? `${k.length} changed: ${k.map(n => `${n}=${ch[n]}`).join(", ")}` : "defaults from physics.cpp";
+  for (const el of document.querySelectorAll("[data-p]")) el.parentElement.classList.toggle("changed", parseFloat(el.value) !== defaults[el.dataset.p]);
+}
+function estimate() {
+  const n = (+$("runs").value || 0) * ($("scenario").value === "all" ? 5 : 1), cpus = info ? info.cpus : 8;
+  // seconds of one core per run: measured on the last finished batch, else a typical figure
+  const last = info && info.batches.filter(b => b.done > 20 && b.phase === "done").pop();
+  const perRun = last ? last.elapsed * cpus / last.done : 3.5;
+  $("estimate").textContent = `${n} runs · about ${fmtS(n * perRun / cpus)} on ${cpus} cores`;
+  $("start").disabled = !$("same").checked;
+}
+function loadForm() {
+  $("scenario").value = recall("scenario", "all");
+  $("runs").value = recall("runs", 200);
+  $("same").checked = recall("same", true);
+  $("start").value = recall("start", 1);
+  $("robot").value = recall("robot", "real");
+  $("fw").value = recall("fw", "");
+}
+function saveForm() {
+  store("scenario", $("scenario").value); store("runs", +$("runs").value); store("same", $("same").checked);
+  store("start", +$("start").value); store("robot", $("robot").value); store("fw", $("fw").value); store("params", changedParams());
+}
+
+// ---------------------------------------------------------------- talking to the server
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch (e) { data = { error: text }; }
+  if (!r.ok) throw new Error(data.error || text);
+  return data;
+}
+async function start() {
+  saveForm();
+  const body = {
+    scenario: $("scenario").value, runs: +$("runs").value, random: !$("same").checked, start: +$("start").value,
+    ideal: $("robot").value === "ideal", sets: changedParams(), fw: $("fw").value.split(/\n/).map(s => s.trim()).filter(Boolean),
+  };
+  try {
+    const { id } = await api("/api/batch", body);
+    viewId = id; shown = 100; filter = "all"; typeFilter = "all";
+    if (info) info.running = id;
+    follow(id);
+  } catch (e) { showError(e.message); }
+}
+function follow(id) {
+  setRunning(true);
+  clearInterval(polling);
+  polling = setInterval(() => poll(id), 600);
+  poll(id);
+}
+async function poll(id, once = false) {
+  const c = cache[id] || (cache[id] = { meta: null, results: [] });
+  if (c.busy) return;
+  c.busy = true;
+  let d;
+  try { d = await api(`/api/batch?id=${id}&since=${c.results.length}`); }
+  catch (e) {
+    c.busy = false;
+    showError("Lost contact with the simulator server. Is run_physics.py --serve still running in the terminal?");
+    if (!once) { clearInterval(polling); setRunning(false); }
+    return;
+  }
+  c.busy = false;
+  c.results.push(...d.results);
+  c.meta = d;
+  if (d.build) $("buildNote").textContent = `firmware built from Main/ at ${d.build.at}${d.build.defines.length ? " with " + d.build.defines.join(", ") : ""}`;
+  if (id === viewId) renderAll();
+  if (!once && !["building", "running"].includes(d.phase)) { clearInterval(polling); setRunning(false); await refreshHistory(); estimate(); }
+}
+function setRunning(on) {
+  $("run").disabled = on; $("stop").hidden = !on;
+  $("run").textContent = on ? "Running…" : "Run batch";
+}
+function showError(msg) { $("progressBox").hidden = false; $("error").hidden = false; $("error").textContent = msg; }
+async function refreshHistory() {
+  try { info = await api("/api/info"); } catch (e) { return; }
+  for (const b of info.batches) cache[b.id] = cache[b.id] || { meta: null, results: [] };
+  renderHistory();
+}
+
+// ---------------------------------------------------------------- numbers
+function outcome(r) {
+  if (r.end === "crashed") return ["crashed", "bad"];
+  if (r.home) return ["home", "ok"];
+  if (r.end === "home") return ["wrong tile", "warn"];
+  if (r.end === "time") return ["8:00 ran out", ""];
+  if (r.end === "no path") return ["no path home", "bad"];
+  return [r.end || "?", ""];
+}
+function stats(rs) {
+  const n = rs.length || 1, s = { n: rs.length, home: 0, wrong: 0, full: 0, cov: 0, walls: 0, lost: 0, lops: 0, contact: 0, time: 0, nopath: 0, crashed: 0, reasons: {} };
+  for (const r of rs) {
+    if (r.home) s.home++; else if (r.end === "home") s.wrong++; else if (r.end === "time") s.time++; else if (r.end === "crashed") s.crashed++; else s.nopath++;
+    if ((r.coverage || 0) >= 0.999) s.full++;
+    s.cov += r.coverage || 0; s.walls += r.map_walls || 0; s.lops += r.lops || 0; s.contact += r.wall_contact_s || 0;
+    if ((r.lost_fraction || 0) > 0.2) s.lost++;
+    for (const w of (r.lop_reasons || "").split(";").map(x => x.trim()).filter(Boolean)) s.reasons[w] = (s.reasons[w] || 0) + 1;
+  }
+  s.cov /= n; s.walls /= n; s.lops /= n; s.contact /= n;
+  return s;
+}
+const margin = (k, n) => { if (!n) return 0; const p = k / n; return 1.96 * Math.sqrt(p * (1 - p) / n); };
+
+// ---------------------------------------------------------------- rendering
+function cfgText(cfg) {
+  const parts = [cfg.scenario === "all" ? "all five types" : cfg.scenario, `${cfg.runs} each`,
+    cfg.random ? `random seeds ${cfg.start}–${cfg.start + cfg.runs - 1}` : `seeds ${cfg.start}–${cfg.start + cfg.runs - 1}`, cfg.ideal ? "ideal robot" : "realistic robot"];
+  if (cfg.sets.length) parts.push(cfg.sets.join(" "));
+  if (cfg.fw.length) parts.push("code: " + cfg.fw.join(" "));
+  return parts.join(" · ");
+}
+function renderAll() {
+  const c = cache[viewId];
+  if (!c || !c.meta) return;
+  const m = c.meta, rs = c.results;
+  // progress
+  $("progressBox").hidden = false;
+  $("bar").style.width = `${m.total ? 100 * m.done / m.total : 0}%`;
+  const rate = m.done / Math.max(1, m.elapsed), left = rate > 0 ? (m.total - m.done) / rate : 0;
+  const phase = { building: "Building the firmware…", running: "Running", done: "Done", stopped: "Stopped", error: "Stopped by an error" }[m.phase];
+  $("progressLine").innerHTML = `<span>${phase}</span><span>${m.done} / ${m.total} runs</span><span>${fmtS(m.elapsed)} elapsed</span>`
+    + (m.phase === "running" && m.done > 5 ? `<span>about ${fmtS(left)} left</span>` : "");
+  $("error").hidden = !m.error; $("error").textContent = m.error || "";
+  if (!rs.length) { $("resultsBox").hidden = $("runsBox").hidden = true; return; }
+  $("resultsBox").hidden = $("runsBox").hidden = false;
+  $("resultsTitle").textContent = `Results · batch ${m.id}`;
+  $("resultsCfg").textContent = cfgText(m.cfg);
+  renderSummary(rs);
+  renderEnds(rs);
+  renderHist(rs);
+  renderRuns(rs);
+  renderHistory();
+}
+function renderSummary(rs) {
+  const types = TYPES.filter(t => rs.some(r => r.scenario === t));
+  const rows = types.map(t => [t, rs.filter(r => r.scenario === t)]);
+  if (types.length > 1) rows.push(["all", rs]);
+  const head = `<tr><th>Field type</th><th>Runs</th><th>Home</th><th>Wrong tile</th><th>Explored all</th><th>Avg explored</th><th>Map walls right</th><th>Lost &gt;20%</th><th>Restarts / run</th><th>Pressing walls</th></tr>`;
+  $("summary").innerHTML = head + rows.map(([t, list]) => {
+    const s = stats(list), n = s.n;
+    return `<tr class="${t === "all" ? "total" : ""}"><td>${t === "all" ? "All" : t}</td><td class="num">${n}</td>`
+      + `<td class="num">${pct(s.home / n)} <span class="pm">±${Math.round(margin(s.home, n) * 100)}</span></td>`
+      + `<td class="num">${pct(s.wrong / n)}</td><td class="num">${pct(s.full / n)}</td><td class="num">${pct(s.cov)}</td><td class="num">${pct(s.walls)}</td>`
+      + `<td class="num">${pct(s.lost / n)}</td><td class="num">${s.lops.toFixed(2)}</td><td class="num">${s.contact.toFixed(0)} s</td></tr>`;
+  }).join("");
+}
+function renderEnds(rs) {
+  const types = TYPES.filter(t => rs.some(r => r.scenario === t));
+  const col = { home: "var(--ok)", wrong: "var(--warn)", time: "var(--idle)", nopath: "var(--bad)", crashed: "var(--bad)" };
+  $("ends").innerHTML = types.map(t => {
+    const s = stats(rs.filter(r => r.scenario === t));
+    const segs = ["home", "wrong", "time", "nopath", "crashed"].filter(k => s[k]).map(k =>
+      `<div style="width:${100 * s[k] / s.n}%;background:${col[k]}" title="${k}: ${s[k]} of ${s.n}"></div>`).join("");
+    return `<div class="endrow"><span>${t}</span><div class="stack" role="img" aria-label="${t}: ${s.home} home, ${s.wrong} wrong tile, ${s.time} out of time, ${s.nopath + s.crashed} no path or crashed">${segs}</div></div>`;
+  }).join("");
+  const why = stats(rs).reasons, k = Object.keys(why).sort((a, b) => why[b] - why[a]);
+  $("reasons").textContent = k.length ? "Restarts: " + k.map(w => `${w} ${why[w]}`).join(" · ") : "No lack-of-progress restarts.";
+}
+function renderHist(rs) {
+  const list = typeFilter === "all" ? rs : rs.filter(r => r.scenario === typeFilter);
+  $("histNote").textContent = typeFilter === "all" ? "(all types)" : `(${typeFilter})`;
+  const bins = new Array(10).fill(0), home = new Array(10).fill(0);
+  for (const r of list) { const b = Math.min(9, Math.floor((r.coverage || 0) * 10)); bins[b]++; if (r.home) home[b]++; }
+  const max = Math.max(1, ...bins), W = 420, H = 190, L = 34, B = 24, T = 8, bw = (W - L - 6) / 10;
+  const y = v => T + (H - T - B) * (1 - v / max);
+  let svg = "";
+  const step = Math.max(1, Math.ceil(max / 4));
+  for (let v = 0; v <= max; v += step) svg += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  bins.forEach((n, i) => {
+    const x = L + i * bw + 2;
+    svg += `<rect x="${x}" y="${y(n)}" width="${bw - 4}" height="${y(0) - y(n)}" fill="var(--idle)"><title>${i * 10}–${i * 10 + 10}% explored: ${n} runs (${home[i]} got home)</title></rect>`;
+    svg += `<rect x="${x}" y="${y(home[i])}" width="${bw - 4}" height="${y(0) - y(home[i])}" fill="var(--ok)"/>`;
+    if (i % 2 === 0) svg += `<text x="${L + i * bw}" y="${H - 6}">${i * 10}%</text>`;
+  });
+  svg += `<text x="${W - 4}" y="${H - 6}" text-anchor="end">100%</text>`;
+  $("hist").innerHTML = svg;
+}
+const FILTERS = [["all", "All"], ["fail", "Not home"], ["wrong", "Wrong tile"], ["restart", "Had restarts"], ["lost", "Lost >20%"]];
+const COLS = [["scenario", "Field", "l"], ["seed", "Seed", ""], ["out", "Result", "l"], ["coverage", "Explored", ""], ["map_walls", "Map walls", ""],
+  ["lost_fraction", "Lost", ""], ["lops", "Restarts", ""], ["time_s", "Time", ""], ["ramp_deg", "Ramp", ""]];
+function renderRuns(rs) {
+  const c = cache[viewId], m = c.meta;
+  $("filters").innerHTML = FILTERS.map(([k, n]) => `<button class="${filter === k ? "on" : ""}" data-filter="${k}" type="button">${n}</button>`).join("");
+  const types = TYPES.filter(t => rs.some(r => r.scenario === t));
+  $("typeTabs").innerHTML = types.length > 1 ? ["all", ...types].map(t => `<button class="${typeFilter === t ? "on" : ""}" data-type="${t}" type="button">${t === "all" ? "All types" : t}</button>`).join("") : "";
+  let list = rs.filter(r => (typeFilter === "all" || r.scenario === typeFilter) && (
+    filter === "all" || (filter === "fail" && !r.home) || (filter === "wrong" && r.end === "home" && !r.home)
+    || (filter === "restart" && r.lops > 0) || (filter === "lost" && r.lost_fraction > 0.2)));
+  if (sortKey) list = list.slice().sort((a, b) => {
+    const va = sortKey === "out" ? outcome(a)[0] : a[sortKey], vb = sortKey === "out" ? outcome(b)[0] : b[sortKey];
+    return (va > vb ? 1 : va < vb ? -1 : 0) * sortDir;
+  });
+  else list = list.slice().sort((a, b) => a.seed - b.seed || TYPES.indexOf(a.scenario) - TYPES.indexOf(b.scenario));
+  const q = r => {
+    const p = new URLSearchParams({ scenario: r.scenario, seed: r.seed, ideal: m.cfg.ideal ? 1 : 0 });
+    m.cfg.sets.forEach(s => p.append("set", s)); m.cfg.fw.forEach(f => p.append("fw", f));
+    return "/replay?" + p.toString();
+  };
+  const head = "<tr>" + COLS.map(([k, n, cl]) => `<th class="sortable ${cl}${sortKey === k ? " sorted" : ""}" data-sort="${k}">${n}${sortKey === k ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")
+    + `<th class="l">Restart reasons</th><th></th></tr>`;
+  $("runTable").innerHTML = head + (list.length ? list.slice(0, shown).map(r => {
+    const [o, cl] = outcome(r);
+    return `<tr><td>${r.scenario}</td><td class="num">${r.seed}</td><td class="l"><span class="chip ${cl}">${o}</span></td>`
+      + `<td class="num">${pct(r.coverage || 0)} <span class="pm">${r.tiles ?? ""}/${r.reachable ?? ""}</span></td><td class="num">${pct(r.map_walls || 0)}</td>`
+      + `<td class="num">${pct(r.lost_fraction || 0)}</td><td class="num">${r.lops ?? ""}</td><td class="num">${fmtS(r.time_s || 0)}</td>`
+      + `<td class="num">${r.ramp_deg ? r.ramp_deg.toFixed(0) + "°" : "—"}</td><td class="why">${esc(r.lop_reasons || "")}</td>`
+      + `<td><a class="watch" href="${q(r)}" target="_blank" rel="noopener" title="Record this run and open it in the replay viewer (takes a few seconds)">Watch</a></td></tr>`;
+  }).join("") : `<tr><td colspan="11" class="empty-note">No runs match this filter yet.</td></tr>`);
+  $("moreRuns").hidden = list.length <= shown;
+  $("runsNote").textContent = `${Math.min(shown, list.length)} of ${list.length} runs shown. Watch records the run again with the current Main/ code.`;
+}
+function renderHistory() {
+  if (!info || !info.batches.length) { $("historyBox").hidden = true; return; }
+  $("historyBox").hidden = false;
+  const head = `<tr><th>#</th><th class="l">Started</th><th class="l">Setup</th><th>Runs</th><th>Home</th><th>Wrong tile</th><th>Avg explored</th><th>Map walls</th><th>Lost &gt;20%</th><th>Restarts / run</th></tr>`;
+  $("history").innerHTML = head + info.batches.slice().reverse().map(b => {
+    const c = cache[b.id], rs = c && c.results.length >= (c.meta ? c.meta.done : 0) && c.results.length ? c.results : null;
+    const s = rs ? stats(rs) : null;
+    const cells = s ? `<td class="num">${pct(s.home / s.n)}</td><td class="num">${pct(s.wrong / s.n)}</td><td class="num">${pct(s.cov)}</td><td class="num">${pct(s.walls)}</td><td class="num">${pct(s.lost / s.n)}</td><td class="num">${s.lops.toFixed(2)}</td>`
+      : `<td colspan="6" class="hint" style="text-align:left">click to load</td>`;
+    return `<tr class="clickable${b.id === viewId ? " current" : ""}" data-batch="${b.id}" tabindex="0"><td>${b.id}</td><td class="l">${b.started}</td><td class="l" style="white-space:normal;min-width:240px">${esc(cfgText(b.cfg))}${b.phase === "stopped" ? " (stopped)" : b.phase === "error" ? " (error)" : ""}</td><td class="num">${b.done}/${b.total}</td>${cells}</tr>`;
+  }).join("");
+}
+async function showBatch(id) {
+  viewId = id; shown = 100; filter = "all"; typeFilter = "all"; sortKey = null;
+  const c = cache[id] || (cache[id] = { meta: null, results: [] });
+  const b = info && info.batches.find(x => x.id === id);
+  if (info && info.running === id) { follow(id); return; }     // still running: keep it updating
+  if (!c.meta || (b && c.results.length < b.done)) await poll(id, true);
+  else renderAll();
+}
+
+// ---------------------------------------------------------------- events
+$("run").onclick = start;
+$("stop").onclick = () => api("/api/stop", {}).catch(() => {});
+for (const b of document.querySelectorAll("[data-runs]")) b.onclick = () => { $("runs").value = b.dataset.runs; estimate(); saveForm(); };
+for (const id of ["scenario", "runs", "same", "start", "robot", "fw"]) $(id).addEventListener("change", () => { estimate(); saveForm(); });
+$("params").addEventListener("input", () => { updateParamNote(); saveForm(); });
+$("resetParams").onclick = () => { store("params", {}); renderParams(); };
+$("filters").addEventListener("click", e => { const b = e.target.closest("[data-filter]"); if (b) { filter = b.dataset.filter; shown = 100; renderRuns(cache[viewId].results); } });
+$("typeTabs").addEventListener("click", e => { const b = e.target.closest("[data-type]"); if (b) { typeFilter = b.dataset.type; shown = 100; renderRuns(cache[viewId].results); renderHist(cache[viewId].results); } });
+$("runTable").addEventListener("click", e => {
+  const th = e.target.closest("[data-sort]");
+  if (!th) return;
+  if (sortKey === th.dataset.sort) sortDir = -sortDir; else { sortKey = th.dataset.sort; sortDir = 1; }
+  renderRuns(cache[viewId].results);
+});
+$("moreRuns").onclick = () => { shown += 200; renderRuns(cache[viewId].results); };
+$("history").addEventListener("click", e => { const tr = e.target.closest("[data-batch]"); if (tr) showBatch(+tr.dataset.batch); });
+$("history").addEventListener("keydown", e => { const tr = e.target.closest("[data-batch]"); if (tr && e.key === "Enter") showBatch(+tr.dataset.batch); });
+
+(async function boot() {
+  loadForm();
+  try {
+    info = await api("/api/info");
+  } catch (e) {
+    showError("This page needs the simulator server. In the repo folder run:\n  python tools/sim/physics/run_physics.py --serve\n\n" + e.message);
+    $("run").disabled = true;
+    return;
+  }
+  defaults = info.params;
+  renderParams();
+  estimate();
+  if (info.build) $("buildNote").textContent = `firmware built from Main/ at ${info.build.at}`;
+  for (const b of info.batches) cache[b.id] = { meta: null, results: [] };
+  renderHistory();
+  if (info.running) { viewId = info.running; follow(info.running); }
+  else if (info.batches.length) showBatch(info.batches[info.batches.length - 1].id);
+})();
+</script>
+</body>
+</html>
