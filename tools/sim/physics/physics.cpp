@@ -52,7 +52,11 @@ struct Params {
   // always global") instead of from the start direction. Maze-to-north angle, deg; -1 = random per run.
   // -1 = do what the firmware asks for: bno.begin() defaults to NDOF, which the BNO055 datasheet (3.3.3.5)
   // defines as absolute orientation (heading from magnetic north); IMUPLUS is relative to the start.
-  double gyroMagnetic = -1, gyroMagneticOffsetDeg = -1, gyroMagneticAfterS = 0; // switch to magnetic after this many s of the run
+  // In NDOF the heading only becomes magnetic once the magnetometer is calibrated, which needs the robot
+  // turned through many orientations. The real robot explored like a relative heading, so by default the
+  // calibration never completes during a run (gyroMagneticAfterS = 1e9). Set it to 0 (calibrated at the
+  // start) or e.g. 60 to see what happens if the heading switches to magnetic.
+  double gyroMagnetic = -1, gyroMagneticOffsetDeg = -1, gyroMagneticAfterS = 1e9; // switch to magnetic after this many s of the run
   double magErrorDeg = 2.5;       // BNO055 datasheet: magnetometer heading accuracy +-2.5 deg (fully calibrated, ideal)
   double tofMinReliableMm = 30;   // team notes: "can't handle below 30mm"
   // VL53L0X datasheet table 12: standard deviation 4 % at 33 ms (white target, incl. part-to-part); table 14:
