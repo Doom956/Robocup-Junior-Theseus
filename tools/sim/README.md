@@ -120,9 +120,12 @@ copied into `sim.cpp` (`moveForward()` = `fwd()` + `finishTileMove()`, `senseTil
 `handleShortMove()`, `blockEdge()`, `timeToReturn()`/`homePath()`, the RETURN loop and the PAUSE
 restart). **If you change those parts of `main.cpp`/`movement.cpp`, update `sim.cpp` to match.**
 
+`physics/` is a second simulator that runs the real firmware (all of `Main/`) against a simulated
+robot with motors, encoders, distance sensors placed from the CAD, gyro and colour sensor. See
+[physics/README.md](physics/README.md).
+
 `cad/` holds the robot's sensor positions taken from the CAD (`robot_geometry.md` / `.json`) and
-the script that extracts them from a STEP export. The simulators don't use them yet; they are for
-a future sensor-level simulator.
+the script that extracts them from a STEP export. The physics simulator reads them.
 
 `stubs/` holds empty stand-ins for the Arduino and hardware library headers so the robot code
 compiles on a PC. They are never used for the real robot build.
