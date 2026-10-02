@@ -9,6 +9,7 @@ Usage (from the repo folder):
   python tools/sim/physics/run_physics.py --scenario loops --seed 7 --verbose   # one field, robot's Serial output
   python tools/sim/physics/run_physics.py --scenario loops --seed 7 --view      # one field, watch it in the browser
   python tools/sim/physics/run_physics.py --serve                   # batch dashboard in the browser
+  python tools/sim/physics/run_physics.py --live                    # several robots running live, in their own window
 """
 import argparse, collections, concurrent.futures, json, os, random, subprocess, sys
 
@@ -65,7 +66,7 @@ def build(defines=(), patches=(), exe=EXE):
     main = firmware_copy(defines, patches)
     srcs = [os.path.join(main, f) for f in sorted(os.listdir(main)) if f.endswith(".cpp")]
     cmd = [gpp, "-std=gnu++14", "-O2", "-static", "-I", os.path.join(HERE, "hw"), "-I", main,
-           os.path.join(HERE, "physics.cpp"), *srcs, "-o", exe]
+           os.path.join(HERE, "physics.cpp"), os.path.join(HERE, "live_io.cpp"), *srcs, "-o", exe]
     r = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if r.returncode != 0:
         raise BuildError(r.stderr[-4000:])
@@ -108,11 +109,12 @@ def main():
     ap.add_argument("--view", action="store_true", help="with --seed: record the run and open it in the browser")
     ap.add_argument("--no-build", action="store_true")
     ap.add_argument("--serve", action="store_true", help="open the batch dashboard in the browser")
+    ap.add_argument("--live", action="store_true", help="open the live view: several robots running at once, in its own window")
     ap.add_argument("--port", type=int, default=8765)
     a = ap.parse_args()
-    if a.serve:
+    if a.serve or a.live:
         import server
-        server.main(a.port)
+        server.main(a.port, page="live" if a.live else "")
         return
     if not a.no_build:
         try:

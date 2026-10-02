@@ -22,6 +22,7 @@ python tools/sim/physics/run_physics.py --random              # a new block of f
 python tools/sim/physics/run_physics.py --scenario loops --seed 7 --verbose   # one field + the robot's Serial output
 python tools/sim/physics/run_physics.py --scenario loops --seed 7 --view      # one field, watch it in the browser
 python tools/sim/physics/run_physics.py --selftest            # calibration experiments (see below)
+python tools/sim/physics/run_physics.py --live                # several robots running live, in their own window (below)
 python tools/sim/physics/run_physics.py --serve               # the batch dashboard in the browser (below)
 ```
 
@@ -30,6 +31,34 @@ run in parallel (about 4 minutes for 1000 runs on 14 cores). Each result line sh
 coverage, map wall accuracy, how often the code's map position was wrong, lack-of-progress restarts,
 time spent pressed against walls, and how runs ended (`home`, `time` = 8:00 ran out, `no path`).
 `--trace FILE` (with `--seed`) writes a recording of the run (see below).
+
+## Live view
+
+```
+python tools/sim/physics/run_physics.py --live
+```
+
+Runs several robots at once, live, in their own window (Edge or Chrome in app mode; the normal
+browser if neither is found). Each robot is a separate simulator process on its own random field,
+paced to the real clock, so you watch the firmware drive as it happens. It is the same simulation as
+the batch runs: the same field and seed give the same run, frame for frame, until you press a button.
+
+- **Robots**: 1, 4, 6, 9, 12 or 16. **Fields**: mixed or one type. **Robot**: realistic or ideal.
+- **New random fields** starts every robot on a new field; **Same fields again** reruns the same ones.
+- **Speed**: 1× (real time), 2×, 5×, 10×, 30× or Max, for all robots, while they run.
+  **Pause all** (Space) freezes the simulation itself, not just the picture.
+- **Keep going**: when a robot finishes it starts a new random field 4 s later, so the view runs as long
+  as you like. **Finished runs** totals the results.
+- Click a robot (or ← →) to see it in detail on the right: bigger field with sensor beams, state,
+  heading vs gyro, real tile vs the code's tile, distance readings, the robot's own map and its Serial
+  output. Buttons for that robot: **Pause**, **Bump** (shoves it up to 40 mm and 15°, like a knock or a
+  wheel slipping), **Restart at checkpoint** (a lack-of-progress restart), **Same field again**,
+  **New field**, and **Open replay** (what it has done so far, in the 2D/3D replay viewer).
+- **Simulator settings and code changes** (`batteryVoltage=12.4`, `ROBOT_WIDTH_MM=183`, ...) apply from
+  the next "New random fields".
+
+`physics.exe --live` is what each robot runs: it writes the recording to stdout as it goes and reads
+`pause`, `resume`, `speed X` (0 = as fast as possible), `lop`, `nudge` and `stop` on stdin.
 
 ## Batch dashboard
 

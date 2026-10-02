@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Theseus Live</title>
+<style>
+/* Shared look for the Theseus simulator pages: a plain desktop tool. Toolbar on top, panes with small
+   title bars, system fonts, colour only where it means something (field colours, ok / warning / problem). */
+:root {
+  --bg: #e8e8e5;
+  --panel: #fafaf8;
+  --raise: #f1f1ee;
+  --bar: #dfdfdb;
+  --ink: #1d1d1b;
+  --muted: #66665f;
+  --line: #c4c4be;
+  --line-soft: #dcdcd7;
+  --sel: #d3deec;
+  --accent: #2a5ea8;
+  --ok: #2e7a32;
+  --warn: #9a6200;
+  --bad: #b8322a;
+  --idle: #8f8f88;
+  /* field colours */
+  --tile: #ffffff;
+  --tile-up: #dde7f3;
+  --unknown: #e2e2de;
+  --wall: #1d1d1b;
+  --black: #121212;
+  --blue: #2463c9;
+  --silver: #a9b0b7;
+  --ramp: #d8c9a3;
+  --solid: #a3a39c;
+  --robot: #d9480f;
+  --robot-body: rgba(217, 72, 15, 0.16);
+  --beam: rgba(0, 133, 154, 0.13);
+  --beam-line: #00859a;
+  --wheel: #2a2a28;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: var(--font-ui);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+    --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+    --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+    --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+    --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171716; --panel: #1f1f1e; --raise: #262625; --bar: #2c2c2a; --ink: #e4e4e0; --muted: #9b9b94; --line: #3d3d3a; --line-soft: #30302e;
+  --sel: #2b3a50; --accent: #7aa7e6; --ok: #5bbf62; --warn: #e0a240; --bad: #ec6a5e; --idle: #6f6f69;
+  --tile: #2b2b29; --tile-up: #253244; --unknown: #1b1b1a; --wall: #e4e4e0; --black: #050505; --blue: #3c7be0; --silver: #7c858d;
+  --ramp: #6e6146; --solid: #3d3d3a; --robot: #ff6a2c; --robot-body: rgba(255, 106, 44, 0.2); --beam: rgba(60, 200, 220, 0.13);
+  --beam-line: #3cc0d4; --wheel: #c9c9c4; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.4 var(--font-ui); }
+code { font-family: var(--font-data); font-size: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 16px; background: var(--bar); border-bottom: 1px solid var(--line); }
+.toolbar .app { font-weight: 600; font-size: 13.5px; margin: 0; }
+.toolbar .doc { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.toolbar .spacer { flex: 1 1 auto; }
+.page { padding-inline: 16px; padding-block: 10px 28px; display: grid; gap: 10px; max-width: 1440px; margin: 0 auto; }
+.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.pane > header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; padding: 3px 4px 3px 10px; background: var(--raise); border-bottom: 1px solid var(--line-soft); border-radius: 3px 3px 0 0; }
+.pane > header h2 { font-size: 12.5px; font-weight: 600; margin: 0 6px 0 0; }
+.pane > header .aside { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pane > .body { padding: 10px; }
+button { font: inherit; font-size: 12.5px; color: var(--ink); background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+button:hover { background: var(--bar); }
+button:active { background: var(--line-soft); }
+button.on { background: var(--sel); border-color: var(--accent); }
+button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); font-weight: 600; }
+button.primary:hover { background: var(--ink); opacity: 0.86; }
+button:disabled { opacity: 0.45; cursor: default; }
+button svg { width: 12px; height: 12px; fill: currentColor; flex: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: inline-flex; }
+.seg > button { border-radius: 0; margin-left: -1px; }
+.seg > button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.seg > button:last-child { border-radius: 0 3px 3px 0; }
+.seg > button.on { position: relative; z-index: 1; }
+select, input[type="number"], input[type="text"], textarea { font: inherit; font-size: 12.5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; min-height: 26px; }
+input[type="number"] { font-family: var(--font-data); width: 84px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); margin: 0; }
+input[type="range"] { accent-color: var(--accent); }
+label.file { display: inline-flex; align-items: center; font-size: 12.5px; background: var(--raise); border: 1px solid var(--line); border-radius: 3px; padding: 2px 10px; min-height: 26px; cursor: pointer; }
+label.file:hover { background: var(--bar); }
+label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.lbl { color: var(--muted); font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.chip, .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.chip::before, .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--idle); flex: none; }
+.chip.ok::before, .pill.ok::before { background: var(--ok); }
+.chip.warn::before, .pill.warn::before { background: var(--warn); }
+.chip.bad::before, .pill.bad::before { background: var(--bad); }
+.pill.run::before { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sw { width: 10px; height: 10px; border: 1px solid var(--line); display: inline-block; flex: none; }
+.sw.line { height: 3px; border: 0; }
+.sw.dash { background: transparent; border: 1.5px dashed var(--ok); }
+.scroll { overflow-x: auto; }
+table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.grid th { background: var(--raise); color: var(--muted); font-weight: 600; font-size: 12px; text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.grid td { padding: 3px 8px; border-bottom: 1px solid var(--line-soft); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.grid th:first-child, .grid td:first-child, .grid .l { text-align: left; }
+.num { font-family: var(--font-data); font-size: 12px; }
+dl.props { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: 12.5px; }
+dl.props dt { color: var(--muted); }
+dl.props dd { margin: 0; text-align: right; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+canvas { display: block; width: 100%; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* live view: controls in a strip, a grid of robots running now, the selected robot in detail on the right */
+.strip .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.strip .sep { width: 1px; align-self: stretch; background: var(--line-soft); margin: 0 2px; }
+.strip details { padding: 0 10px 8px; }
+.strip summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.strip .settings { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 6px; }
+.strip .settings input { width: 260px; font-family: var(--font-data); }
+label.check { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; cursor: pointer; }
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 10px; align-items: start; }
+@media (max-width: 1100px) { .work { grid-template-columns: minmax(0, 1fr); } }
+.grid-robots { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-w, 300px), 1fr)); gap: 10px; min-width: 0; }
+.card { cursor: pointer; display: grid; }
+.card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card > header h2 { font-family: var(--font-data); font-weight: 600; }
+.card canvas { padding: 6px; }
+.card footer { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 4px 10px 6px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--muted); }
+.card footer b { font-family: var(--font-data); font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.side { display: grid; gap: 10px; min-width: 0; position: sticky; top: 10px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
+.posline { margin-top: 8px; padding: 2px 0 2px 8px; border-left: 3px solid var(--idle); font-size: 12.5px; }
+.posline.ok { border-color: var(--ok); }
+.posline.bad { border-color: var(--bad); }
+.bars { display: grid; gap: 2px; margin-top: 8px; }
+.bar { display: grid; grid-template-columns: 92px minmax(0, 1fr) 40px; align-items: center; gap: 8px; font-size: 11.5px; }
+.bar .name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { position: relative; height: 6px; background: var(--raise); border: 1px solid var(--line-soft); overflow: hidden; }
+.bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--beam-line); }
+.bar .val { font-family: var(--font-data); text-align: right; }
+#log { font-family: var(--font-data); font-size: 11.5px; line-height: 1.45; height: 180px; overflow: auto; padding: 6px 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#log .t { color: var(--muted); }
+#log .hl { color: var(--warn); }
+.empty-grid { padding: 30px; text-align: center; color: var(--muted); }
+pre.err { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-data); font-size: 12px; color: var(--bad); background: var(--raise); border-left: 3px solid var(--bad); padding: 6px 10px; max-height: 260px; overflow: auto; margin: 0 10px 8px; }
+.tally td:first-child { font-family: var(--font-ui); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <h1 class="app">Theseus live</h1>
+  <span class="doc">Real firmware from <code>Main/</code>, one simulated robot per field, running now on this PC</span>
+  <span class="spacer"></span>
+  <span class="hint" id="summary"></span>
+  <a href="/" target="_blank" rel="noopener" class="hint">Batch dashboard</a>
+</div>
+
+<div class="page">
+  <section class="pane strip" aria-label="Live controls">
+    <div class="body controls">
+      <span class="lbl">Robots</span>
+      <div class="seg" id="counts">
+        <button data-count="1">1</button><button data-count="4">4</button><button data-count="6">6</button>
+        <button data-count="9">9</button><button data-count="12">12</button><button data-count="16">16</button>
+      </div>
+      <label class="lbl" for="scenario">Fields</label>
+      <select id="scenario">
+        <option value="mixed">Mixed (all types)</option>
+        <option value="flat">flat</option>
+        <option value="loops">loops</option>
+        <option value="big">big</option>
+        <option value="ramp">ramp</option>
+        <option value="bigramp">bigramp</option>
+      </select>
+      <label class="lbl" for="robot">Robot</label>
+      <select id="robot">
+        <option value="real">Realistic</option>
+        <option value="ideal">Ideal (no noise)</option>
+      </select>
+      <button class="primary" id="start">New random fields</button>
+      <button id="again" title="Run the same fields again from the start">Same fields again</button>
+      <span class="sep" aria-hidden="true"></span>
+      <span class="lbl">Speed</span>
+      <div class="seg" id="speeds">
+        <button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="5">5×</button>
+        <button data-speed="10">10×</button><button data-speed="30">30×</button><button data-speed="0">Max</button>
+      </div>
+      <button id="pauseAll" title="Space">Pause all</button>
+      <label class="check"><input type="checkbox" id="keep" checked> Keep going (new field when one finishes)</label>
+    </div>
+    <details>
+      <summary>Simulator settings and code changes (used from the next "New random fields")</summary>
+      <div class="settings">
+        <label class="lbl" for="sets">Settings</label>
+        <input type="text" id="sets" spellcheck="false" placeholder="batteryVoltage=12.4 robotMassKg=1.5">
+        <label class="lbl" for="fw">#define</label>
+        <input type="text" id="fw" spellcheck="false" placeholder="ROBOT_WIDTH_MM=183">
+        <span class="hint">Names: see physics/README.md. Main/ is never edited.</span>
+      </div>
+    </details>
+    <pre class="err" id="error" hidden></pre>
+  </section>
+
+  <div class="work">
+    <div class="grid-robots" id="grid"><div class="pane empty-grid">Starting the robots…</div></div>
+
+    <div class="side">
+      <section class="pane" id="focus">
+        <header><h2 id="fTitle">—</h2><div class="aside"><span class="chip" id="fChip">—</span></div></header>
+        <div class="btnrow">
+          <button id="fPause">Pause</button>
+          <button id="fNudge" title="Push the robot up to 40 mm and 15° (a bump, or a wheel slipping)">Bump</button>
+          <button id="fLop" title="Lack-of-progress restart: the referee puts it on the last checkpoint">Restart at checkpoint</button>
+          <button id="fSame" title="Start this field again">Same field again</button>
+          <button id="fNew">New field</button>
+          <button id="fReplay" title="Open what this robot has done so far in the replay viewer (2D and 3D)">Open replay</button>
+        </div>
+        <div class="body">
+          <canvas id="fCanvas" aria-label="The selected robot's field"></canvas>
+          <dl class="props" style="margin-top:8px">
+            <dt>Match clock</dt><dd id="fTime">—</dd>
+            <dt>State</dt><dd id="fState">—</dd>
+            <dt>Heading true / gyro</dt><dd id="fHead">—</dd>
+            <dt>Real tile / code thinks</dt><dd id="fTile">—</dd>
+            <dt>Explored</dt><dd id="fCov">—</dd>
+            <dt>Restarts</dt><dd id="fLops">—</dd>
+          </dl>
+          <div class="posline" id="fPos">—</div>
+          <div class="bars" id="fTofs"></div>
+        </div>
+      </section>
+      <section class="pane">
+        <header><h2>Robot's map</h2><div class="aside"><span class="hint" id="fFloor"></span></div></header>
+        <div class="body"><canvas id="fMap" aria-label="The map the selected robot's code has built"></canvas></div>
+      </section>
+      <section class="pane">
+        <header><h2>Serial monitor</h2></header>
+        <div id="log" tabindex="0" aria-label="The selected robot's Serial output"></div>
+      </section>
+      <section class="pane">
+        <header><h2>Finished runs</h2><div class="aside"><span class="hint" id="tallyNote"></span></div></header>
+        <div class="scroll"><table class="grid tally" id="tally"></table></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const S = 300;
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const STATES = ["SENSE_TILE", "CENTERING", "UPDATE_MAP", "PLAN_NEXT", "VICTIM_DETECT", "EXECUTE_MOVE",
+  "BOTCHED_TURN_RECOVERY", "BOTCHED_FWD_RECOVERY", "BACKPEDAL", "PAUSE", "RETURN"];
+const DX = [0, 1, 0, -1], DY = [1, 0, -1, 0], DIRS = "NESW";
+const TYPES = ["flat", "loops", "big", "ramp", "bigramp"];
+const FT = { FLOOR: 0, BLACK: 1, BLUE: 2, SILVER: 3, RAMP: 4, SOLID: 5 };
+const TOF_NAMES = ["front-right", "right-front", "right-back", "back", "left-back", "left-front", "front-left"];
+const fmt = ms => { const s = Math.max(0, ms) / 1000, m = Math.floor(s / 60); return `${m}:${String(Math.floor(s - m * 60)).padStart(2, "0")}`; };
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+let slots = [], selected = 0, speed = 1, paused = false, keep = true, tally = [], cfg = null, colors = null;
+
+// ---------------------------------------------------------------- data from the simulator
+function newSlot(idx) { return { idx, gen: -1, h: null, F: null, cur: null, prev: null, at: 0, trail: [], logs: [], result: null, paused: false,
+  map: null, visited: new Set(), reachN: 0, lops: 0, offSince: null, dirty: true, el: null, layer: null, error: null }; }
+function setupField(slot, h) {
+  const F = h.field;
+  F.type = F.tiles.map(t => t[0]); F.level = F.tiles.map(t => t[1]); F.walls = F.tiles.map(t => t[2]);
+  F.id = (x, y) => y * F.W + x;
+  F.in = (x, y) => x >= 0 && y >= 0 && x < F.W && y < F.H;
+  F.wall = (x, y, d) => !F.in(x, y) || !!(F.walls[F.id(x, y)] >> d & 1);
+  // tiles reachable from the start without crossing black, for "explored"
+  const seen = new Set([F.id(F.sx, F.sy)]), q = [[F.sx, F.sy]];
+  while (q.length) {
+    const [x, y] = q.pop();
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DX[d], ny = y + DY[d];
+      if (F.wall(x, y, d) || !F.in(nx, ny) || seen.has(F.id(nx, ny))) continue;
+      const t = F.type[F.id(nx, ny)];
+      if (t === FT.BLACK || t === FT.SOLID) continue;
+      seen.add(F.id(nx, ny)); q.push([nx, ny]);
+    }
+  }
+  slot.reachN = [...seen].filter(i => F.type[i] !== FT.RAMP).length;
+  slot.h = h; slot.F = F;
+  slot.map = new Int32Array(h.map.floors * h.map.size * h.map.size);
+  slot.visited = new Set([F.id(F.sx, F.sy)]);
+  slot.layer = null;
+}
+function take(slot, o) {
+  if (o.field) { setupField(slot, o); return; }
+  if (o.error) { slot.error = o.error; return; }
+  if ("x" in o) {
+    slot.prev = slot.cur; slot.cur = o; slot.at = performance.now();
+    slot.trail.push(o.x, o.y);
+    if (slot.F) {
+      const tx = Math.floor(o.x / S), ty = Math.floor(o.y / S), F = slot.F;
+      if (F.in(tx, ty) && F.type[F.id(tx, ty)] !== FT.RAMP && F.type[F.id(tx, ty)] !== FT.SOLID) slot.visited.add(F.id(tx, ty));
+      const m = slot.h.map;
+      if (o.m) for (const [fl, x, y, c] of o.m) slot.map[(fl * m.size + x) * m.size + y] = c;
+      const c = posCheck(slot, o);
+      if (c.off) { if (slot.offSince === null) slot.offSince = o.t; } else if (!c.onRamp) slot.offSince = null;
+    }
+    if (o.lcd !== undefined) slot.lcd = o.lcd;
+    slot.dirty = true;
+    return;
+  }
+  if ("log" in o) { slot.logs.push(o); if (slot.logs.length > 400) slot.logs.splice(0, 100); slot.logDirty = true; return; }
+  if (o.event) {
+    if (o.event === "paused") slot.paused = true;
+    if (o.event === "resumed") slot.paused = false;
+    if (o.event === "lop") slot.lops++;
+    const what = { paused: "— paused", resumed: "— resumed", nudge: "— bumped", lop: `— restart at the checkpoint (${o.why})` }[o.event];
+    if (what) { slot.logs.push({ log: what, t: o.t, mark: true }); slot.logDirty = true; }
+    slot.dirty = true;
+    return;
+  }
+  if (o.result) { slot.result = o.result; slot.dirty = true; }
+}
+function posCheck(slot, f) {
+  const F = slot.F, m = slot.h.map, tx = Math.floor(f.x / S), ty = Math.floor(f.y / S);
+  const bx = f.mx - m.size / 2 + F.sx, by = f.my - m.size / 2 + F.sy;
+  const onField = F.in(tx, ty), onRamp = onField && F.type[F.id(tx, ty)] === FT.RAMP;
+  const realFloor = onField && !onRamp ? m.start + F.level[F.id(tx, ty)] - F.level[F.id(F.sx, F.sy)] : null;
+  return { tx, ty, bx, by, onRamp, realFloor, off: onField && !onRamp && (bx !== tx || by !== ty || realFloor !== f.f) };
+}
+function status(slot) {
+  const r = slot.result;
+  if (slot.error) return ["error", "bad"];
+  if (r) {
+    if (r.home) return ["home", "ok"];
+    if (r.end === "home") return ["wrong tile", "warn"];
+    if (r.end === "time") return ["8:00 ran out", ""];
+    if (r.end === "no path") return ["no path home", "bad"];
+    return [r.end, ""];
+  }
+  if (!slot.cur) return ["starting", ""];
+  if (slot.paused) return ["paused", ""];
+  if (slot.offSince !== null && slot.cur.t - slot.offSince > 4000) return ["lost", "bad"];
+  return [slot.cur.s === 10 ? "heading home" : "exploring", "run"];
+}
+
+const es = new EventSource("/api/live/stream");
+es.onmessage = e => {
+  const m = JSON.parse(e.data);
+  if (m.type === "session") {
+    cfg = m.cfg;
+    slots = Array.from({ length: m.count }, (_, i) => newSlot(i));
+    if (selected >= slots.length) selected = 0;
+    buildGrid();
+    if (cfg) { $("scenario").value = cfg.scenario; $("robot").value = cfg.ideal ? "ideal" : "real"; setCount(m.count); }
+    if (!cfg) startSession(false);           // first time: start some robots straight away
+  } else if (m.type === "run") {
+    const old = slots[m.slot]; if (!old) return;
+    const s = newSlot(m.slot); s.gen = m.gen; s.scenario = m.scenario; s.seed = m.seed; s.el = old.el;
+    slots[m.slot] = s; s.logDirty = true;
+  } else if (m.type === "lines") {
+    const s = slots[m.slot]; if (!s || s.gen !== m.gen) return;
+    for (const o of m.lines) take(s, o);
+  } else if (m.type === "tally") { tally = m.results; renderTally(); }
+  else if (m.type === "state") { speed = m.speed; paused = m.paused; keep = m.keep; renderControls(); }
+};
+let connected = false;
+es.onopen = () => { connected = true; };
+es.onerror = () => { connected = false; $("summary").textContent = "lost contact with the simulator: is run_physics.py --live still running?"; };
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+async function startSession(same) {
+  $("error").hidden = true;
+  const count = +(document.querySelector("#counts .on")?.dataset.count || 6);
+  $("start").disabled = $("again").disabled = true;
+  $("start").textContent = "Starting…";
+  try {
+    await post("/api/live/start", { count, scenario: $("scenario").value, ideal: $("robot").value === "ideal", speed, keep: $("keep").checked,
+      sets: $("sets").value, fw: $("fw").value, same });
+  } catch (e) { $("error").hidden = false; $("error").textContent = e.message; }
+  $("start").disabled = $("again").disabled = false;
+  $("start").textContent = "New random fields";
+}
+const cmd = (c, slot = null) => post("/api/live/cmd", { cmd: c, slot }).catch(() => {});
+
+// ---------------------------------------------------------------- drawing
+function readColors() {
+  colors = {}; for (const k of ["tile", "tile-up", "black", "blue", "silver", "ramp", "solid", "wall", "muted", "line", "robot", "robot-body", "beam", "beam-line",
+    "wheel", "ok", "bad", "warn", "unknown", "panel", "ink", "font-ui"]) colors[k] = css("--" + k);
+}
+function view(F, w, maxH, pad = 4) {
+  const sc = Math.min((w - 2 * pad) / (F.W * S), (maxH - 2 * pad) / (F.H * S));
+  const h = Math.ceil(F.H * S * sc + 2 * pad), ox = (w - F.W * S * sc) / 2;
+  return { sc, h, w, P: (x, y) => [ox + x * sc, pad + (F.H * S - y) * sc] };
+}
+function prepCanvas(cv, w, h) {
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px"; }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return ctx;
+}
+function drawTiles(ctx, F, V) {
+  const C = colors, sc = V.sc;
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) {
+    const i = F.id(x, y), t = F.type[i], [px, py] = V.P(x * S, (y + 1) * S);
+    ctx.fillStyle = [F.level[i] && F.rampLen ? C["tile-up"] : C.tile, C.black, C.blue, C.silver, C.ramp, C.solid][t] || C.tile;
+    ctx.fillRect(px, py, S * sc + 0.5, S * sc + 0.5);
+  }
+  ctx.strokeStyle = C.line; ctx.lineWidth = 0.5; ctx.beginPath();
+  for (let x = 0; x <= F.W; x++) { const [a, b] = V.P(x * S, 0), [c, d] = V.P(x * S, F.H * S); ctx.moveTo(a, b); ctx.lineTo(c, d); }
+  for (let y = 0; y <= F.H; y++) { const [a, b] = V.P(0, y * S), [c, d] = V.P(F.W * S, y * S); ctx.moveTo(a, b); ctx.lineTo(c, d); }
+  ctx.stroke();
+  const [sx, sy] = V.P((F.sx + 0.5) * S, (F.sy + 0.5) * S);
+  ctx.fillStyle = C.muted; ctx.font = `600 ${Math.max(8, S * sc * 0.3)}px ${C["font-ui"]}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("S", sx, sy);
+  ctx.strokeStyle = C.wall; ctx.lineCap = "round"; ctx.lineWidth = Math.max(1.5, sc * 12); ctx.beginPath();
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) for (let d = 0; d < 4; d++) {
+    if (!F.wall(x, y, d) || (d === 2 && y > 0) || (d === 3 && x > 0)) continue;
+    const x0 = x * S, y0 = y * S, seg = [[x0, y0 + S, x0 + S, y0 + S], [x0 + S, y0, x0 + S, y0 + S], [x0, y0, x0 + S, y0], [x0, y0, x0, y0 + S]][d];
+    const [a, b] = V.P(seg[0], seg[1]), [c, e] = V.P(seg[2], seg[3]); ctx.moveTo(a, b); ctx.lineTo(c, e);
+  }
+  ctx.stroke();
+}
+function pose(slot) {
+  const a = slot.prev, b = slot.cur;
+  if (!a || !b || Math.hypot(b.x - a.x, b.y - a.y) > 120 || speed === 0) return { x: b.x, y: b.y, h: b.h };
+  const u = Math.min(1, (performance.now() - slot.at) / (50 / speed));
+  const dh = ((b.h - a.h) % 360 + 540) % 360 - 180;
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, h: a.h + dh * u };
+}
+function drawRobot(ctx, slot, V, p, beams) {
+  const r = slot.h.robot, f = slot.cur, C = colors, sc = V.sc, hr = p.h * Math.PI / 180;
+  const toW = (fw, lf) => [p.x + fw * Math.sin(hr) - lf * Math.cos(hr), p.y + fw * Math.cos(hr) + lf * Math.sin(hr)];
+  if (beams) r.tof.forEach(([fw, lf, facing], k) => {
+    const d = f.tof[k]; if (!(d > 0 && d < 8000)) return;
+    const [ox, oy] = toW(fw, lf), a = p.h + [0, 90, 180, -90][facing], [cx, cy] = V.P(ox, oy), half = (r.cone || 25) / 2;
+    ctx.fillStyle = C.beam; ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, d * sc, (a - half - 90) * Math.PI / 180, (a + half - 90) * Math.PI / 180); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = C["beam-line"]; ctx.lineWidth = Math.max(0.8, sc * 5); ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.sin(a * Math.PI / 180) * d * sc, cy - Math.cos(a * Math.PI / 180) * d * sc); ctx.stroke();
+  });
+  const [cx, cy] = V.P(p.x, p.y);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(hr); ctx.scale(sc, sc);
+  ctx.fillStyle = C["robot-body"]; ctx.fillRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  ctx.fillStyle = C.wheel;
+  for (const fa of [r.axle, -r.axle]) for (const side of [-1, 1]) ctx.fillRect(side * r.track / 2 - 9, -fa - r.wheel / 2, 18, r.wheel);
+  ctx.strokeStyle = f.c ? C.bad : C.robot; ctx.lineWidth = Math.max(4, 1.5 / sc); ctx.strokeRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  ctx.fillStyle = C.robot; ctx.beginPath(); ctx.moveTo(0, -r.front + 8); ctx.lineTo(-24, -r.front + 44); ctx.lineTo(24, -r.front + 44); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawBelieved(ctx, slot, V) {
+  const c = posCheck(slot, slot.cur), F = slot.F, sc = V.sc;
+  if (c.bx < -1 || c.by < -1 || c.bx > F.W || c.by > F.H) return;
+  const inset = S * 0.08, [a, b] = V.P(c.bx * S + inset, (c.by + 1) * S - inset);
+  ctx.strokeStyle = c.off ? colors.bad : colors.ok; ctx.lineWidth = Math.max(1.2, sc * 9); ctx.setLineDash([Math.max(3, sc * 30), Math.max(2, sc * 20)]);
+  ctx.strokeRect(a, b, (S - 2 * inset) * sc, (S - 2 * inset) * sc); ctx.setLineDash([]);
+}
+function drawTrail(ctx, slot, V, from) {
+  const t = slot.trail; ctx.strokeStyle = colors.robot; ctx.globalAlpha = 0.4; ctx.lineWidth = Math.max(1, V.sc * 6); ctx.lineJoin = "round";
+  ctx.beginPath();
+  for (let i = Math.max(2, from); i < t.length; i += 2) {
+    const jump = Math.hypot(t[i] - t[i - 2], t[i + 1] - t[i - 1]) > 120;
+    const [a, b] = V.P(t[i - 2], t[i - 1]), [c, d] = V.P(t[i], t[i + 1]);
+    if (!jump) { ctx.moveTo(a, b); ctx.lineTo(c, d); }
+  }
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+// static field + trail kept in an offscreen canvas per size; only new trail segments are added each frame
+function drawField(cv, slot, maxH, beams, cache) {
+  const w = cv.clientWidth; if (!w || !slot.F || !slot.cur) return;
+  const V = view(slot.F, w, maxH), dpr = window.devicePixelRatio || 1, ctx = prepCanvas(cv, w, V.h);
+  const key = `${w}|${V.h}|${dpr}|${colors.tile}|${slot.gen}`;
+  let L = slot[cache];
+  if (!L || L.key !== key) {
+    const c = document.createElement("canvas"); c.width = Math.round(w * dpr); c.height = Math.round(V.h * dpr);
+    const lc = c.getContext("2d"); lc.setTransform(dpr, 0, 0, dpr, 0, 0); drawTiles(lc, slot.F, V);
+    L = slot[cache] = { key, c, lc, drawn: 0 };
+  }
+  if (L.drawn < slot.trail.length) { drawTrail(L.lc, slot, V, L.drawn); L.drawn = slot.trail.length; }
+  ctx.clearRect(0, 0, w, V.h); ctx.drawImage(L.c, 0, 0, w, V.h);
+  drawBelieved(ctx, slot, V);
+  drawRobot(ctx, slot, V, pose(slot), beams);
+}
+function drawMap(cv, slot) {
+  const m = slot.h.map, F = slot.F, f = slot.cur, floor = f.f, off = m.size / 2, C = colors;
+  let x0 = 0, y0 = 0, x1 = F.W - 1, y1 = F.H - 1;
+  for (let x = 0; x < m.size; x++) for (let y = 0; y < m.size; y++) {
+    if (!slot.map[(floor * m.size + x) * m.size + y]) continue;
+    const fx = x - off + F.sx, fy = y - off + F.sy; x0 = Math.min(x0, fx); x1 = Math.max(x1, fx); y0 = Math.min(y0, fy); y1 = Math.max(y1, fy);
+  }
+  const nW = x1 - x0 + 1, nH = y1 - y0 + 1, w = cv.clientWidth, t = Math.min((w - 8) / nW, 260 / nH), h = nH * t + 8, ox = (w - nW * t) / 2;
+  const ctx = prepCanvas(cv, w, h); ctx.clearRect(0, 0, w, h);
+  const P = (fx, fy) => [ox + (fx - x0) * t, 4 + (y1 - fy) * t];
+  const sl = F.level[F.id(F.sx, F.sy)];
+  for (let fy = y0; fy <= y1; fy++) for (let fx = x0; fx <= x1; fx++) {
+    const mx = fx - F.sx + off, my = fy - F.sy + off, c = mx >= 0 && my >= 0 && mx < m.size && my < m.size ? slot.map[(floor * m.size + mx) * m.size + my] : 0;
+    const [px, py] = P(fx, fy);
+    ctx.fillStyle = c & 16 ? [C.tile, C.blue, C.silver, C.black][c >> 5 & 3] : C.unknown;
+    if (c & 384) ctx.fillStyle = C.ramp;
+    ctx.fillRect(px + 0.5, py + 0.5, t - 1, t - 1);
+    if (!(c & (16 | 8192 | 15 | 7680))) continue;
+    const real = F.in(fx, fy) && F.type[F.id(fx, fy)] !== FT.RAMP && m.start + F.level[F.id(fx, fy)] - sl === floor;
+    const segs = [[px, py, px + t, py], [px + t, py, px + t, py + t], [px, py + t, px + t, py + t], [px, py, px, py + t]];
+    ctx.lineWidth = Math.max(1.5, t * 0.08); ctx.lineCap = "round";
+    for (let d = 0; d < 4; d++) {
+      const s = segs[d], code = !!(c >> d & 1), rw = real && (c & 16) ? F.wall(fx, fy, d) : null;
+      if (c >> (9 + d) & 1) { ctx.strokeStyle = C.warn; ctx.beginPath(); const mx2 = (s[0] + s[2]) / 2, my2 = (s[1] + s[3]) / 2; ctx.moveTo(mx2 - (s[0] - mx2) * 0.45, my2 - (s[1] - my2) * 0.45); ctx.lineTo(mx2 + (s[0] - mx2) * 0.45, my2 + (s[1] - my2) * 0.45); ctx.stroke(); }
+      if (!code && !rw) continue;
+      ctx.strokeStyle = code && rw === false ? C.bad : !code ? C.bad : C.wall;
+      if (!code) ctx.setLineDash([t * 0.12, t * 0.1]);
+      ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  const [bx, by] = P(f.mx - off + F.sx, f.my - off + F.sy);
+  ctx.fillStyle = C.robot; ctx.beginPath(); ctx.arc(bx + t / 2, by + t / 2, t * 0.26, 0, 7); ctx.fill();
+  ctx.strokeStyle = C.panel; ctx.lineWidth = Math.max(1.5, t * 0.08); ctx.beginPath(); ctx.moveTo(bx + t / 2, by + t / 2);
+  ctx.lineTo(bx + t / 2 + DX[f.d] * t * 0.26, by + t / 2 - DY[f.d] * t * 0.26); ctx.stroke();
+  $("fFloor").textContent = `floor m${floor + 1}${floor === m.start ? " (start)" : ""}`;
+}
+
+// ---------------------------------------------------------------- page
+function buildGrid() {
+  const g = $("grid");
+  g.style.setProperty("--card-w", slots.length <= 1 ? "520px" : slots.length <= 4 ? "380px" : slots.length <= 9 ? "300px" : "240px");
+  g.innerHTML = "";
+  for (const s of slots) {
+    const card = document.createElement("article");
+    card.className = "pane card"; card.tabIndex = 0; card.setAttribute("role", "button");
+    card.innerHTML = `<header><h2>#${s.idx + 1}</h2><span class="hint"></span><div class="aside"><span class="chip">starting</span></div></header>`
+      + `<canvas aria-label="Robot ${s.idx + 1}"></canvas><footer><span><b class="c-t">0:00</b></span><span><b class="c-cov">0%</b> explored</span><span class="c-s"></span></footer>`;
+    card.onclick = () => select(s.idx);
+    card.onkeydown = e => { if (e.key === "Enter") select(s.idx); };
+    g.appendChild(card);
+    s.el = { card, canvas: card.querySelector("canvas"), sub: card.querySelector(".hint"), chip: card.querySelector(".chip"),
+      t: card.querySelector(".c-t"), cov: card.querySelector(".c-cov"), st: card.querySelector(".c-s") };
+  }
+  select(Math.max(0, Math.min(selected, slots.length - 1)));
+}
+function select(i) {
+  selected = i;
+  slots.forEach(s => s.el && s.el.card.classList.toggle("sel", s.idx === i));
+  const s = slots[i]; if (s) { s.dirty = true; s.logDirty = true; }
+}
+function cardText(s) {
+  const [txt, cl] = status(s);
+  s.el.sub.textContent = s.scenario ? `${s.scenario} · seed ${s.seed}` : "";
+  s.el.chip.textContent = txt; s.el.chip.className = "chip " + cl;
+  if (!s.cur) return;
+  s.el.t.textContent = fmt(s.cur.t);
+  s.el.cov.textContent = `${Math.round(100 * Math.min(1, s.visited.size / Math.max(1, s.reachN)))}%`;
+  s.el.st.textContent = STATES[s.cur.s] || "";
+}
+function renderFocus(s) {
+  if (!s) return;
+  const [txt, cl] = status(s);
+  $("fTitle").textContent = `#${s.idx + 1}${s.scenario ? ` · ${s.scenario} · seed ${s.seed}` : ""}`;
+  $("fChip").textContent = txt; $("fChip").className = "chip " + cl;
+  $("fPause").textContent = s.paused ? "Resume" : "Pause";
+  $("fPause").disabled = $("fNudge").disabled = $("fLop").disabled = !!s.result || !s.cur;
+  if (!s.cur || !s.F) return;
+  drawField($("fCanvas"), s, 380, true, "bigLayer");
+  const f = s.cur, c = posCheck(s, f), F = s.F;
+  $("fTime").textContent = fmt(f.t);
+  $("fState").textContent = STATES[f.s] || f.s;
+  const gerr = ((f.g - f.h) % 360 + 540) % 360 - 180;
+  $("fHead").textContent = `${f.h.toFixed(1)}° / ${f.g.toFixed(1)}° (${gerr >= 0 ? "+" : ""}${gerr.toFixed(1)})`;
+  $("fTile").textContent = `${c.tx - F.sx},${c.ty - F.sy} / ${c.bx - F.sx},${c.by - F.sy} m${f.f + 1}`;
+  $("fCov").textContent = `${s.visited.size} of ${s.reachN} tiles`;
+  $("fLops").textContent = s.lops;
+  const pl = $("fPos");
+  if (c.onRamp) { pl.className = "posline"; pl.textContent = "On the ramp."; }
+  else if (!c.off) { pl.className = "posline ok"; pl.textContent = "The code's tile is the tile the robot is on."; }
+  else { pl.className = "posline bad"; pl.textContent = `The code thinks it is ${c.bx - c.tx >= 0 ? "+" : ""}${c.bx - c.tx}, ${c.by - c.ty >= 0 ? "+" : ""}${c.by - c.ty} tiles away${s.offSince !== null && f.t - s.offSince > 4000 ? ` (for ${fmt(f.t - s.offSince)})` : " (normal briefly during a move)"}.`; }
+  $("fTofs").innerHTML = f.tof.map((d, k) => `<div class="bar"><span class="name">${TOF_NAMES[k]}</span><span class="track"><span class="fill" style="width:${d > 0 && d < 8000 ? Math.min(100, d / 6) : 0}%"></span></span><span class="val">${d > 0 && d < 8000 ? d : "—"}</span></div>`).join("");
+  drawMap($("fMap"), s);
+}
+function renderLog(s) {
+  const box = $("log"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  box.innerHTML = s.logs.slice(-150).map(l => `<div class="${l.mark || /obstacle|timeout|stuck|fail|botch|black|short|abort/i.test(l.log) ? "hl" : ""}"><span class="t">${fmt(l.t)}</span>  ${esc(l.log)}</div>`).join("");
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+function renderTally() {
+  const rows = TYPES.filter(t => tally.some(r => r.scenario === t)).map(t => [t, tally.filter(r => r.scenario === t)]);
+  if (rows.length > 1) rows.push(["All", tally]);
+  const pc = (k, n) => n ? `${Math.round(100 * k / n)}%` : "—";
+  $("tallyNote").textContent = tally.length ? `${tally.length} since you pressed New random fields` : "none yet";
+  $("tally").innerHTML = `<tr><th>Field</th><th>Runs</th><th>Home</th><th>Wrong tile</th><th>8:00</th><th>No path</th><th>Explored</th></tr>` + rows.map(([t, l]) => {
+    const n = l.length, cnt = p => l.filter(p).length, cov = l.reduce((a, r) => a + (r.coverage || 0), 0) / Math.max(1, n);
+    return `<tr><td>${t}</td><td class="num">${n}</td><td class="num">${pc(cnt(r => r.home), n)}</td><td class="num">${pc(cnt(r => r.end === "home" && !r.home), n)}</td>`
+      + `<td class="num">${pc(cnt(r => r.end === "time"), n)}</td><td class="num">${pc(cnt(r => r.end === "no path"), n)}</td><td class="num">${Math.round(cov * 100)}%</td></tr>`;
+  }).join("");
+}
+function renderControls() {
+  document.querySelectorAll("[data-speed]").forEach(b => b.classList.toggle("on", +b.dataset.speed === speed));
+  $("pauseAll").textContent = paused ? "Resume all" : "Pause all";
+  $("pauseAll").classList.toggle("on", paused);
+  $("keep").checked = keep;
+}
+function renderSummary() {
+  if (!connected) return;
+  const st = slots.map(s => status(s)[0]), n = k => st.filter(x => x === k).length;
+  const running = st.filter(x => ["exploring", "heading home", "lost"].includes(x)).length;
+  const parts = [`${slots.length} robot${slots.length === 1 ? "" : "s"}`, `${running} running`];
+  for (const k of ["paused", "lost", "home", "wrong tile", "no path home", "8:00 ran out"]) if (n(k)) parts.push(`${n(k)} ${k}`);
+  $("summary").textContent = parts.join(" · ");
+}
+let lastSummary = 0;
+function frame(now) {
+  if (!colors) readColors();
+  for (const s of slots) {
+    if (!s.el || !s.cur || !s.F) { if (s.el && s.dirty) { cardText(s); s.dirty = false; } continue; }
+    const moving = now - s.at < (speed > 0 ? 50 / speed + 20 : 120);
+    if (s.dirty || moving) { drawField(s.el.canvas, s, 260, slots.length <= 9, "cardLayer"); cardText(s); }
+    if (s.idx === selected && (s.dirty || moving)) renderFocus(s);
+    if (s.idx === selected && s.logDirty) { renderLog(s); s.logDirty = false; }
+    s.dirty = false;
+  }
+  if (now - lastSummary > 500) { renderSummary(); lastSummary = now; const s = slots[selected]; if (s && !s.cur) renderFocus(s); }
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- controls
+function setCount(n) { document.querySelectorAll("[data-count]").forEach(b => b.classList.toggle("on", +b.dataset.count === n)); try { localStorage.setItem("live.count", n); } catch (e) {} }
+setCount((() => { try { return +localStorage.getItem("live.count") || 6; } catch (e) { return 6; } })());
+document.querySelectorAll("[data-count]").forEach(b => b.onclick = () => { setCount(+b.dataset.count); startSession(false); });
+document.querySelectorAll("[data-speed]").forEach(b => b.onclick = () => { speed = +b.dataset.speed; renderControls(); cmd(`speed ${speed}`); });
+$("start").onclick = () => startSession(false);
+$("again").onclick = () => startSession(true);
+$("pauseAll").onclick = () => { paused = !paused; renderControls(); cmd(paused ? "pause" : "resume"); };
+$("keep").onchange = () => post("/api/live/keep", { keep: $("keep").checked }).catch(() => {});
+$("fPause").onclick = () => { const s = slots[selected]; if (s) cmd(s.paused ? "resume" : "pause", s.idx); };
+$("fNudge").onclick = () => cmd("nudge", selected);
+$("fLop").onclick = () => cmd("lop", selected);
+$("fSame").onclick = () => post("/api/live/restart", { slot: selected, newField: false }).catch(() => {});
+$("fNew").onclick = () => post("/api/live/restart", { slot: selected, newField: true }).catch(() => {});
+$("fReplay").onclick = () => window.open(`/api/live/replay?slot=${selected}`, "_blank");
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea")) return;
+  if (e.code === "Space") { e.preventDefault(); $("pauseAll").click(); }
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") { select((selected + (e.key === "ArrowRight" ? 1 : slots.length - 1)) % Math.max(1, slots.length)); }
+});
+window.addEventListener("resize", () => slots.forEach(s => s.dirty = true));
+const themeChanged = () => { readColors(); slots.forEach(s => { s.cardLayer = s.bigLayer = null; s.dirty = true; }); };
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeChanged); } catch (e) {}
+new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+renderControls();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

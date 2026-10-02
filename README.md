@@ -25,7 +25,8 @@ not the hardware. Setup, options and how to read the results: [tools/sim/README.
 ## Physics simulator
 
 `tools/sim/physics/` runs all of `Main/` against a simulated robot (motors from the datasheet,
-distance sensors at their CAD positions, gyro, colour sensor, the referee). Start the batch dashboard
-with `python tools/sim/physics/run_physics.py --serve`; any run can be replayed in 2D or 3D.
+distance sensors at their CAD positions, gyro, colour sensor, the referee).
+`python tools/sim/physics/run_physics.py --live` shows up to 16 robots solving random mazes at once, in
+real time or faster; `--serve` opens the batch dashboard; any run can be replayed in 2D or 3D.
 
 **Step-by-step instructions for both simulators: [tools/sim/INSTRUCTIONS.md](tools/sim/INSTRUCTIONS.md).**

@@ -10,15 +10,17 @@
 //   - TCS34725 colour of the tile under its CAD position
 //   - a referee: lack-of-progress restart (pause switch) on black or when stuck
 //
-// Usage: physics.exe --scenario NAME --seed S [--ideal] [--verbose] [--trace FILE]
+// Usage: physics.exe --scenario NAME --seed S [--ideal] [--verbose] [--trace FILE] [--live [--live-speed X]]
 // Prints one JSON line with the result. --trace writes a recording of the run (one JSON object per
-// line) that viewer.html plays back.
+// line) that viewer.html plays back. --live writes the same recording to stdout while the run happens,
+// paced to the wall clock, and takes commands on stdin (pause, resume, speed X, lop, nudge, stop).
 
 #include "Globals.h"
 #include "world.h"
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <random>
 #include <sstream>
@@ -135,7 +137,9 @@ static double contactUs = 0;
 static bool inContact = false;
 static int syncSamples = 0, lostSamples = 0;
 static std::string lopReasons;
-static std::ofstream trace;
+static std::ofstream traceFile;
+static std::ostream *traceOut = nullptr; // the recording: traceFile (--trace) or stdout (--live)
+static bool live = false;
 static double nextTraceUs = 0;
 static int tofLast[8] = {0};            // last reading of each distance sensor, for the trace
 static double gyroLast = 0;
@@ -312,10 +316,10 @@ static void traceFrame(double runS) {
   std::snprintf(b, sizeof b, "{\"t\":%d,\"x\":%.1f,\"y\":%.1f,\"h\":%.1f,\"p\":%.1f,\"g\":%.1f,\"mx\":%d,\"my\":%d,\"f\":%d,\"d\":%d,\"s\":%d,\"c\":%d,\"pw\":[%d,%d,%d,%d],\"tof\":[",
                 (int)(runS * 1000), rx, ry, rhead, rpitch, gyroLast, x_pos, y_pos, currentFloor, (int)currentDir, (int)state, (int)inContact,
                 signedPwm(1), signedPwm(2), signedPwm(3), -signedPwm(4));
-  trace << b;
-  for (int i = 1; i <= 7; i++) trace << (i > 1 ? "," : "") << tofLast[i];
-  trace << "]";
-  if (lcdText != lcdTraced) { lcdTraced = lcdText; trace << ",\"lcd\":\"" << jsonEsc(lcdText) << "\""; }
+  *traceOut << b;
+  for (int i = 1; i <= 7; i++) *traceOut << (i > 1 ? "," : "") << tofLast[i];
+  *traceOut << "]";
+  if (lcdText != lcdTraced) { lcdTraced = lcdText; *traceOut << ",\"lcd\":\"" << jsonEsc(lcdText) << "\""; }
   if (mapTraced.empty()) mapTraced.assign(NUM_FLOORS * MAP_SIZE * MAP_SIZE, 0);
   bool first = true;
   for (int f = 0; f < NUM_FLOORS; f++) {
@@ -325,20 +329,21 @@ static void traceFrame(double runS) {
         uint32_t c = tileCode(g[x][y]), &prev = mapTraced[(f * MAP_SIZE + x) * MAP_SIZE + y];
         if (c == prev) continue;
         prev = c;
-        trace << (first ? ",\"m\":[" : ",") << "[" << f << "," << x << "," << y << "," << c << "]";
+        *traceOut << (first ? ",\"m\":[" : ",") << "[" << f << "," << x << "," << y << "," << c << "]";
         first = false;
       }
   }
-  if (!first) trace << "]";
-  trace << "}\n";
+  if (!first) *traceOut << "]";
+  *traceOut << "}\n";
+  if (live) traceOut->flush();
 }
 
 void simSerialOut(const char *text) {
   if (simSerialEcho) std::fputs(text, stdout);
-  if (!trace.is_open()) return;
+  if (!traceOut) return;
   for (const char *c = text; *c; c++) {
     if (*c != '\n') { serialLine += *c; continue; }
-    trace << "{\"log\":\"" << jsonEsc(serialLine) << "\",\"t\":" << (runStarted ? (int)((tUs - runStartUs) / 1000) : 0) << "}\n";
+    *traceOut << "{\"log\":\"" << jsonEsc(serialLine) << "\",\"t\":" << (runStarted ? (int)((tUs - runStartUs) / 1000) : 0) << "}\n";
     serialLine.clear();
   }
 }
@@ -368,7 +373,7 @@ static void refereeTick() {
     int ef = START_FLOOR + W.level[W.id(tx, ty)] - W.level[W.id(W.sx, W.sy)];
     if (x_pos != tx - W.sx + MAP_SIZE / 2 || y_pos != ty - W.sy + MAP_SIZE / 2 || currentFloor != ef) lostSamples++;
   }
-  if (trace.is_open() && tUs >= nextTraceUs) traceFrame(runS);
+  if (traceOut && tUs >= nextTraceUs) traceFrame(runS);
 }
 
 static void lackOfProgress(const char *why) {
@@ -383,8 +388,61 @@ static void lackOfProgress(const char *why) {
   rhead = wrap360(gauss(P.placeSigmaDeg)); // placed facing the start direction
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
-  if (trace.is_open()) trace << "{\"event\":\"lop\",\"why\":\"" << why << "\",\"t\":" << (int)((tUs - runStartUs) / 1000)
+  if (traceOut) *traceOut << "{\"event\":\"lop\",\"why\":\"" << why << "\",\"t\":" << (int)((tUs - runStartUs) / 1000)
                              << ",\"cx\":" << cpX << ",\"cy\":" << cpY << "}\n";
+}
+
+// ---- live mode: run at wall-clock speed (x liveSpeed) and obey commands from the server ----
+double liveWallMs();
+void liveSleepMs(double ms);
+std::string liveReadInput();
+static bool livePaused = false;
+static double liveSpeed = 1, liveSimAnchorUs = 0, liveWallAnchorMs = 0, liveNextUs = 0;
+static std::string liveInbox;
+
+static void liveRebase() { liveSimAnchorUs = tUs; liveWallAnchorMs = liveWallMs(); }
+static void liveEvent(const char *what) {
+  *traceOut << "{\"event\":\"" << what << "\",\"t\":" << (int)((tUs - runStartUs) / 1000) << "}\n";
+  traceOut->flush();
+}
+static void liveCommand(const std::string &c) {
+  if (c == "pause" && !livePaused) { livePaused = true; liveEvent("paused"); }
+  else if (c == "resume" && livePaused) { livePaused = false; liveRebase(); liveEvent("resumed"); }
+  else if (c.compare(0, 6, "speed ") == 0) { liveSpeed = std::atof(c.c_str() + 6); liveRebase(); } // 0 = as fast as possible
+  else if (c == "lop" && !switchHigh) lackOfProgress("restart button");
+  else if (c == "nudge") { // someone bumps the robot: up to 40 mm and 15 degrees, never into a wall
+    std::uniform_real_distribution<double> u(-1, 1);
+    for (int k = 0; k < 30; k++) {
+      double nx = rx + 40 * u(rng), ny = ry + 40 * u(rng), nh = wrap360(rhead + 15 * u(rng));
+      if (!collides(nx, ny, nh)) { rx = nx; ry = ny; rhead = nh; break; }
+    }
+    liveEvent("nudge");
+  }
+  else if (c == "stop") throw SimEnd{"stopped"};
+}
+static void livePace() {
+  liveInbox += liveReadInput();
+  for (size_t nl; (nl = liveInbox.find('\n')) != std::string::npos;) {
+    std::string c = liveInbox.substr(0, nl);
+    liveInbox.erase(0, nl + 1);
+    while (!c.empty() && (c.back() == '\r' || c.back() == ' ')) c.pop_back();
+    liveCommand(c);
+  }
+  while (livePaused) {
+    liveSleepMs(40);
+    liveInbox += liveReadInput();
+    for (size_t nl; (nl = liveInbox.find('\n')) != std::string::npos;) {
+      std::string c = liveInbox.substr(0, nl);
+      liveInbox.erase(0, nl + 1);
+      while (!c.empty() && (c.back() == '\r' || c.back() == ' ')) c.pop_back();
+      liveCommand(c);
+    }
+  }
+  if (liveSpeed > 0) {
+    double ahead = (tUs - liveSimAnchorUs) / 1000.0 / liveSpeed - (liveWallMs() - liveWallAnchorMs);
+    if (ahead > 2) liveSleepMs(ahead);
+    else if (ahead < -500) liveRebase(); // a slow PC fell behind: carry on from here instead of rushing
+  }
 }
 
 static bool simReady = false; // false while global objects are being constructed (before main)
@@ -397,6 +455,7 @@ static void simAdvance(double us) {
     physicsStep(h / 1e6);
     tUs += h;
     refereeTick();
+    if (live && runStarted && tUs >= liveNextUs) { liveNextUs = tUs + 10000; livePace(); }
   }
 }
 
@@ -637,6 +696,8 @@ int main(int argc, char **argv) {
     else if (a == "--ideal") ideal = true;
     else if (a == "--verbose") simSerialEcho = true;
     else if (a == "--trace" && i + 1 < argc) tracePath = argv[++i];
+    else if (a == "--live") live = true;
+    else if (a == "--live-speed" && i + 1 < argc) liveSpeed = std::atof(argv[++i]);
     else if (a == "--geometry" && i + 1 < argc) geomPath = argv[++i];
     else if (a == "--set" && i + 1 < argc) sets.push_back(argv[++i]);
     else if (a == "--selftest") selftest = true;
@@ -681,22 +742,23 @@ int main(int argc, char **argv) {
   rhead = wrap360(gauss(P.placeSigmaDeg));
   cpX = W.sx; cpY = W.sy;
   visited.assign(W.W * W.H, false);
-  if (!tracePath.empty()) {
-    trace.open(tracePath);
-    trace << "{\"scenario\":\"" << sc->name << "\",\"seed\":" << seed << ",\"ideal\":" << (ideal ? "true" : "false") << ",\"sets\":\"";
-    for (const std::string &x : sets) trace << jsonEsc(x) << " ";
-    trace << "\",\"robot\":{\"front\":" << bodyFront << ",\"back\":" << bodyBack << ",\"half\":" << bodyHalfWidth << ",\"axle\":" << axleOffset
+  if (!tracePath.empty() || live) {
+    if (live) traceOut = &std::cout;
+    else { traceFile.open(tracePath); traceOut = &traceFile; }
+    *traceOut << "{\"scenario\":\"" << sc->name << "\",\"seed\":" << seed << ",\"ideal\":" << (ideal ? "true" : "false") << ",\"sets\":\"";
+    for (const std::string &x : sets) *traceOut << jsonEsc(x) << " ";
+    *traceOut << "\",\"robot\":{\"front\":" << bodyFront << ",\"back\":" << bodyBack << ",\"half\":" << bodyHalfWidth << ",\"axle\":" << axleOffset
           << ",\"track\":" << P.trackWidth << ",\"wheel\":" << P.wheelDiameter << ",\"colour\":[" << colourFwd << "," << colourLeft << "," << colourHeight << "],\"tof\":[";
-    for (int i = 1; i <= 7; i++) trace << (i > 1 ? "," : "") << "[" << tof[i].fwd << "," << tof[i].left << "," << tof[i].facing << "," << tof[i].height << "]";
-    trace << "],\"cone\":" << P.tofConeDeg << "},\"map\":{\"size\":" << MAP_SIZE << ",\"floors\":" << NUM_FLOORS << ",\"start\":" << START_FLOOR << "}";
-    trace << ",\"field\":{\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg
+    for (int i = 1; i <= 7; i++) *traceOut << (i > 1 ? "," : "") << "[" << tof[i].fwd << "," << tof[i].left << "," << tof[i].facing << "," << tof[i].height << "]";
+    *traceOut << "],\"cone\":" << P.tofConeDeg << "},\"map\":{\"size\":" << MAP_SIZE << ",\"floors\":" << NUM_FLOORS << ",\"start\":" << START_FLOOR << "}";
+    *traceOut << ",\"field\":{\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg
           << ",\"rampX0\":" << W.rampX0 << ",\"rampLen\":" << W.rampLen << ",\"levelHeight\":[" << W.levelHeight[0] << "," << W.levelHeight[1] << "],\"tiles\":[";
     for (int i = 0; i < W.W * W.H; i++) {
       int walls = 0;
       for (int d = 0; d < 4; d++) walls |= W.wall[i][d] << d;
-      trace << (i ? "," : "") << "[" << W.type[i] << "," << W.level[i] << "," << walls << "]";
+      *traceOut << (i ? "," : "") << "[" << W.type[i] << "," << W.level[i] << "," << walls << "]";
     }
-    trace << "]}}\n";
+    *traceOut << "]}}\n";
   }
 
   std::string reason;
@@ -705,6 +767,7 @@ int main(int argc, char **argv) {
     setup();
     runStarted = true;
     runStartUs = tUs;
+    if (live) liveRebase();
     lastProgressUs = tUs;
     lastTileX = W.sx; lastTileY = W.sy;
     visited[W.id(W.sx, W.sy)] = true;
@@ -736,10 +799,11 @@ int main(int argc, char **argv) {
               sc->name, seed, ideal ? "true" : "false", reason.c_str(), home ? "true" : "false", runS, total ? (double)covered / total : 1.0,
               covered, total, wallsAll ? (double)wallsOk / wallsAll : 1.0, lops, lopReasons.c_str(), contactUs / 1e6,
               syncSamples ? (double)lostSamples / syncSamples : 0.0, rampCrossings, W.rampDeg, jsonEsc(lcdText).c_str());
-  if (trace.is_open()) {
+  if (traceOut) {
     if (runStarted) traceFrame(runS);
-    trace << "{\"result\":" << std::string(result, std::strlen(result) - 1) << ",\"t\":" << (int)(runS * 1000) << "}\n";
+    *traceOut << "{\"result\":" << std::string(result, std::strlen(result) - 1) << ",\"t\":" << (int)(runS * 1000) << "}\n";
   }
-  std::fputs(result, stdout);
+  if (live) traceOut->flush();
+  else std::fputs(result, stdout);
   return 0;
 }

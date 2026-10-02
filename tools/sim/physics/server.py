@@ -1,13 +1,14 @@
-"""Batch dashboard for the physics simulator.
+"""Web server for the physics simulator: the batch dashboard and the live view.
 
-  python tools/sim/physics/run_physics.py --serve
+  python tools/sim/physics/run_physics.py --serve     batch dashboard (dashboard.html)
+  python tools/sim/physics/run_physics.py --live      live view (live.html) in its own window
 
-Starts a small web server on this PC (only reachable from this PC) and opens dashboard.html in the
-browser. The page asks this server to run batches of fields; the server builds the firmware from Main/
-(again whenever a file in Main/ changes), runs the fields in parallel and sends the results back. "Watch"
-on any run records that run and opens it in the replay viewer. Ctrl+C in the terminal stops the server.
+Only reachable from this PC. It builds the firmware from Main/ (again whenever a file in Main/ changes).
+The dashboard runs batches of fields in parallel; "Watch" records a run and opens it in the replay
+viewer. The live view runs several robots at once, each its own simulator process paced to the wall
+clock, and streams what they do to the page as it happens. Ctrl+C in the terminal stops everything.
 """
-import concurrent.futures, glob, hashlib, http.server, json, os, random, subprocess, sys, tempfile, threading, time, urllib.parse, webbrowser
+import atexit, concurrent.futures, glob, hashlib, http.server, json, os, random, shutil, subprocess, sys, tempfile, threading, time, urllib.parse, webbrowser
 
 import run_physics as rp
 
@@ -19,7 +20,7 @@ CPUS = os.cpu_count() or 4
 def source_stamp():
     """Changes whenever any file the simulator is built from changes."""
     files = sorted(glob.glob(os.path.join(rp.REPO, "Main", "*.*")) + glob.glob(os.path.join(rp.HERE, "hw", "**", "*.h"), recursive=True)
-                   + [os.path.join(rp.HERE, "physics.cpp"), os.path.join(rp.HERE, "world.h")])
+                   + [os.path.join(rp.HERE, f) for f in ("physics.cpp", "live_io.cpp", "world.h")])
     h = hashlib.sha1()
     for f in files:
         st = os.stat(f)
@@ -113,6 +114,177 @@ current = None
 replays = {}
 
 
+# ---------------------------------------------------------------- live view
+class Slot:
+    """One robot in the live view: a running `physics.exe --live` and everything it has printed this run."""
+
+    def __init__(self, idx):
+        self.idx, self.gen, self.lines, self.proc = idx, 0, [], None
+        self.scenario, self.seed, self.done = None, None, False
+
+
+class Live:
+    """Robots running live. Each is its own simulator process, paced to the wall clock; the page
+    gets their output as it happens (/api/live/stream) and sends commands back (/api/live/cmd)."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.session, self.slots, self.cfg, self.exe = 0, [], None, None
+        self.results, self.speed, self.paused = [], 1.0, False
+
+    def start(self, cfg, seeds=None):
+        exe = builder.exe_for(cfg["fw"])  # raises BuildError for the page to show
+        self.stop_all()
+        with self.lock:
+            self.session += 1
+            self.cfg, self.exe, self.results = cfg, exe, []
+            self.speed, self.paused = cfg["speed"], False
+            self.slots = [Slot(i) for i in range(cfg["count"])]
+        for s in self.slots:
+            sc, seed = seeds[s.idx] if seeds and s.idx < len(seeds) else self.pick()
+            self.launch(s, sc, seed)
+
+    def pick(self):
+        sc = self.cfg["scenario"]
+        return (random.choice(rp.SCENARIOS) if sc == "mixed" else sc), random.randint(1, 1_000_000)
+
+    def launch(self, slot, sc, seed):
+        cmd = [self.exe, "--scenario", sc, "--seed", str(seed), "--geometry", rp.GEOMETRY, "--live", "--live-speed", f"{self.speed:g}"] \
+            + (["--ideal"] if self.cfg["ideal"] else []) + [x for s in self.cfg["sets"] for x in ("--set", s)]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
+                                bufsize=1, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        with self.lock:
+            slot.gen += 1
+            slot.lines, slot.proc, slot.scenario, slot.seed, slot.done = [], proc, sc, seed, False
+            gen, session = slot.gen, self.session
+        if self.paused:
+            self.send(slot, "pause")
+        threading.Thread(target=self.read, args=(slot, proc, gen, session), daemon=True).start()
+
+    def read(self, slot, proc, gen, session):
+        for line in proc.stdout:
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            with self.lock:
+                if slot.gen != gen or self.session != session:
+                    break
+                slot.lines.append(line)
+                if line.startswith('{"result"'):
+                    try:
+                        self.results.append(json.loads(line)["result"])
+                    except (ValueError, KeyError):
+                        pass
+        proc.wait()
+        with self.lock:
+            if slot.gen != gen or self.session != session:
+                return
+            slot.done = True
+        if self.cfg.get("keep"):
+            time.sleep(4)  # leave the result on screen for a moment
+            with self.lock:
+                if slot.gen != gen or self.session != session or not self.cfg.get("keep"):
+                    return
+            self.launch(slot, *self.pick())
+
+    def send(self, slot, cmd):
+        try:
+            slot.proc.stdin.write(cmd + "\n")
+            slot.proc.stdin.flush()
+        except (OSError, ValueError, AttributeError):
+            pass
+
+    def command(self, cmd, idx=None):
+        if idx is None:
+            if cmd.startswith("speed "):
+                self.speed = float(cmd[6:])
+            elif cmd in ("pause", "resume"):
+                self.paused = cmd == "pause"
+        for s in list(self.slots):
+            if idx is None or s.idx == idx:
+                self.send(s, cmd)
+
+    def restart(self, idx, new_field):
+        slot = next((s for s in self.slots if s.idx == idx), None)
+        if not slot:
+            return
+        with self.lock:
+            slot.gen += 1  # the old reader ignores whatever the old process still prints
+            old, sc, seed = slot.proc, slot.scenario, slot.seed
+        if old and old.poll() is None:
+            old.kill()
+        self.launch(slot, *(self.pick() if new_field else (sc, seed)))
+
+    def stop_all(self):
+        with self.lock:
+            self.session += 1
+            procs = [s.proc for s in self.slots if s.proc]
+        for p in procs:
+            if p.poll() is None:
+                p.kill()
+
+    def snapshot(self, cursors, known_session):
+        """Everything new for one page since its last call, as SSE data lines."""
+        out = []
+        with self.lock:
+            if known_session != self.session:
+                cursors.clear()
+                out.append(json.dumps({"type": "session", "session": self.session, "cfg": self.cfg, "speed": self.speed, "paused": self.paused,
+                                       "count": len(self.slots)}))
+            for s in self.slots:
+                g, pos, done = cursors.get(s.idx, (None, 0, False))
+                if g != s.gen:
+                    g, pos, done = s.gen, 0, False
+                    out.append(json.dumps({"type": "run", "slot": s.idx, "gen": g, "scenario": s.scenario, "seed": s.seed}))
+                if pos < len(s.lines):
+                    out.append('{"type":"lines","slot":%d,"gen":%d,"lines":[%s]}' % (s.idx, g, ",".join(s.lines[pos:])))
+                    pos = len(s.lines)
+                if s.done and not done:
+                    out.append(json.dumps({"type": "done", "slot": s.idx, "gen": g}))
+                    done = True
+                cursors[s.idx] = (g, pos, done)
+            if cursors.get("results") != len(self.results):
+                cursors["results"] = len(self.results)
+                out.append(json.dumps({"type": "tally", "results": self.results}))
+            state = (self.speed, self.paused, bool(self.cfg and self.cfg.get("keep")))
+            if cursors.get("state") != state:
+                cursors["state"] = state
+                out.append(json.dumps({"type": "state", "speed": state[0], "paused": state[1], "keep": state[2]}))
+            return out, self.session
+
+    def replay(self, idx):
+        slot = next((s for s in self.slots if s.idx == idx), None)
+        if not slot:
+            return None
+        with self.lock:
+            text = "\n".join(slot.lines)
+        path = os.path.join(TRACE_DIR, f"live-{idx}-{slot.gen}.jsonl")
+        open(path, "w", encoding="utf-8").write(text)
+        page = path[:-6] + ".html"
+        rp.write_replay(path, page)
+        return open(page, "rb").read()
+
+
+live = Live()
+atexit.register(live.stop_all)
+
+
+def clean_live_cfg(body):
+    scenario = body.get("scenario", "mixed")
+    if scenario != "mixed" and scenario not in rp.SCENARIOS:
+        raise ValueError(f"unknown field type {scenario}")
+    sets = [s for s in str(body.get("sets", "")).replace(",", " ").split() if s]
+    for s in sets:
+        k, _, v = s.partition("=")
+        float(v)  # ValueError if it isn't name=number
+    fw = [d for d in str(body.get("fw", "")).replace(",", " ").split() if d]
+    for d in fw:
+        if "=" not in d:
+            raise ValueError(f"'{d}' should look like NAME=VALUE")
+    return {"count": max(1, min(16, int(body.get("count", 6)))), "scenario": scenario, "ideal": bool(body.get("ideal")),
+            "sets": sets, "fw": fw, "speed": max(0.0, float(body.get("speed", 1))), "keep": bool(body.get("keep", True))}
+
+
 def clean_cfg(body):
     scenario = body.get("scenario", "all")
     if scenario != "all" and scenario not in rp.SCENARIOS:
@@ -166,17 +338,47 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def page(self, name):
+        return self.send(200, open(os.path.join(rp.HERE, name), "rb").read(), "text/html; charset=utf-8")
+
+    def stream(self):
+        """Server-sent events: the live robots' output, about 25 times a second."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        cursors, session, quiet = {}, -1, 0
+        while True:
+            out, session = live.snapshot(cursors, session)
+            if out:
+                self.wfile.write("".join(f"data: {m}\n\n" for m in out).encode())
+                self.wfile.flush()
+                quiet = 0
+            else:
+                quiet += 1
+                if quiet % 375 == 0:  # keep the connection alive every ~15 s
+                    self.wfile.write(b": .\n\n")
+                    self.wfile.flush()
+            time.sleep(0.04)
+
     def do_GET(self):
         global current
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
         try:
             if u.path in ("/", "/index.html"):
-                return self.send(200, open(os.path.join(rp.HERE, "dashboard.html"), "rb").read(), "text/html; charset=utf-8")
+                return self.page("dashboard.html")
+            if u.path == "/live":
+                return self.page("live.html")
             if u.path == "/viewer.html":
-                return self.send(200, open(os.path.join(rp.HERE, "viewer.html"), "rb").read(), "text/html; charset=utf-8")
+                return self.page("viewer.html")
             if u.path == "/replay":
                 return self.send(200, replay_page(q), "text/html; charset=utf-8")
+            if u.path == "/api/live/stream":
+                return self.stream()
+            if u.path == "/api/live/replay":
+                page = live.replay(int(q.get("slot", ["0"])[0]))
+                return self.send(200, page, "text/html; charset=utf-8") if page else self.send(404, {"error": "no such robot"})
             if u.path == "/api/info":
                 return self.send(200, {"params": params(), "scenarios": rp.SCENARIOS, "cpus": CPUS, "build": builder.last,
                                        "running": current.id if current and current.phase in ("building", "running") else None,
@@ -213,12 +415,47 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if current:
                     current.stop = True
                 return self.send(200, {"ok": True})
+            if u.path == "/api/live/start":
+                try:
+                    cfg = clean_live_cfg(body)
+                except (ValueError, TypeError) as e:
+                    return self.send(400, {"error": str(e)})
+                seeds = [(s.scenario, s.seed) for s in live.slots] if body.get("same") else None
+                try:
+                    live.start(cfg, seeds)
+                except rp.BuildError as e:
+                    return self.send(500, {"error": "The firmware didn't compile:\n" + str(e)})
+                return self.send(200, {"session": live.session})
+            if u.path == "/api/live/cmd":
+                cmd = str(body.get("cmd", ""))
+                if cmd not in ("pause", "resume", "lop", "nudge") and not cmd.startswith("speed "):
+                    return self.send(400, {"error": "unknown command"})
+                live.command(cmd, body.get("slot"))
+                return self.send(200, {"ok": True})
+            if u.path == "/api/live/restart":
+                live.restart(int(body.get("slot", 0)), bool(body.get("newField")))
+                return self.send(200, {"ok": True})
+            if u.path == "/api/live/keep":
+                if live.cfg:
+                    live.cfg["keep"] = bool(body.get("keep"))
+                return self.send(200, {"ok": True})
             return self.send(404, {"error": "not found"})
         except (ConnectionError, BrokenPipeError):
             pass
 
 
-def main(port=8765, open_browser=True):
+def open_window(url):
+    """Edge or Chrome as an app window (no tabs or address bar); the normal browser if neither is found."""
+    for exe in (shutil.which("msedge"), r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe", shutil.which("chrome"),
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe"):
+        if exe and os.path.exists(exe):
+            subprocess.Popen([exe, f"--app={url}", "--window-size=1500,950"])
+            return
+    webbrowser.open(url)
+
+
+def main(port=8765, open_browser=True, page=""):
     print("Building the simulator from Main/ ...", flush=True)
     try:
         builder.exe_for([])
@@ -233,16 +470,19 @@ def main(port=8765, open_browser=True):
             continue
     if not server:
         sys.exit(f"no free port between {port} and {port + 19}")
-    url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"Dashboard: {url}\n(Ctrl+C here to stop it)", flush=True)
+    server.daemon_threads = True
+    base = f"http://127.0.0.1:{server.server_address[1]}/"
+    print(f"Live view: {base}live\nBatch dashboard: {base}\n(Ctrl+C here to stop)", flush=True)
     if open_browser:
-        webbrowser.open(url)
+        open_window(base + page) if page == "live" else webbrowser.open(base + page)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("stopped")
+    finally:
+        live.stop_all()
 
 
-if __name__ == "__main__":  # python server.py [port] [--no-open]
+if __name__ == "__main__":  # python server.py [port] [--no-open] [--live]
     nums = [a for a in sys.argv[1:] if a.isdigit()]
-    main(int(nums[0]) if nums else 8765, "--no-open" not in sys.argv)
+    main(int(nums[0]) if nums else 8765, "--no-open" not in sys.argv, "live" if "--live" in sys.argv else "")

@@ -9,7 +9,7 @@ one to see what the whole robot does.
 | Robot | always centred and square in a tile; faults are fixed chances | moves continuously, sensors at their CAD positions, real motor specs |
 | Speed | thousands of fields in seconds | about 4 minutes for 1000 fields (14-core PC) |
 | Code it runs | `Main/navigation.cpp` (the web page is a copy of it) | everything in `Main/`, unchanged |
-| Open with | `tools\sim\run_sim.bat` or `tools/sim/maze_sim.html` | `python tools/sim/physics/run_physics.py --serve` |
+| Open with | `tools\sim\run_sim.bat` or `tools/sim/maze_sim.html` | `python tools/sim/physics/run_physics.py --live` (watch) or `--serve` (batches) |
 
 All commands below are typed in the VS Code terminal (**Terminal → New Terminal**) with the
 `Robocup-Junoir-Theseus` folder open.
@@ -71,7 +71,37 @@ Options: `--scenario flat|loops|big|ramp|bigramp|all`, `--runs N`, `--random` (n
 
 ## 3. Physics simulator
 
-### Batch dashboard (start here)
+### Live view: watch robots solve mazes
+
+1. Start it:
+   ```
+   python tools/sim/physics/run_physics.py --live
+   ```
+   After about 10 seconds (building the firmware) a window opens with 6 robots, each on its own random
+   field, running in real time. Leave the terminal open; closing it stops the robots.
+2. Top strip:
+   - **Robots**: how many at once (1 to 16). Changing it starts new fields.
+   - **Fields** (mixed or one type) and **Robot** (realistic or ideal), then **New random fields**.
+     **Same fields again** reruns the current fields from the start.
+   - **Speed**: 1× is real time; 2× to 30× or **Max** to get through runs faster. Works while they run.
+   - **Pause all** (or Space) freezes every robot.
+   - **Keep going**: a robot that finishes gets a new random field 4 s later.
+3. Each robot's card shows its field, the robot to scale with its sensor beams, the path it drove, and a
+   box on the tile the code *thinks* it is on (green = right, red = wrong). The label says exploring,
+   heading home, lost, home, wrong tile, 8:00 ran out or no path home.
+4. Click a robot (or ← →) to see it in detail on the right: state, heading vs gyro, real tile vs the
+   code's tile, distance readings, the robot's own map and its Serial output. Buttons for that robot:
+   - **Pause** / **Resume**.
+   - **Bump**: knocks it up to 40 mm and 15°, to see if the code copes.
+   - **Restart at checkpoint**: a lack-of-progress restart, as the referee would do.
+   - **Same field again** / **New field**: restart just this robot.
+   - **Open replay**: what it has done so far in the replay viewer (2D and 3D, rewind, full Serial log).
+5. **Finished runs** (bottom right) totals home / wrong tile / 8:00 / no path for every run since the
+   last "New random fields". For proper numbers use the batch dashboard below.
+6. Settings and `#define` changes to try go under **Simulator settings and code changes**; they are
+   used from the next "New random fields". After editing `Main/`, press "New random fields" to rebuild.
+
+### Batch dashboard
 
 1. Start it:
    ```
@@ -154,6 +184,8 @@ Each failed field is listed under `replay:`. Add `--view` to watch one.
 | `g++ not found` or `build failed` | Run the setup command in step 1.4. If it says the firmware didn't compile, the error is in `Main/`. |
 | The dashboard says it needs the simulator server | Run `python tools/sim/physics/run_physics.py --serve` and keep that terminal open. |
 | The dashboard opens on another port | Another program is using 8765. That is fine; use the address the terminal prints, or `--port 8800`. |
+| The live view opens in a normal browser tab | Edge/Chrome wasn't found for the app window. It works the same in the tab. |
+| Robots at Max speed slow the PC down | Each robot is a process; use fewer robots or a lower speed. 1× uses almost no CPU. |
 | 3D stays blank | It needs internet the first time (to load three.js) and a browser with WebGL. 2D always works. |
 | `maze_sim.html` ignores my code change | Expected: it is a copy. Use `tools\sim\run_sim.bat` or the physics simulator. |
 | Two random batches give different numbers | Chance. Compare with the same fields every time. |
