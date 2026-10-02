@@ -70,6 +70,9 @@ struct Params {
   // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
   double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
+  // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
+  // reading a tile (same floor only). Shows how much never getting lost would be worth.
+  double oracleTile = 0;
 } P;
 
 // --set name=value overrides any of the numbers above
@@ -88,7 +91,7 @@ static std::map<std::string, double *> paramTable() {
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}};
+    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -199,10 +202,26 @@ static double wrap360(double a) { a = std::fmod(a, 360.0); return a < 0 ? a + 36
 // =====================================================================================
 // Geometry
 // =====================================================================================
+// sin and cos of an angle in degrees, remembered for the last two angles asked for. The same
+// headings come up again and again (every footprint point, every collision test), and the maths
+// library's sin/cos were almost half the run time. Same values, so results don't change.
+struct SinCos {
+  double deg[2] = {1e300, 1e300}, s[2] = {0, 0}, c[2] = {1, 1};
+  int next = 0;
+  void at(double d, double &sv, double &cv) {
+    for (int i = 0; i < 2; i++) if (deg[i] == d) { sv = s[i]; cv = c[i]; return; }
+    double h = rad(d);
+    deg[next] = d; s[next] = sv = std::sin(h); c[next] = cv = std::cos(h);
+    next ^= 1;
+  }
+};
+static SinCos headSC, collideSC, pitchSC;
+
 static void robotToWorld(double fwd, double left, double &wx, double &wy) {
-  double h = rad(rhead);
-  wx = rx + fwd * std::sin(h) - left * std::cos(h);
-  wy = ry + fwd * std::cos(h) + left * std::sin(h);
+  double sh, ch;
+  headSC.at(rhead, sh, ch);
+  wx = rx + fwd * sh - left * ch;
+  wy = ry + fwd * ch + left * sh;
 }
 
 // Walls are P.wallThicknessMm thick, centred on the tile edges, and reach half that past their ends
@@ -289,7 +308,8 @@ static double raycast(double ox, double oy, double dx, double dy, double maxd, d
 // the CAD (convex); walls are boxes (thickness + posts), obstacles circles.
 static bool collides(double x, double y, double head) {
   const int n = (int)outF.size();
-  double h = rad(head), sh = std::sin(h), ch = std::cos(h), px[32], py[32];
+  double sh, ch, px[32], py[32];
+  collideSC.at(head, sh, ch);
   for (int k = 0; k < n; k++) { px[k] = x + outF[k] * sh - outL[k] * ch; py[k] = y + outF[k] * ch + outL[k] * sh; }
   // separating-axis test against an axis-aligned box b = x0, y0, x1, y1
   auto hitsBox = [&](const double *b) {
@@ -358,7 +378,9 @@ static void physicsStep(double dt) {
   double rM = P.wheelDiameter / 2000.0, wheelLoadN = P.robotMassKg * 9.81 / 4;
   double friction = P.frictionFracAt12V * 12.0 / V;                                       // fraction of stall torque
   double skidSpin = P.wheelMu * wheelLoadN * (axleOffset / (P.trackWidth / 2)) * rM / stallNm; // turning on the spot
-  double gravity = wheelLoadN * std::sin(rad(rpitch)) * rM / stallNm;                    // nose up = positive
+  double sinPitch, cosPitch;
+  pitchSC.at(rpitch, sinPitch, cosPitch);
+  double gravity = wheelLoadN * sinPitch * rM / stallNm;                                 // nose up = positive
   double duty[5] = {0, 0, 0, 0, 0};
   for (int i = 1; i <= 4; i++) {
     duty[i] = (mot[i].dir == FORWARD ? 1 : mot[i].dir == BACKWARD ? -1 : 0) * mot[i].pwm / 255.0;
@@ -373,7 +395,9 @@ static void physicsStep(double dt) {
     if (std::fabs(m.speed) < 1) resist *= P.stictionFactor;
     double eff = std::fabs(d) - resist - gravity * (d >= 0 ? 1 : -1); // driving uphill costs, downhill helps
     double target = eff > 0 ? (d > 0 ? 1 : -1) * eff * vNoLoad * m.gain : 0;
-    m.speed += (target - m.speed) * (1 - std::exp(-dt / P.motorTau));
+    static double lastDt = -1, lastTau = -1, lag = 0; // same step length almost every time: don't redo exp()
+    if (dt != lastDt || P.motorTau != lastTau) { lastDt = dt; lastTau = P.motorTau; lag = 1 - std::exp(-dt / P.motorTau); }
+    m.speed += (target - m.speed) * lag;
     // grip wanders slowly (Ornstein-Uhlenbeck)
     m.traction += (P.tractionMean - m.traction) * dt / P.tractionTau + gauss(P.tractionSigma * std::sqrt(2 * dt / P.tractionTau));
     m.traction = std::min(1.0, std::max(0.5, m.traction));
@@ -391,7 +415,7 @@ static void physicsStep(double dt) {
   // skid-steer body motion
   double vL = (mot[1].speed * mot[1].traction + mot[3].speed * mot[3].traction) / 2;
   double vR = (mot[2].speed * mot[2].traction + mot[4].speed * mot[4].traction) / 2;
-  double v = (vL + vR) / 2 * std::cos(rad(rpitch));
+  double v = (vL + vR) / 2 * cosPitch;
   double turnDeg = (vL - vR) / (P.trackWidth * P.skidFactor) * dt * 180 / M_PI; // left faster -> clockwise
   double nh = rhead + turnDeg, mid = rad(rhead + turnDeg / 2);
   double nx = rx + v * dt * std::sin(mid), ny = ry + v * dt * std::cos(mid);
@@ -473,6 +497,10 @@ void simSerialOut(const char *text) {
 // RCJ 2026, 5.4.4: a tile is "visited" when more than half of the robot is inside it (seen from
 // above). Returns that tile's id, or -1 while the robot straddles tiles.
 static double nextFootprintUs = 0;
+// floor() for the footprint test (a library call there was 14% of the run time); exact for any
+// value an int can hold
+static inline int floorInt(double v) { int i = (int)v; return (v < i) ? i - 1 : i; }
+
 static int majorityTile() {
   const int N = 12; // N x N sample points over the footprint (CAD outline)
   int ids[8], counts[8], n = 0;
@@ -482,7 +510,7 @@ static int majorityTile() {
       double left = -bodyHalfWidth + 2 * bodyHalfWidth * (j + 0.5) / N;
       double wx, wy;
       robotToWorld(fwd, left, wx, wy);
-      int x = (int)std::floor(wx / field::TILE), y = (int)std::floor(wy / field::TILE);
+      int x = floorInt(wx / field::TILE), y = floorInt(wy / field::TILE);
       if (!W.in(x, y)) continue;
       int id = W.id(x, y), k = 0;
       while (k < n && ids[k] != id) k++;
@@ -551,9 +579,13 @@ static void refereeTick() {
   }
   if (!switchHigh && (tUs - lastProgressUs) / 1e6 > P.stuckTimeoutS) lackOfProgress("stuck");
   // is the code's map position right? (checked while it reads the walls of a tile)
+  static int prevState = -1;
+  bool enteredSense = state == SENSE_TILE && prevState != SENSE_TILE;
+  prevState = state;
   if (state == SENSE_TILE && !switchHigh && W.in(tx, ty) && W.type[W.id(tx, ty)] != field::RAMP_T) {
-    syncSamples++;
     int ef = START_FLOOR + W.level[W.id(tx, ty)] - W.level[W.id(W.sx, W.sy)];
+    if (P.oracleTile > 0 && enteredSense && currentFloor == ef) { x_pos = tx - W.sx + MAP_SIZE / 2; y_pos = ty - W.sy + MAP_SIZE / 2; }
+    syncSamples++;
     if (x_pos != tx - W.sx + MAP_SIZE / 2 || y_pos != ty - W.sy + MAP_SIZE / 2 || currentFloor != ef) lostSamples++;
   }
   if (traceOut && tUs >= nextTraceUs) traceFrame(runS);

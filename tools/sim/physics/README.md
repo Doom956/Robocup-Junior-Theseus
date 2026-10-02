@@ -126,6 +126,8 @@ Not simulated yet: stairs, bridges (tiles over tiles), the dangerous zone (red t
 being pushed, floor height steps between tiles (up to 3 mm), victims and the cameras (victim code never
 fires), battery sag during a run (a 2200 mAh pack uses only about 6% in 8 minutes).
 
+`--set oracleTile=1` is for analysis only, not something the real robot can do: each time the code starts reading a tile, its map position is set to the tile the robot is really on. Comparing a batch with and without it shows how many points getting lost costs.
+
 ## Where the numbers come from, and what to measure
 
 All of them are in `Params` at the top of `physics.cpp` and can be changed per run with
