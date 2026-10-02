@@ -12,7 +12,11 @@ one to see what the whole robot does.
 | Open with | `tools\sim\run_sim.bat` or `tools/sim/maze_sim.html` | `python tools/sim/physics/run_physics.py --live` (watch) or `--serve` (batches) |
 
 All commands below are typed in the VS Code terminal (**Terminal → New Terminal**) with the
-`Robocup-Junoir-Theseus` folder open.
+`Robocup-Junoir-Theseus` folder open. The terminal must be in that folder: if it says
+`can't open file ... run_physics.py`, it is somewhere else (see Problems at the end).
+
+No terminal needed for the physics simulator: double-click **`tools\sim\physics\live.bat`** (live view)
+or **`tools\sim\physics\dashboard.bat`** (batch dashboard) in File Explorer.
 
 ## 1. Setup (once per computer)
 
@@ -73,7 +77,7 @@ Options: `--scenario flat|loops|big|ramp|bigramp|all`, `--runs N`, `--random` (n
 
 ### Live view: watch robots solve mazes
 
-1. Start it:
+1. Start it: double-click `tools\sim\physics\live.bat`, or in the terminal:
    ```
    python tools/sim/physics/run_physics.py --live
    ```
@@ -180,6 +184,7 @@ Each failed field is listed under `replay:`. Add `--view` to watch one.
 
 | Problem | Fix |
 |---|---|
+| `can't open file ... run_physics.py` | The terminal is in a different folder. Double-click `live.bat` / `dashboard.bat` instead, or use the full path: `python "C:\...\Robocup-Junoir-Theseus\tools\sim\physics\run_physics.py" --live`, or first `cd` to the `Robocup-Junoir-Theseus` folder. |
 | `python` is not recognized | Install Python with "Add python.exe to PATH" ticked, then reopen VS Code. Or try `py` instead of `python`. |
 | `g++ not found` or `build failed` | Run the setup command in step 1.4. If it says the firmware didn't compile, the error is in `Main/`. |
 | The dashboard says it needs the simulator server | Run `python tools/sim/physics/run_physics.py --serve` and keep that terminal open. |
