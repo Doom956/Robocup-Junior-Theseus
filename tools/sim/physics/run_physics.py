@@ -79,8 +79,14 @@ def write_replay(trace_path, out_path):
     open(out_path, "w", encoding="utf-8").write(page.replace("/*TRACE-DATA*/", data, 1))
 
 
-def run_one(scenario, seed, extra, exe=EXE):
-    r = subprocess.run([exe, "--scenario", scenario, "--seed", str(seed), "--geometry", GEOMETRY, *extra], capture_output=True, text=True)
+def run_one(scenario, seed, extra, exe=EXE, timeout=120):
+    # a normal run takes a few seconds; one that hasn't finished in 2 minutes is stuck (a simulator bug),
+    # and must not hold up the whole batch
+    try:
+        r = subprocess.run([exe, "--scenario", scenario, "--seed", str(seed), "--geometry", GEOMETRY, *extra],
+                           capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"end": "crashed", "scenario": scenario, "seed": seed, "lop_reasons": "simulator stuck (no result after 2 min)"}
     line = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else "{}"
     try:
         return json.loads(line)

@@ -460,6 +460,9 @@ static void simAdvance(double us) {
   double end = tUs + us;
   while (tUs < end) {
     double h = std::min(1000.0, end - tUs);
+    // a leftover below a nanosecond: the 32-bit build keeps `end` at higher precision than tUs, so
+    // tUs += h can round back to the same value and this loop would never finish
+    if (h < 1e-3) { tUs = end; break; }
     physicsStep(h / 1e6);
     tUs += h;
     refereeTick();
