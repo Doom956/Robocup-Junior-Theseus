@@ -714,21 +714,32 @@ void loop(){
       if(currentFloor == HOME.first && x_pos == HOME.second.first && y_pos == HOME.second.second){
         drivetrain.fullstop();
         Serial.println("back at start");
-        while(true){
+        // Done: stop and blink, but keep watching the pause switch. If the robot is actually on
+        // the wrong tile, a lack-of-progress restart puts it back on the last checkpoint and it
+        // heads home again from there. (This was a while(true) that ignored the switch, so only
+        // a power cycle -- which loses the map -- could get it going again.)
+        lcdPrint("back to start");
+        while(Pausemaze == false){
           drivetrain.fullstop();
-          lcdPrint("back to start");
-          for(int i = 0;i<5;i++){
-            digitalWrite(LEDPIN,HIGH);
-            delay(1000);
-            digitalWrite(LEDPIN,LOW);
-            delay(1000);
-          }
+          digitalWrite(LEDPIN, (millis() / 1000) % 2 ? HIGH : LOW);
+          delay(20);
         }
+        digitalWrite(LEDPIN, LOW);
+        state = PAUSE;
+        break;
       }
       std::deque<std::pair<int, std::pair<int,int>>> path = homePath();
       if(path.size() < 2){
+        // No route home in the map (usually the position is off and a black tile or a blocked
+        // edge cut the planned route). Stop, but keep watching the pause switch as above, so a
+        // lack-of-progress restart can recover the run instead of it ending here.
         lcdPrint("no path found");
-        while(true) drivetrain.fullstop();
+        while(Pausemaze == false){
+          drivetrain.fullstop();
+          delay(20);
+        }
+        state = PAUSE;
+        break;
       }
       // path[0] = current tile, path[1] = next tile (may be on another floor for a ramp)
       int dx = path[1].second.first  - path[0].second.first;

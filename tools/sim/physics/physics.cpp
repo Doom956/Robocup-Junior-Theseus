@@ -161,6 +161,19 @@ static double contactUs = 0;
 static bool inContact = false;
 static int syncSamples = 0, lostSamples = 0;
 static std::string lopReasons;
+// A robot that stopped for good away from home ("no path found", or "back to start" on the wrong
+// tile): its captain calls lack of progress, which puts it back on the last checkpoint. If the code
+// doesn't respond (it ignores the pause switch), the run ends where it stopped, and that restart isn't
+// counted: a captain who saw it wouldn't bother.
+static double stopClaimUs = -1, stopLopUs = -1;
+static std::string stopWhy, stopEnd, stopReasonsBefore;
+static int stopLopsBefore = 0;
+static double stopX = 0, stopY = 0, stopHead = 0;
+static bool movedSinceStopLop = false;
+static void stopClaim(const char *why, const char *end) {
+  if (stopClaimUs >= 0) return; // already handling this stop
+  stopClaimUs = tUs; stopWhy = why; stopEnd = end;
+}
 static std::ofstream traceFile;
 static std::ostream *traceOut = nullptr; // the recording: traceFile (--trace) or stdout (--live)
 static bool live = false;
@@ -486,6 +499,25 @@ static void refereeTick() {
   if (!runStarted) return;
   if (switchHigh && tUs >= pauseUntilUs) switchHigh = false;
   double runS = (tUs - runStartUs) / 1e6;
+  if (stopClaimUs >= 0) {
+    if (stopLopUs < 0) {
+      if (runS >= P.runTimeS) throw SimEnd{stopEnd};
+      if (tUs - stopClaimUs >= 2e6) { // the captain sees it standing still
+        stopLopsBefore = lops; stopReasonsBefore = lopReasons; stopX = rx; stopY = ry; stopHead = rhead;
+        lackOfProgress(stopWhy.c_str());
+        stopLopUs = tUs; movedSinceStopLop = false;
+      }
+    } else {
+      if (!switchHigh)
+        for (int i = 1; i <= 4; i++)
+          if (mot[i].pwm > 0 && (mot[i].dir == FORWARD || mot[i].dir == BACKWARD)) movedSinceStopLop = true;
+      if (movedSinceStopLop) stopClaimUs = stopLopUs = -1; // it carried on: the restart counts
+      else if (tUs - stopLopUs > (P.lopPauseS + 15) * 1e6 || runS >= P.runTimeS) {
+        lops = stopLopsBefore; lopReasons = stopReasonsBefore; rx = stopX; ry = stopY; rhead = stopHead;
+        throw SimEnd{stopEnd};
+      }
+    }
+  }
   if (runS >= P.runTimeS) throw SimEnd{"time"};
   int tx = (int)std::floor(rx / field::TILE), ty = (int)std::floor(ry / field::TILE);
   if (!switchHigh && tUs >= nextFootprintUs) {
@@ -725,8 +757,12 @@ bool Adafruit_BNO055::getEvent(sensors_event_t *e) {
 size_t LiquidCrystal::print(const char *text) {
   simAdvance(2000);
   std::string s = text;
-  if (s.find("back to start") != std::string::npos) throw SimEnd{"home"};
-  if (s.find("no path found") != std::string::npos) throw SimEnd{"no path"};
+  if (stopClaimUs >= 0) {} // already handling a stop: repeats of its message change nothing
+  else if (s.find("back to start") != std::string::npos) {
+    if ((int)std::floor(rx / field::TILE) == W.sx && (int)std::floor(ry / field::TILE) == W.sy) throw SimEnd{"home"};
+    stopClaim("stopped on the wrong tile", "home");
+  }
+  else if (s.find("no path found") != std::string::npos) stopClaim("no path home in its map", "no path");
   if (!s.empty() && s.find_first_not_of(' ') != std::string::npos) lcdText = s;
   return s.size();
 }
