@@ -356,6 +356,30 @@ void simSerialOut(const char *text) {
   }
 }
 
+// largest share of the robot's footprint (CAD outline) over any one black tile, 0..1
+static double nextBlackCheckUs = 0;
+static double blackShare() {
+  int cx = (int)std::floor(rx / field::TILE), cy = (int)std::floor(ry / field::TILE);
+  bool near = false;
+  for (int y = cy - 1; y <= cy + 1 && !near; y++)
+    for (int x = cx - 1; x <= cx + 1; x++)
+      if (W.typeAt(x, y) == field::BLACK_T) { near = true; break; }
+  if (!near) return 0;
+  const int N = 12; // N x N sample points over the footprint
+  std::map<int, int> hits;
+  int best = 0;
+  for (int i = 0; i < N; i++)
+    for (int j = 0; j < N; j++) {
+      double fwd = -bodyBack + (bodyFront + bodyBack) * (i + 0.5) / N;
+      double left = -bodyHalfWidth + 2 * bodyHalfWidth * (j + 0.5) / N;
+      double wx, wy;
+      robotToWorld(fwd, left, wx, wy);
+      int x = (int)std::floor(wx / field::TILE), y = (int)std::floor(wy / field::TILE);
+      if (W.typeAt(x, y) == field::BLACK_T) best = std::max(best, ++hits[W.id(x, y)]);
+    }
+  return (double)best / (N * N);
+}
+
 static void refereeTick() {
   Pausemaze = switchHigh; // what pauseTask() does every 10 ms
   if (!runStarted) return;
@@ -372,7 +396,11 @@ static void refereeTick() {
       lastLevel = W.level[i];
     }
     if (t == field::SILVER_T) { cpX = tx; cpY = ty; }
-    if (t == field::BLACK_T) lackOfProgress("drove onto a black tile");
+  }
+  // RCJ rule: more than half of the robot over a black tile is a lack of progress
+  if (!switchHigh && tUs >= nextBlackCheckUs) {
+    nextBlackCheckUs = tUs + 5000;
+    if (blackShare() > 0.5) lackOfProgress("drove onto a black tile");
   }
   if (!switchHigh && (tUs - lastProgressUs) / 1e6 > P.stuckTimeoutS) lackOfProgress("stuck");
   // is the code's map position right? (checked while it reads the walls of a tile)
@@ -814,8 +842,9 @@ int main(int argc, char **argv) {
     for (int d = 0; d < 4; d++) { wallsAll++; if (t.getVisited() && t.getWall(d) == W.hasWall(x, y, d)) wallsOk++; }
   }
   double runS = runStarted ? (tUs - runStartUs) / 1e6 : 0;
-  char result[1024];
-  std::snprintf(result, sizeof result, "{\"scenario\":\"%s\",\"seed\":%ld,\"ideal\":%s,\"end\":\"%s\",\"home\":%s,\"time_s\":%.1f,\"coverage\":%.3f,"
+  std::vector<char> resultBuf(1024 + lopReasons.size() + 2 * lcdText.size()); // a run with many restarts has a long list of reasons
+  char *result = resultBuf.data();
+  std::snprintf(result, resultBuf.size(), "{\"scenario\":\"%s\",\"seed\":%ld,\"ideal\":%s,\"end\":\"%s\",\"home\":%s,\"time_s\":%.1f,\"coverage\":%.3f,"
               "\"tiles\":%d,\"reachable\":%d,\"map_walls\":%.3f,\"lops\":%d,\"lop_reasons\":\"%s\",\"wall_contact_s\":%.1f,"
               "\"lost_fraction\":%.3f,\"ramp_crossings\":%d,\"ramp_deg\":%.1f,\"last_lcd\":\"%s\"}\n",
               sc->name, seed, ideal ? "true" : "false", reason.c_str(), home ? "true" : "false", runS, total ? (double)covered / total : 1.0,
