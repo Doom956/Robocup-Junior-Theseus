@@ -73,6 +73,9 @@ struct Params {
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
   double oracleTile = 0;
+  // Analysis only: 1 = put the robot itself in the middle of its tile (heading untouched) each time
+  // the code starts reading a tile. Shows how much being off-centre costs.
+  double oracleCentre = 0;
 } P;
 
 // --set name=value overrides any of the numbers above
@@ -91,7 +94,7 @@ static std::map<std::string, double *> paramTable() {
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}};
+    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -585,6 +588,14 @@ static void refereeTick() {
   if (state == SENSE_TILE && !switchHigh && W.in(tx, ty) && W.type[W.id(tx, ty)] != field::RAMP_T) {
     int ef = START_FLOOR + W.level[W.id(tx, ty)] - W.level[W.id(W.sx, W.sy)];
     if (P.oracleTile > 0 && enteredSense && currentFloor == ef) { x_pos = tx - W.sx + MAP_SIZE / 2; y_pos = ty - W.sy + MAP_SIZE / 2; }
+    if (P.oracleCentre > 0 && enteredSense && W.level[W.id(tx, ty)] == W.level[curTile >= 0 ? curTile : W.id(tx, ty)]) {
+      double ox = rx, oy = ry, cx = (tx + 0.5) * field::TILE, cy = (ty + 0.5) * field::TILE;
+      // 1 = both directions, 2 = only along the way it faces, 3 = only sideways
+      bool facesY = ((int)std::lround(rhead / 90.0) % 2) == 0;
+      if (P.oracleCentre != 3) { if (facesY) ry = cy; else rx = cx; }
+      if (P.oracleCentre != 2) { if (facesY) rx = cx; else ry = cy; }
+      if (collides(rx, ry, rhead)) { rx = ox; ry = oy; }
+    }
     syncSamples++;
     if (x_pos != tx - W.sx + MAP_SIZE / 2 || y_pos != ty - W.sy + MAP_SIZE / 2 || currentFloor != ef) lostSamples++;
   }
