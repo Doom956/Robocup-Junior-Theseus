@@ -112,11 +112,11 @@ Keys: Space play/pause, ← → 1 s, Shift+← → 10 s. A batch run lists faile
 | Real hardware | Simulated as |
 |---|---|
 | Clock | `millis()`/`micros()`/`delay()` run on simulated time; each hardware call costs about its real time (I2C transfers, a VL53L0X waits for its next 33 ms measurement, the TCS34725 waits its 24 ms integration) |
-| 4 motors on the motor shield | Pololu 195.3125:1 20D 12 V gearmotors (#3493) on a Carobot V3 shield (TB6612FNG + PCA9685) from a 3S LiPo. DC motor model from the datasheet: speed = no-load speed x (PWM duty - load / stall torque), scaled to battery voltage; load = gearbox friction (more from standstill) + sideways wheel drag when turning on the spot + gravity on ramps. A/C are the left side, B/D the right, D mounted reversed (from `motors.cpp`) |
+| 4 motors on the motor shield | Pololu 195.3125:1 20D 12 V gearmotors (#3493) on a Carobot V3 shield (TB6612FNG + PCA9685, 0.5 ohm in series) from a 3S LiPo. DC motor model from the datasheet: speed = no-load speed x (PWM duty - load / stall torque), scaled to battery voltage; load = gearbox friction (more from standstill) + sideways wheel drag when turning on the spot + gravity on ramps. A/C are the left side, B/D the right, D mounted reversed (from `motors.cpp`) |
 | Driving | skid steering; walls block the robot (the wheels keep spinning, so the encoders keep counting); a turning robot scraping a wall gets shoved sideways |
 | Encoders A, B, D | count actual wheel rotation: 5 counts per motor turn x 195.3125 = 976.6 per wheel turn (the code assumes 975); wheel slip shows up as encoder error |
 | 7 x VL53L0X | positions and directions from `../cad/robot_geometry.json`; a 25 degree cone, signal-weighted distance (nearer, face-on surfaces count more), noise, a fixed per-sensor offset, out of range = 8190 |
-| BNO055 | heading clockwise from the start direction, with drift and noise; pitch from the ramp under the two axles. Option `gyroMagnetic=1`: heading from magnetic north instead (team notes say "the heading is always global"), at a random maze angle, optionally only after `gyroMagneticAfterS` seconds |
+| BNO055 | the frame the firmware asks for: `bno.begin()` (NDOF, the library default) gives heading from magnetic north, as the real sensor does, at a random maze angle with +-2.5 deg local distortion; IMUPLUS gives heading from the start direction, with drift. Noise either way; pitch from the ramp under the two axles |
 | TCS34725 | raw r/g/b/clear of the tile under its CAD position |
 | Pause switch / referee | a lack-of-progress restart when the robot drives onto black or doesn't change tile for 60 s: switch HIGH for 3 s, robot placed on the last silver tile it really visited, facing the start direction |
 | Fields | the same generator as the tile simulator (black tiles never wall anything off), plus real ramp slopes of 15-25 degrees |
@@ -127,23 +127,52 @@ battery sag during a run (a 2200 mAh pack uses only about 6% in 8 minutes), wall
 ## Where the numbers come from, and what to measure
 
 All of them are in `Params` at the top of `physics.cpp` and can be changed per run with
-`--set name=value`. **Some change the results a lot**, so the ones marked "assumed" are worth measuring.
+`--set name=value`. Values marked **datasheet** come from the parts in the team BOM; the ones marked
+**assumed** or **estimate** have no datasheet and are worth measuring once you have the robot.
 
 | Setting | Default | Source | How to check on the robot |
 |---|---|---|---|
-| `noLoadRpmAt12V`, `stallKgcmAt12V`, `frictionFracAt12V` | 72 RPM, 10 kg.cm, 0.05 | Pololu #3493 datasheet (80 mA no-load / 1.6 A stall) | lowest `drivetrain.fw(pwm)` that moves the robot (model: about 13-17) |
+| `noLoadRpmAt12V`, `stallKgcmAt12V`, `frictionFracAt12V` | 72 RPM, 10 kg.cm, 0.05 | **datasheet**: Pololu #3493 (72 RPM, 80 mA no-load, 1.6 A / 10 kg.cm stall at 12 V; 46 g) | lowest `drivetrain.fw(pwm)` that moves the robot (model: about 13-17) |
+| `driverOhms` | 0.5 ohm | **datasheet**: TB6612FNG output ON resistance, upper + lower, typical (the motor itself is 12 V / 1.6 A = 7.5 ohm, so stall torque is about 6% lower than the motor alone) | - |
+| encoder counts | 5 per motor turn | **datasheet**: Pololu #3499 encoder, 20 counts per motor turn counting both edges of both channels; the code counts rising edges of one channel = 5 | - |
 | `batteryVoltage` | 11.8 V | 3S LiPo (Zeee 2200 mAh in the team BOM; cell count read from the photo) | multimeter on the pack before a run; check it is 3S |
-| `robotMassKg` | 1.3 | **assumed** | weigh it |
-| `wheelMu` | 0.8 | **assumed** (silicone on the field floor) | lowest `turnright(pwm)` that turns it on the spot (model: about 43) |
+| `robotMassKg` | 1.15 | **estimate**: parts from their datasheets + printed parts, see "Robot mass" below | weigh it |
+| `wheelMu` | 0.8 | **assumed** (silicone on the field floor; no datasheet) | lowest `turnright(pwm)` that turns it on the spot (model: about 43) |
 | `skidFactor`, `trackWidth` | 1.3, 156 mm | **assumed**, CAD | degrees turned by `turnright(150)` in 1 s (model: about 77) |
-| `motorGainSigma` | 0.03 | **assumed** | how far `fw(150)` drifts sideways over 1 m with no walls |
+| `motorGainSigma` | 0.03 | **assumed** (Pololu gives no motor-to-motor spread) | how far `fw(150)` drifts sideways over 1 m with no walls |
 | `tractionMean/Sigma` | 0.97 / 0.02 | **assumed** | encoder counts vs real distance over 2 m |
-| `tofNoiseMm/Pct`, `tofOffsetSigma` | 1.5 mm + 1.5%, 5 mm | VL53L0X datasheet range | repeated `measure()` at known distances |
-| `tofMinReliableMm` | 30 | team BOM notes | `measure()` with a wall 10-40 mm away |
-| `gyroDriftSigmaDegPerMin` | 0.5 | **assumed** | heading change while standing still for 5 min |
-| `gyroMagnetic` | 0 (relative) | team BOM notes suggest it may be 1 | does `heading()` start at 0 when powered on facing different ways? |
-| colour raw values | in `getRawData()` | **assumed** | `read_color()` printout on each tile type of your field |
+| `tofNoiseMm/Pct`, `tofOffsetSigma` | 1.5 mm + 3%, 5 mm | **datasheet**: VL53L0X table 12, standard deviation 4% at 33 ms (white target, including part-to-part); table 14, offset drift < 3% | repeated `measure()` at known distances |
+| `tofConeDeg`, `tofMaxRange`, `tofPeriodUs` | 25 deg, 1200 mm, 33 ms | **datasheet**: VL53L0X field of view 25 deg; 120 cm minimum on white at 33 ms (table 11); default timing budget | - |
+| `tofMinReliableMm` | 30 | Adafruit #3317 page ("approximately 30 mm to 1.2 m") | `measure()` with a wall 10-40 mm away |
+| `gyroMagnetic` | -1 = follow the firmware | **datasheet + code**: `bno.begin()` defaults to NDOF, which the BNO055 datasheet (3.3.3.5) defines as absolute orientation, i.e. heading from magnetic north. `IMUPLUS` would be relative to the start. `--set gyroMagnetic=0` / `=1` forces one or the other | does `heading()` read 0 at power-on whichever way the robot faces? |
+| `magErrorDeg` | 2.5 deg | **datasheet**: BNO055 magnetometer heading accuracy +-2.5 deg, fully calibrated (real rooms with motors and steel are usually worse) | heading at the same spot facing the same way in different parts of the field |
+| `gyroDriftSigmaDegPerMin` | 0.5 | **assumed** (the datasheet gives the raw gyro offset, which the fusion removes; no figure for fused drift) | heading change while standing still for 5 min (IMUPLUS mode) |
+| colour raw values | in `getRawData()` | **assumed**; counts clip at (256 - ATIME) x 1024 = 10240 at 24 ms (**datasheet**, TCS34725) | `read_color()` printout on each tile type of your field |
 | time costs | in each simulated library call | library behaviour | time `loop()` iterations with `micros()` |
+
+### Robot mass
+
+From the parts in the BOM and the CAD (`V2.step`):
+
+| Part | Each | Qty | Total | Source |
+|---|---|---|---|---|
+| Pololu 195:1 20D 12 V gearmotor (#3493) | 46 g | 4 | 184 g | Pololu |
+| Encoder boards + magnets (#3499) | ~1 g | 4 | ~4 g | estimate |
+| Arduino GIGA R1 WiFi | 63 g | 1 | 63 g | Arduino |
+| OpenMV Cam H7 Plus | 17 g | 2 | 34 g | OpenMV |
+| Adafruit VL53L0X (#3317) | 1.3 g | 7 | 9 g | Adafruit |
+| Adafruit TCS34725 (#1334) | 3.2 g | 1 | 3 g | Adafruit |
+| Adafruit BNO055 (#2472) | 3 g | 1 | 3 g | Adafruit |
+| 28BYJ-48 stepper (kit dispenser) | 37 g | 1 | 37 g | Adafruit #858 |
+| Zeee 3S 2200 mAh LiPo | 137-185 g | 1 | ~160 g | Zeee (50C shorty 137 g, 120C pack 185 g) |
+| Carobot motor shield V3, Qwiic mux, 5 V regulator, protoboard | | | ~50 g | estimate |
+| 16x2 LCD | ~35 g | 1 | ~35 g | typical 1602 module |
+| Wiring, Qwiic cables, LED strips, breaker, screws, bearings | | | ~80 g | estimate |
+| Wheels | ~20 g | 4 | ~80 g | estimate |
+| 3D-printed chassis, plates, spacers, chutes, camera mount, suspension | | | ~350 g (250-450) | estimate (depends on infill) |
+| **Total** | | | **~1.15 kg (1.0-1.3)** | |
+
+`--set robotMassKg=1.0` and `=1.3` bracket it; weigh the robot to replace the estimate.
 
 `--selftest` runs these experiments on the simulated robot (sensor readings centred in a tile, speed
 and turn rate at several PWM values, the lowest PWM that moves or turns it, colour values). Run the

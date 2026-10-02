@@ -37,7 +37,8 @@ struct Params {
   double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
   double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
   double stictionFactor = 1.3;    // extra friction to start from standstill
-  double robotMassKg = 1.3;       // ASSUMED - weigh the robot
+  double robotMassKg = 1.15;      // ESTIMATE from the parts' datasheets + printed parts (README "Robot mass") - weigh it
+  double driverOhms = 0.5;        // TB6612FNG output ON resistance, upper + lower, typ (Toshiba datasheet); motor 12 V / 1.6 A = 7.5 ohm
   double wheelMu = 0.8;           // ASSUMED - silicone wheels on the field's floor
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
   double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
@@ -49,9 +50,14 @@ struct Params {
   double encoderCountsPerRev = 5 * 195.3125; // 20 CPR encoder, code counts rising edges of one channel = 5 per motor turn
   // Gyro: "magnetic" = the BNO055 reports heading from magnetic north (team notes: "the heading is
   // always global") instead of from the start direction. Maze-to-north angle, deg; -1 = random per run.
-  double gyroMagnetic = 0, gyroMagneticOffsetDeg = -1, gyroMagneticAfterS = 0; // switch to magnetic after this many s of the run
+  // -1 = do what the firmware asks for: bno.begin() defaults to NDOF, which the BNO055 datasheet (3.3.3.5)
+  // defines as absolute orientation (heading from magnetic north); IMUPLUS is relative to the start.
+  double gyroMagnetic = -1, gyroMagneticOffsetDeg = -1, gyroMagneticAfterS = 0; // switch to magnetic after this many s of the run
+  double magErrorDeg = 2.5;       // BNO055 datasheet: magnetometer heading accuracy +-2.5 deg (fully calibrated, ideal)
   double tofMinReliableMm = 30;   // team notes: "can't handle below 30mm"
-  double tofNoiseMm = 1.5, tofNoisePct = 0.015, tofOffsetSigma = 5, tofMaxRange = 1200, tofConeDeg = 25, tofPeriodUs = 33000;
+  // VL53L0X datasheet table 12: standard deviation 4 % at 33 ms (white target, incl. part-to-part); table 14:
+  // offset drift < 3 %. Here ~3 % reading-to-reading + a fixed per-sensor offset.
+  double tofNoiseMm = 1.5, tofNoisePct = 0.03, tofOffsetSigma = 5, tofMaxRange = 1200, tofConeDeg = 25, tofPeriodUs = 33000;
   double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.5, pitchNoiseDeg = 0.5;
   double colourNoise = 0.04;
   double placeSigmaMm = 8, placeSigmaDeg = 2; // how accurately a person places the robot
@@ -67,7 +73,7 @@ static std::map<std::string, double *> paramTable() {
     {"wheelMu", &P.wheelMu}, {"motorTau", &P.motorTau},
     {"motorGainSigma", &P.motorGainSigma}, {"trackWidth", &P.trackWidth}, {"skidFactor", &P.skidFactor},
     {"tractionMean", &P.tractionMean}, {"tractionSigma", &P.tractionSigma},
-    {"gyroMagnetic", &P.gyroMagnetic}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
+    {"gyroMagnetic", &P.gyroMagnetic}, {"magErrorDeg", &P.magErrorDeg}, {"driverOhms", &P.driverOhms}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
     {"tofMinReliableMm", &P.tofMinReliableMm},
     {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
     {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
@@ -91,7 +97,7 @@ static bool setParam(const std::string &kv) {
 
 static void makeIdeal() { // no noise, no drift, identical motors, perfect grip
   P.motorGainSigma = 0; P.tractionMean = 1; P.tractionSigma = 0;
-  P.tofNoiseMm = 0; P.tofNoisePct = 0; P.tofOffsetSigma = 0;
+  P.tofNoiseMm = 0; P.tofNoisePct = 0; P.tofOffsetSigma = 0; P.magErrorDeg = 0;
   P.gyroNoiseDeg = 0; P.gyroDriftSigmaDegPerMin = 0; P.pitchNoiseDeg = 0; P.colourNoise = 0;
   P.placeSigmaMm = 0; P.placeSigmaDeg = 0;
 }
@@ -226,13 +232,15 @@ static bool collides(double x, double y, double head) {
 // =====================================================================================
 static void lackOfProgress(const char *why);
 
+static double motorOhms() { return 12.0 / 1.6; } // Pololu #3493: 12 V, 1.6 A stall
+
 static void physicsStep(double dt) {
   // motors -> wheel surface speeds. DC motor: steady speed = no-load speed x (duty - load torque /
   // stall torque), all scaled to the battery voltage. Load = gearbox friction (more from standstill)
   // + sideways wheel drag when turning (skid steering) + gravity on a ramp.
   double V = P.batteryVoltage;
   double vNoLoad = P.noLoadRpmAt12V * V / 12.0 / 60.0 * M_PI * P.wheelDiameter; // mm/s at full PWM
-  double stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665;
+  double stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665 * motorOhms() / (motorOhms() + P.driverOhms);
   double rM = P.wheelDiameter / 2000.0, wheelLoadN = P.robotMassKg * 9.81 / 4;
   double friction = P.frictionFracAt12V * 12.0 / V;                                       // fraction of stall torque
   double skidSpin = P.wheelMu * wheelLoadN * (axleOffset / (P.trackWidth / 2)) * rM / stallNm; // turning on the spot
@@ -532,7 +540,8 @@ void Adafruit_TCS34725::getRawData(uint16_t *r, uint16_t *g, uint16_t *b, uint16
   if (t == field::BLACK_T) { R = 40; G = 45; B = 40; C = 120; }
   if (t == field::BLUE_T) { R = 150; G = 220; B = 520; C = 900; }
   if (t == field::SILVER_T) { R = 1100; G = 1150; B = 1100; C = 3500; }
-  auto noisy = [](double v) { return (uint16_t)std::max(0.0, std::round(v * (1 + gauss(P.colourNoise)))); };
+  double maxCount = std::min(65535.0, (256 - (int)it_) * 1024.0); // AMS datasheet: max RGBC count
+  auto noisy = [maxCount](double v) { return (uint16_t)std::min(maxCount, std::max(0.0, std::round(v * (1 + gauss(P.colourNoise))))); };
   *r = noisy(R); *g = noisy(G); *b = noisy(B); *c = noisy(C);
 }
 
@@ -545,12 +554,21 @@ Adafruit_DCMotor *Adafruit_MotorShield::getMotor(uint8_t n) {
   return &m[n];
 }
 
-bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t) { simAdvance(20000); return true; }
-static double magOffsetDeg = 0; // maze "north" vs magnetic north, for gyroMagnetic
+static int bnoMode = OPERATION_MODE_NDOF;
+bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) { bnoMode = mode; simAdvance(20000); return true; }
+void Adafruit_BNO055::setMode(adafruit_bno055_opmode_t mode) { bnoMode = mode; }
+static double magOffsetDeg = 0;                // maze "north" vs magnetic north
+static double magPhase[4] = {0, 0, 0, 0};      // where the heading error from local magnetic distortion peaks
+static bool magneticMode() {                   // NDOF, NDOF_FMC_OFF, COMPASS, M4G use the magnetometer for heading
+  if (P.gyroMagnetic >= 0) return P.gyroMagnetic > 0;
+  return bnoMode == OPERATION_MODE_NDOF || bnoMode == OPERATION_MODE_NDOF_FMC_OFF || bnoMode == OPERATION_MODE_COMPASS || bnoMode == OPERATION_MODE_M4G;
+}
 bool Adafruit_BNO055::getEvent(sensors_event_t *e) {
   simAdvance(900);
-  bool magnetic = P.gyroMagnetic > 0 && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
-  e->orientation.x = (float)wrap360(rhead + gyroBiasDegPerUs * tUs + gauss(P.gyroNoiseDeg) + (magnetic ? magOffsetDeg : 0));
+  bool magnetic = magneticMode() && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
+  // magnetic heading: no gyro drift, but the frame is magnetic north and local distortion bends it a little
+  double magErr = P.magErrorDeg * std::sin(2 * M_PI * rx / 900 + magPhase[0]) * std::cos(2 * M_PI * ry / 1100 + magPhase[1]);
+  e->orientation.x = (float)wrap360(rhead + (magnetic ? magOffsetDeg + magErr : gyroBiasDegPerUs * tUs) + gauss(P.gyroNoiseDeg));
   gyroLast = e->orientation.x;
   e->orientation.y = 0;
   e->orientation.z = (float)(rpitch + gauss(P.pitchNoiseDeg));
@@ -668,7 +686,7 @@ static int selfTest() {
     std::printf("  turnright(%3d): %5.0f deg/s\n", pwm, unwrapped);
   }
   {
-    double V = P.batteryVoltage, stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665, rM = P.wheelDiameter / 2000.0;
+    double V = P.batteryVoltage, stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665 * motorOhms() / (motorOhms() + P.driverOhms), rM = P.wheelDiameter / 2000.0;
     double fr = P.frictionFracAt12V * 12.0 / V, spin = P.wheelMu * P.robotMassKg * 9.81 / 4 * (axleOffset / (P.trackWidth / 2)) * rM / stallNm;
     std::printf("MODEL at %.1f V: top speed %.0f mm/s; lowest PWM that moves it straight %.0f (from standstill %.0f); "
                 "lowest PWM that turns it on the spot %.0f\n", V, P.noLoadRpmAt12V * V / 12 / 60 * M_PI * P.wheelDiameter,
@@ -737,6 +755,7 @@ int main(int argc, char **argv) {
   for (int i = 1; i <= 7; i++) { tof[i].offset = gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
   gyroBiasDegPerUs = gauss(P.gyroDriftSigmaDegPerMin) / 60e6;
   magOffsetDeg = P.gyroMagneticOffsetDeg >= 0 ? P.gyroMagneticOffsetDeg : std::uniform_real_distribution<double>(0, 360)(rng);
+  for (double &ph : magPhase) ph = std::uniform_real_distribution<double>(0, 2 * M_PI)(rng);
   rx = (W.sx + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (W.sy + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   rhead = wrap360(gauss(P.placeSigmaDeg));
