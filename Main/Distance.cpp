@@ -436,6 +436,54 @@ void centerFrontBack(){
   drivetrain.reset_encoderCount(true,true,true);
 }
 
+// Front/back position: drive so the robot ends up centred along the way it faces, from the
+// wall ahead or behind (the nearer one in view, up to about one tile past this one). With the
+// robot centred, a wall at the end of this tile is half a path, (TILE_MM - WALL_THICK_MM) / 2,
+// from its centre, so the front sensors read that minus FRONT_SENSOR_FWD_MM, plus 300 mm for each
+// tile further away; the back sensor likewise. A front wall is only used when both front sensors
+// agree (seen square-on). Corrects at most MAX_ALONG_FIX_MM; further than that, which tile the
+// wall belongs to gets ambiguous.
+#define WALL_THICK_MM        20.0   // RCJ walls: 300 mm tiles, 280 mm between wall faces
+#define FRONT_SENSOR_FWD_MM  98.4   // CAD (tools/sim/cad/robot_geometry.json): front ToF sensors ahead of the centre
+#define BACK_SENSOR_BACK_MM  102.8  // CAD: back ToF sensor behind the centre
+#define MAX_ALONG_FIX_MM     100.0
+void centreAlong(){
+  const int SPEED = 50;
+  const unsigned long TIMEOUT_MS = 2000;
+  const double halfPath = (TILE_MM - WALL_THICK_MM) / 2.0;
+  parallel();
+  int f1 = measure(1), f7 = measure(7), b = measure(4);
+  bool useFront = f1 > 0 && f7 > 0 && f1 <= 450 && f7 <= 450 && abs(f1 - f7) <= 25;
+  bool useBack = b > 0 && b <= 450;
+  if(useFront && useBack){ if(b < (f1 + f7) / 2) useFront = false; else useBack = false; } // the nearer wall reads more accurately
+  if(!useFront && !useBack) return;
+  double now = useFront ? (f1 + f7) / 2.0 : b;
+  double base = halfPath - (useFront ? FRONT_SENSOR_FWD_MM : BACK_SENSOR_BACK_MM); // reading when centred, wall at the end of this tile
+  double k = round((now - base) / TILE_MM);                                       // how many tiles further the wall is
+  double target = base + k * TILE_MM;
+  double past = useFront ? target - now : now - target;                            // + = stopped past the centre
+  if(fabs(past) > MAX_ALONG_FIX_MM || fabs(past) <= CENTER_TOL_MM) return;
+  Serial.print("centring along: ");
+  Serial.print(past, 0);
+  Serial.println(useFront ? " mm off (front wall)" : " mm off (back wall)");
+  bool forward = past < 0;
+  unsigned long startMs = millis();
+  while(true){
+    if(Pausemaze == true) break;
+    double r;
+    if(useFront){ int a = measure(1), c = measure(7); if(a <= 0 || c <= 0) break; r = (a + c) / 2.0; }
+    else { int a = measure(4); if(a <= 0) break; r = a; }
+    double p = useFront ? target - r : r - target;
+    if(fabs(p) <= CENTER_TOL_MM) break;
+    if((p < 0) != forward) break;                 // overshot: stop rather than swing back and forth
+    if(millis() - startMs >= TIMEOUT_MS) break;
+    if(forward) drivetrain.fw(SPEED);
+    else drivetrain.backward(SPEED);
+  }
+  drivetrain.fullstop();
+  drivetrain.reset_encoderCount(true,true,true);
+}
+
 // Right-wall follower error, fed to center_PID in movement.cpp.
 // Uses the two right-side sensors (front = 2, back = 3) per Hanafi et al. (2013):
 //   E_Tot = (ideal - D) + angle,  where D = avg gap, angle = back - front.

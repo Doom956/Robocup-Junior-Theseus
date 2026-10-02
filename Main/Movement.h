@@ -20,6 +20,7 @@ int  measure(int sensor);
 int  center();
 int  centerLeft();
 bool sideCentringError(double &e);
+void centreAlong();
 int  read_color();
 int  obstacleavoidance(int leftright);
 void stepForward(Direction d, int &x, int &y);

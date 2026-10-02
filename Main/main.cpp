@@ -506,6 +506,9 @@ void loop(){
     case SENSE_TILE: {
       // reset per-tile toggles
       blacktoggle = false; bluetoggle = false; victimtoggle = false; obstacle = false;
+      // Stop where it should have: centred along the way it faces (from a wall ahead or behind),
+      // so the walls below are read from the middle of the tile.
+      centreAlong();
       // Read for walls
       Serial.println("reading walls");
       readWallsRel(wallF, wallR, wallB, wallL);
@@ -514,18 +517,7 @@ void loop(){
 
       delay(200);
       state = UPDATE_MAP; // next state.
-      // Auto-trigger front-back centering >> only when a front wall is present, off-center beyond CENTER_TOL_MM, and the offset isn't too large (>= one tile) that the reading is unreliable. 
-      // Back-wall centering isn't implemented yet, so wallB is not checked here.
-      
-      if(wallF == true){
-        int front1 = measure(1);
-        int front7 = measure(7);
-        if(front1 != -1 && front7 != -1){
-          double frontGap = (front1 + front7) / 2.0;
-          double offset = frontGap - TARGET_GAP_MM;
-          if(abs(offset) > CENTER_TOL_MM && abs(offset) < MAX_CENTER_CORRECTION_MM) state = CENTERING;
-        }
-      }
+      // (front/back centring: centreAlong() above, before the walls are read)
       
       if(Pausemaze == true){
         Serial.println("pause");
@@ -774,7 +766,7 @@ void loop(){
       }
       finishTileMove();
       delay(200);
-      parallel();
+      centreAlong(); // squares up (parallel) and stops in the middle of the tile, as when exploring
       delay(100);
       isVictim = false;
       if(Pausemaze == true) state = PAUSE;
