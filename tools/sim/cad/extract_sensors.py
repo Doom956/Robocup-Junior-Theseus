@@ -154,6 +154,30 @@ if sorted(s["code_sensor"] for s in sensors) != [1, 2, 3, 4, 5, 6, 7]:
 tl, th = box(placed(tcs[0]))
 colour = to_robot([(tl[k] + th[k]) / 2 for k in range(3)])
 allpts = [to_robot(p) for o, (lo, hi) in vl_boxes for p in (lo, hi)]
+
+# Outline seen from above: convex hull of every part at heights that can touch a wall (2-160 mm).
+# Parts more than 400 mm across can't be part of the robot (the export has four "Component1"
+# reference bodies 570 mm wide) and are left out.
+def hull2d(P):
+    P = sorted(set((round(x, 1), round(y, 1)) for x, y in P))
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lo, up = [], []
+    for p in P:
+        while len(lo) >= 2 and cross(lo[-2], lo[-1], p) <= 0: lo.pop()
+        lo.append(p)
+    for p in reversed(P):
+        while len(up) >= 2 and cross(up[-2], up[-1], p) <= 0: up.pop()
+        up.append(p)
+    return lo[:-1] + up[:-1]
+outline_pts, left_out = [], set()
+for o in occ:
+    ps = [to_robot(apply(o[2], p)) for p in points(o[3])]
+    ps = [p for p in ps if 2 <= p[2] <= 160]
+    if not ps: continue
+    if max(p[0] for p in ps) - min(p[0] for p in ps) > 400 or max(p[1] for p in ps) - min(p[1] for p in ps) > 400:
+        left_out.add(o[1]); continue
+    outline_pts += [(p[0], p[1]) for p in ps]
+outline = hull2d(outline_pts)
 geom = {
     "source": os.path.basename(sys.argv[1]),
     "frame": "origin on the floor under the middle of the wheelbase; forward +, left +, height above floor (mm)",
@@ -162,6 +186,8 @@ geom = {
     "axles_forward_mm": [round(centre_y - y, 1) if front_is_low_y else round(y - centre_y, 1) for y in front_axle_end],
     "sensor_span_mm": {"length": round(max(p[0] for p in allpts) - min(p[0] for p in allpts), 1),
                        "width": round(max(p[1] for p in allpts) - min(p[1] for p in allpts), 1)},
+    "outline_mm": [[x, y] for x, y in outline],
+    "outline_note": "convex hull seen from above, parts 2-160 mm above the floor; left out: " + ", ".join(sorted(left_out)),
 }
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "robot_geometry.json")
 json.dump(geom, open(out, "w"), indent=2)

@@ -422,13 +422,25 @@ function drawTiles(ctx, F, V) {
   const [sx, sy] = V.P((F.sx + 0.5) * S, (F.sy + 0.5) * S);
   ctx.fillStyle = C.muted; ctx.font = `600 ${Math.max(8, S * sc * 0.3)}px ${C["font-ui"]}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText("S", sx, sy);
-  ctx.strokeStyle = C.wall; ctx.lineCap = "round"; ctx.lineWidth = Math.max(1.5, sc * 12); ctx.beginPath();
+  ctx.fillStyle = C.muted; ctx.globalAlpha = 0.45; // speed bumps
+  for (const [i, o] of F.bumps || []) {
+    const x = i % F.W, y = Math.floor(i / F.W), w = (F.bumpW || 40) / 2;
+    const [a, b] = V.P(o === 1 ? x * S : (x + 0.5) * S - w, o === 1 ? (y + 0.5) * S + w : (y + 1) * S);
+    ctx.fillRect(a, b, (o === 1 ? S : 2 * w) * sc, (o === 1 ? 2 * w : S) * sc);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.wall; ctx.lineCap = "square"; ctx.lineWidth = Math.max(1.5, sc * (F.wallT || 12)); ctx.beginPath();
   for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) for (let d = 0; d < 4; d++) {
     if (!F.wall(x, y, d) || (d === 2 && y > 0) || (d === 3 && x > 0)) continue;
     const x0 = x * S, y0 = y * S, seg = [[x0, y0 + S, x0 + S, y0 + S], [x0 + S, y0, x0 + S, y0 + S], [x0, y0, x0 + S, y0], [x0, y0, x0, y0 + S]][d];
     const [a, b] = V.P(seg[0], seg[1]), [c, e] = V.P(seg[2], seg[3]); ctx.moveTo(a, b); ctx.lineTo(c, e);
   }
   ctx.stroke();
+  for (const [ox, oy, r] of F.obstacles || []) { // obstacles
+    const [a, b] = V.P(ox, oy);
+    ctx.fillStyle = C.solid; ctx.strokeStyle = C.wall; ctx.lineWidth = Math.max(1, sc * 4);
+    ctx.beginPath(); ctx.arc(a, b, r * sc, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+  }
 }
 function pose(slot) {
   const a = slot.prev, b = slot.cur;
@@ -450,10 +462,16 @@ function drawRobot(ctx, slot, V, p, beams) {
   });
   const [cx, cy] = V.P(p.x, p.y);
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(hr); ctx.scale(sc, sc);
-  ctx.fillStyle = C["robot-body"]; ctx.fillRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  const body = () => { // the CAD outline if the recording has it, else the box around the sensors
+    ctx.beginPath();
+    if (r.outline && r.outline.length > 2) r.outline.forEach(([fw, lf], k) => k ? ctx.lineTo(-lf, -fw) : ctx.moveTo(-lf, -fw));
+    else ctx.rect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+    ctx.closePath();
+  };
+  ctx.fillStyle = C["robot-body"]; body(); ctx.fill();
   ctx.fillStyle = C.wheel;
   for (const fa of [r.axle, -r.axle]) for (const side of [-1, 1]) ctx.fillRect(side * r.track / 2 - 9, -fa - r.wheel / 2, 18, r.wheel);
-  ctx.strokeStyle = f.c ? C.bad : C.robot; ctx.lineWidth = Math.max(4, 1.5 / sc); ctx.strokeRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  ctx.strokeStyle = f.c ? C.bad : C.robot; ctx.lineWidth = Math.max(4, 1.5 / sc); body(); ctx.stroke();
   ctx.fillStyle = C.robot; ctx.beginPath(); ctx.moveTo(0, -r.front + 8); ctx.lineTo(-24, -r.front + 44); ctx.lineTo(24, -r.front + 44); ctx.closePath(); ctx.fill();
   ctx.restore();
 }

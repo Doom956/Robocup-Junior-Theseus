@@ -342,6 +342,8 @@ function parseTrace(text) {
     tof: [[98.4, -80.2, 0], [88.3, -90.8, 1], [-87.7, -90.8, 1], [-102.8, 0, 2], [-87.7, 90.8, 3], [88.3, 90.8, 3], [98.4, 80.2, 0]], cone: 25 };
   h.map = h.map || { size: 40, floors: 3, start: 1 };
   F.type = F.tiles.map(t => t[0]); F.level = F.tiles.map(t => t[1]); F.walls = F.tiles.map(t => t[2]);
+  F.bumpOf = new Int8Array(F.W * F.H);
+  for (const [i, o] of F.bumps || []) F.bumpOf[i] = o;
   F.id = (x, y) => y * F.W + x;
   F.in = (x, y) => x >= 0 && y >= 0 && x < F.W && y < F.H;
   F.wall = (x, y, d) => !F.in(x, y) || !!(F.walls[F.id(x, y)] >> d & 1);
@@ -513,8 +515,16 @@ function drawTiles(ctx, V) {
   const [sx, sy] = V.P((F.sx + 0.5) * S, (F.sy + 0.5) * S);
   ctx.fillStyle = col.muted; ctx.font = `600 ${Math.max(10, S * sc * 0.28)}px ${css("--font-display")}`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("START", sx, sy);
-  // walls
-  ctx.strokeStyle = col.wall; ctx.lineCap = "round"; ctx.lineWidth = Math.max(2, sc * 12);
+  // speed bumps: a strip across the middle of the tile
+  ctx.fillStyle = col.muted; ctx.globalAlpha = 0.45;
+  for (const [i, o] of F.bumps || []) {
+    const x = i % F.W, y = Math.floor(i / F.W), w = (F.bumpW || 40) / 2;
+    const [a, b] = V.P(o === 1 ? x * S : (x + 0.5) * S - w, o === 1 ? (y + 0.5) * S + w : (y + 1) * S);
+    ctx.fillRect(a, b, (o === 1 ? S : 2 * w) * sc, (o === 1 ? 2 * w : S) * sc);
+  }
+  ctx.globalAlpha = 1;
+  // walls, drawn at their real thickness (square ends = the posts)
+  ctx.strokeStyle = col.wall; ctx.lineCap = "square"; ctx.lineWidth = Math.max(2, sc * (F.wallT || 12));
   ctx.beginPath();
   for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) for (let d = 0; d < 4; d++) {
     if (!F.wall(x, y, d)) continue;
@@ -522,6 +532,12 @@ function drawTiles(ctx, V) {
     ctx.moveTo(a, b); ctx.lineTo(c, e);
   }
   ctx.stroke();
+  // obstacles
+  for (const [ox, oy, r] of F.obstacles || []) {
+    const [a, b] = V.P(ox, oy);
+    ctx.fillStyle = col.solid; ctx.strokeStyle = col.wall; ctx.lineWidth = Math.max(1, sc * 4);
+    ctx.beginPath(); ctx.arc(a, b, r * sc, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+  }
 }
 function edge(x, y, d) {
   const x0 = x * S, y0 = y * S;
@@ -606,12 +622,18 @@ function drawRobot(ctx, V, p, f) {
   const [cx, cy] = V.P(p.x, p.y);
   ctx.save();
   ctx.translate(cx, cy); ctx.rotate(p.h * Math.PI / 180); ctx.scale(sc, sc);
-  ctx.fillStyle = css("--robot-body");
-  ctx.fillRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  // body: the outline from the CAD if the recording has it, else the box around the sensors
+  const body = () => {
+    ctx.beginPath();
+    if (r.outline && r.outline.length > 2) r.outline.forEach(([fw, lf], k) => k ? ctx.lineTo(-lf, -fw) : ctx.moveTo(-lf, -fw));
+    else ctx.rect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+    ctx.closePath();
+  };
+  ctx.fillStyle = css("--robot-body"); body(); ctx.fill();
   ctx.fillStyle = css("--wheel");
   for (const fa of [r.axle, -r.axle]) for (const side of [-1, 1]) ctx.fillRect(side * r.track / 2 - 9, -fa - r.wheel / 2, 18, r.wheel);
   ctx.strokeStyle = f.c ? css("--bad") : css("--robot"); ctx.lineWidth = f.c ? 7 : 4;
-  ctx.strokeRect(-r.half, -r.front, 2 * r.half, r.front + r.back);
+  body(); ctx.stroke();
   ctx.fillStyle = css("--robot");
   ctx.beginPath(); ctx.moveTo(0, -r.front + 8); ctx.lineTo(-22, -r.front + 40); ctx.lineTo(22, -r.front + 40); ctx.closePath(); ctx.fill();
   for (const [fw, lf] of r.tof) { ctx.fillStyle = css("--beam-line"); ctx.fillRect(-lf - 6, -fw - 6, 12, 12); }
@@ -832,7 +854,8 @@ function seekFromEvent(e) {
 // ---------------------------------------------------------------- 3D (three.js, loaded the first time 3D is opened)
 // World: x = east, y = up, z = south (so north is -z); millimetres, like the simulator.
 const THREE_URL = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-const WALL_H = 150, WALL_T = 12;            // RCJ walls are at least 15 cm high
+const WALL_H = 150;                          // RCJ walls are at least 15 cm high
+let WALL_T = 12;                             // set from the recording (the simulator's wall thickness)
 const COL3 = { floor: 0xf2f1ec, black: 0x151515, blue: 0x2a68d4, silver: 0xc3c9cf, ramp: 0xe3dccb, solid: 0x5a646d,
   skirt: 0xb8b3a5, wall: 0xf6f5f0, ground: 0x48515a, body: 0xdf511a, chassis: 0x2b3640, wheel: 0x1b1f22, sensor: 0x00a3b8 };
 let view3d = false, cam3 = "orbit", G = null, threeLoading = null;
@@ -857,7 +880,13 @@ function floorH(px, py) {
     return hA + (hB - hA) * f;
   }
   if (t === FIELD_TYPE.SOLID) return 0;
-  return F.levelHeight[F.level[i]];
+  let h = F.levelHeight[F.level[i]];
+  const b = F.bumpOf ? F.bumpOf[i] : 0;
+  if (b) { // speed bump across the middle of the tile (same profile as world.h)
+    const bw = F.bumpW || 40, d = Math.abs(b === 1 ? py - (y + 0.5) * S : px - (x + 0.5) * S);
+    if (d < bw / 2) h += (F.bumpH || 10) * 0.5 * (1 + Math.cos(2 * Math.PI * d / bw));
+  }
+  return h;
 }
 const V3 = (x, y, h) => [x, h, -y];   // field (x, y, height) -> three.js
 
@@ -881,6 +910,7 @@ function build3D() {
   };
   const quad = (arr, a, b, c, d) => arr.push(...a, ...b, ...c, ...a, ...c, ...d);
   const W = F.W * S, H = F.H * S;
+  WALL_T = F.wallT || 12;
 
   // floor tiles (top surface + vertical sides where a tile is higher than its neighbour)
   const tops = { floor: [], black: [], blue: [], silver: [], ramp: [], solid: [] }, skirt = [];
@@ -928,6 +958,21 @@ function build3D() {
     if (x === 0 && F.wall(x, y, 3)) addWall(x, y, 3);
   }
   scene.add(meshFrom(walls, mat(COL3.wall, { roughness: 0.7 })));
+
+  // obstacles (upright cylinders, at least 15 cm tall) and speed bumps
+  for (const [ox, oy, r] of F.obstacles || []) {
+    const c = new T3.Mesh(new T3.CylinderGeometry(r, r, 180, 28), mat(0x6b5a48, { side: T3.FrontSide }));
+    c.position.set(ox, floorH(ox, oy) + 90, -oy); c.castShadow = c.receiveShadow = true; scene.add(c);
+  }
+  for (const [i, o] of F.bumps || []) {
+    const x = i % F.W, y = Math.floor(i / F.W), bw = F.bumpW || 40, bh = F.bumpH || 10;
+    const geo = new T3.CylinderGeometry(bw / 2, bw / 2, S - 2, 20, 1, false, 0, Math.PI); // half-round strip
+    const m = new T3.Mesh(geo, mat(0x8a8f94, { side: T3.FrontSide }));
+    m.scale.set(1, 1, 2 * bh / bw);
+    if (o === 1) m.rotation.set(Math.PI / 2, 0, Math.PI / 2); else m.rotation.set(Math.PI / 2, 0, 0);
+    const base = F.levelHeight ? F.levelHeight[F.level[i]] : 0;
+    m.position.set((x + 0.5) * S, base, -(y + 0.5) * S); m.receiveShadow = true; scene.add(m);
+  }
 
   // ground around the field, START label
   const ground = new T3.Mesh(new T3.PlaneGeometry(W + 900, H + 900), mat(COL3.ground, { side: T3.FrontSide }));

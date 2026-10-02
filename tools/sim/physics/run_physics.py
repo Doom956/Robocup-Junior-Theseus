@@ -167,7 +167,11 @@ def main():
         contact = sum(r.get("wall_contact_s", 0) for r in res) / n
         ends = collections.Counter(r.get("end", "?") for r in res)
         why = collections.Counter(x.strip() for r in res for x in r.get("lop_reasons", "").split(";") if x.strip())
-        print(f"{sc:8s} home {home}/{n} ({pct(home / n)})  explored everything {pct(full / n)}  avg coverage {pct(cov)}  "
+        scores = [r.get("score", 0) for r in res]
+        mean = sum(scores) / n
+        sd = (sum((x - mean) ** 2 for x in scores) / max(1, n - 1)) ** 0.5
+        print(f"{sc:8s} SCORE {mean:.1f} ±{1.96 * sd / n ** 0.5:.1f} (RCJ 2026 navigation points, no victims)")
+        print(f"         home {home}/{n} ({pct(home / n)})  explored everything {pct(full / n)}  avg coverage {pct(cov)}  "
               f"map walls {pct(walls)}  lost >20% of the time {pct(lost / n)}  restarts/run {lops:.2f}  wall contact {contact:.0f} s/run")
         print(f"         ended: {dict(ends)}   restarts: {dict(why)}")
         bad = [r for r in res if not r.get("home")][:5]

@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <random>
 #include <sstream>
 #include <string>
@@ -66,6 +67,8 @@ struct Params {
   double colourNoise = 0.04;
   double placeSigmaMm = 8, placeSigmaDeg = 2; // how accurately a person places the robot
   double rampMinDeg = 15, rampMaxDeg = 25;
+  // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
+  double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
 } P;
 
@@ -84,6 +87,7 @@ static std::map<std::string, double *> paramTable() {
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
+    {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
     {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}};
 }
 
@@ -134,6 +138,8 @@ static int portToSensor[8] = {2, 1, 7, 6, 4, 5, 3, 0}; // inverse of measure()'s
 static int muxPort = 0;
 static double colourFwd = 92.8, colourLeft = 0, colourHeight = 23.7;
 static double bodyFront = 99.1, bodyBack = 103.5, bodyHalfWidth = 91.5;
+static std::vector<double> outF, outL;   // robot outline seen from above (forward, left), convex, from the CAD
+static double outlineRadius = 140;      // furthest outline point from the centre
 static double axleOffset = 57.8;
 
 // referee / metrics
@@ -143,6 +149,14 @@ static int lastTileX = -1, lastTileY = -1, cpX = 0, cpY = 0;
 static double lastProgressUs = 0;
 static int lops = 0, rampCrossings = 0, lastLevel = -1;
 static std::vector<bool> visited;
+// RCJ 2026 scoring (navigation part): per-tile records of what the robot visited
+static std::vector<int> blueVisits, blueGood;   // visits of each blue tile; visits where it stopped 5 s
+static std::vector<bool> cpVisited;             // checkpoints visited
+static std::set<int> rampsDone;                 // ramps navigated (by ramp row), 10 points each once
+static std::set<int> bumpsDone;                 // speed-bump tiles crossed, 5 points each once
+static int curTile = -1, lastRampRow = -1;                        // tile the robot is "visiting" (more than half of it inside)
+static double stillUs = 0, lastStillX = 0, lastStillY = 0; // how long it has stood still on the current tile
+static bool blueStopped = false;                // stood still 5 s on the current blue tile
 static double contactUs = 0;
 static bool inContact = false;
 static int syncSamples = 0, lostSamples = 0;
@@ -178,8 +192,57 @@ static void robotToWorld(double fwd, double left, double &wx, double &wy) {
   wy = ry + fwd * std::cos(h) + left * std::sin(h);
 }
 
-// distance from (ox,oy) along (dx,dy) to the first wall, walking the tile grid.
-// *facing = how square-on the wall is to the ray (1 = head-on).
+// Walls are P.wallThicknessMm thick, centred on the tile edges, and reach half that past their ends
+// (the posts holding them count as wall, RCJ 3.1.4), so two facing walls leave a 280 mm path
+// (RCJ 3.3.3). Obstacles are upright cylinders (RCJ 3.4.3).
+static std::vector<std::vector<int>> obstaclesInCell; // obstacle indices overlapping each tile
+static void indexObstacles() {
+  obstaclesInCell.assign(W.W * W.H, {});
+  for (size_t k = 0; k < W.obstacles.size(); k++) {
+    const field::Obstacle &o = W.obstacles[k];
+    for (int y = (int)std::floor((o.y - o.r) / field::TILE); y <= (int)std::floor((o.y + o.r) / field::TILE); y++)
+      for (int x = (int)std::floor((o.x - o.r) / field::TILE); x <= (int)std::floor((o.x + o.r) / field::TILE); x++)
+        if (W.in(x, y)) obstaclesInCell[W.id(x, y)].push_back((int)k);
+  }
+}
+// box of the wall on a tile edge: horizontal edge from grid point (gx, gy) to (gx + 1, gy), or vertical to (gx, gy + 1)
+static void edgeBox(int gx, int gy, bool horizontal, double b[4]) {
+  const double S = field::TILE, h = P.wallThicknessMm / 2;
+  if (horizontal) { b[0] = gx * S - h; b[1] = gy * S - h; b[2] = (gx + 1) * S + h; b[3] = gy * S + h; }
+  else            { b[0] = gx * S - h; b[1] = gy * S - h; b[2] = gx * S + h; b[3] = (gy + 1) * S + h; }
+}
+// every wall that can reach into tile (cx, cy): the walls touching one of its four corners
+template <class Fn> static void wallsNearCell(int cx, int cy, Fn f) {
+  double b[4];
+  for (int gy = cy; gy <= cy + 1; gy++)
+    for (int gx = cx; gx <= cx + 1; gx++) {
+      for (int a = gx - 1; a <= gx; a++) if (W.hasWall(a, gy, 2)) { edgeBox(a, gy, true, b); f(b); }  // along y = gy
+      for (int a = gy - 1; a <= gy; a++) if (W.hasWall(gx, a, 3)) { edgeBox(gx, a, false, b); f(b); } // along x = gx
+    }
+}
+static bool rayBox(double ox, double oy, double dx, double dy, const double *b, double &t, double &facing) {
+  double tmin = -1e18, tmax = 1e18; int axis = 0;
+  if (std::fabs(dx) < 1e-12) { if (ox < b[0] || ox > b[2]) return false; }
+  else { double p = (b[0] - ox) / dx, q = (b[2] - ox) / dx; if (p > q) std::swap(p, q); if (p > tmin) { tmin = p; axis = 0; } tmax = std::min(tmax, q); }
+  if (std::fabs(dy) < 1e-12) { if (oy < b[1] || oy > b[3]) return false; }
+  else { double p = (b[1] - oy) / dy, q = (b[3] - oy) / dy; if (p > q) std::swap(p, q); if (p > tmin) { tmin = p; axis = 1; } tmax = std::min(tmax, q); }
+  if (tmax < std::max(tmin, 0.0)) return false;
+  if (tmin < 0) { t = 0; facing = 1; return true; } // starts inside the wall
+  t = tmin; facing = axis == 0 ? std::fabs(dx) : std::fabs(dy);
+  return true;
+}
+static bool rayCircle(double ox, double oy, double dx, double dy, const field::Obstacle &o, double &t, double &facing) {
+  double px = ox - o.x, py = oy - o.y, b = px * dx + py * dy, c = px * px + py * py - o.r * o.r, disc = b * b - c;
+  if (disc < 0) return false;
+  t = -b - std::sqrt(disc);
+  if (t < 0) { if (c > 0) return false; t = 0; facing = 1; return true; }
+  double nx = (px + t * dx) / o.r, ny = (py + t * dy) / o.r;
+  facing = std::fabs(nx * dx + ny * dy);
+  return true;
+}
+
+// distance from (ox,oy) along (dx,dy) to the first wall or obstacle, walking the tile grid.
+// *facing = how square-on the surface is to the ray (1 = head-on).
 static double raycast(double ox, double oy, double dx, double dy, double maxd, double *facing = nullptr) {
   const double S = field::TILE, INF = 1e9;
   int ix = (int)std::floor(ox / S), iy = (int)std::floor(oy / S);
@@ -188,46 +251,80 @@ static double raycast(double ox, double oy, double dx, double dy, double maxd, d
   double tMaxY = std::fabs(dy) < 1e-12 ? INF : ((dy > 0 ? (iy + 1) * S - oy : oy - iy * S) / std::fabs(dy));
   double tDX = std::fabs(dx) < 1e-12 ? INF : S / std::fabs(dx), tDY = std::fabs(dy) < 1e-12 ? INF : S / std::fabs(dy);
   for (int guard = 0; guard < 64; guard++) {
-    if (tMaxX < tMaxY) {
-      if (tMaxX > maxd) return INF;
-      if (W.hasWall(ix, iy, stepX > 0 ? 1 : 3)) { if (facing) *facing = std::fabs(dx); return tMaxX; }
-      ix += stepX; tMaxX += tDX;
-    } else {
-      if (tMaxY > maxd) return INF;
-      if (W.hasWall(ix, iy, stepY > 0 ? 0 : 2)) { if (facing) *facing = std::fabs(dy); return tMaxY; }
-      iy += stepY; tMaxY += tDY;
+    double tExit = std::min(tMaxX, tMaxY), best = INF, bestFacing = 1;
+    wallsNearCell(ix, iy, [&](const double *b) {
+      double t, fc;
+      if (rayBox(ox, oy, dx, dy, b, t, fc) && t < best) { best = t; bestFacing = fc; }
+    });
+    if (W.in(ix, iy))
+      for (int k : obstaclesInCell[W.id(ix, iy)]) {
+        double t, fc;
+        if (rayCircle(ox, oy, dx, dy, W.obstacles[k], t, fc) && t < best) { best = t; bestFacing = fc; }
+      }
+    if (best <= tExit + 1e-9) {
+      if (best > maxd) return INF;
+      if (facing) *facing = bestFacing;
+      return best;
     }
+    if (tExit > maxd) return INF;
+    if (tMaxX < tMaxY) { ix += stepX; tMaxX += tDX; } else { iy += stepY; tMaxY += tDY; }
   }
   return INF;
 }
 
-// does the robot body at pose (x,y,head) touch any wall?
+// does the robot body at pose (x,y,head) touch any wall or obstacle? The body is the outline from
+// the CAD (convex); walls are boxes (thickness + posts), obstacles circles.
 static bool collides(double x, double y, double head) {
-  double h = rad(head), fx = std::sin(h), fy = std::cos(h), lx = -std::cos(h), ly = std::sin(h);
+  const int n = (int)outF.size();
+  double h = rad(head), sh = std::sin(h), ch = std::cos(h), px[32], py[32];
+  for (int k = 0; k < n; k++) { px[k] = x + outF[k] * sh - outL[k] * ch; py[k] = y + outF[k] * ch + outL[k] * sh; }
+  // separating-axis test against an axis-aligned box b = x0, y0, x1, y1
+  auto hitsBox = [&](const double *b) {
+    // quick reject: box further than the outline's radius
+    double qx = std::max(b[0], std::min(x, b[2])), qy = std::max(b[1], std::min(y, b[3]));
+    if ((qx - x) * (qx - x) + (qy - y) * (qy - y) > outlineRadius * outlineRadius) return false;
+    double mnx = 1e18, mxx = -1e18, mny = 1e18, mxy = -1e18;
+    for (int k = 0; k < n; k++) { mnx = std::min(mnx, px[k]); mxx = std::max(mxx, px[k]); mny = std::min(mny, py[k]); mxy = std::max(mxy, py[k]); }
+    if (mxx < b[0] || mnx > b[2] || mxy < b[1] || mny > b[3]) return false;
+    for (int k = 0; k < n; k++) {
+      int j = (k + 1) % n;
+      double ax = -(py[j] - py[k]), ay = px[j] - px[k];
+      double pmin = 1e18, pmax = -1e18;
+      for (int m = 0; m < n; m++) { double d = px[m] * ax + py[m] * ay; pmin = std::min(pmin, d); pmax = std::max(pmax, d); }
+      double c[4] = {b[0] * ax + b[1] * ay, b[2] * ax + b[1] * ay, b[0] * ax + b[3] * ay, b[2] * ax + b[3] * ay};
+      double bmin = std::min(std::min(c[0], c[1]), std::min(c[2], c[3])), bmax = std::max(std::max(c[0], c[1]), std::max(c[2], c[3]));
+      if (pmax < bmin || pmin > bmax) return false;
+    }
+    return true;
+  };
   int cx = (int)std::floor(x / field::TILE), cy = (int)std::floor(y / field::TILE);
+  double b[4];
+  for (int gy = cy - 1; gy <= cy + 2; gy++)       // walls along y = gy
+    for (int gx = cx - 2; gx <= cx + 1; gx++)
+      if (W.hasWall(gx, gy, 2)) { edgeBox(gx, gy, true, b); if (hitsBox(b)) return true; }
+  for (int gx = cx - 1; gx <= cx + 2; gx++)       // walls along x = gx
+    for (int gy = cy - 2; gy <= cy + 1; gy++)
+      if (W.hasWall(gx, gy, 3)) { edgeBox(gx, gy, false, b); if (hitsBox(b)) return true; }
   for (int ty = cy - 1; ty <= cy + 1; ty++)
-    for (int tx = cx - 1; tx <= cx + 1; tx++)
-      for (int d = 0; d < 4; d++) {
-        if (!W.hasWall(tx, ty, d)) continue;
-        double x0 = tx * field::TILE, y0 = ty * field::TILE, S = field::TILE;
-        double ax, ay, bx, by; // wall segment
-        if (d == 0) { ax = x0; ay = y0 + S; bx = x0 + S; by = y0 + S; }
-        else if (d == 1) { ax = x0 + S; ay = y0; bx = x0 + S; by = y0 + S; }
-        else if (d == 2) { ax = x0; ay = y0; bx = x0 + S; by = y0; }
-        else { ax = x0; ay = y0; bx = x0; by = y0 + S; }
-        // segment in robot frame, clipped against the body box (Liang-Barsky)
-        double pf = (ax - x) * fx + (ay - y) * fy, pl = (ax - x) * lx + (ay - y) * ly;
-        double qf = (bx - x) * fx + (by - y) * fy - pf, ql = (bx - x) * lx + (by - y) * ly - pl;
-        double t0 = 0, t1 = 1, p[4] = {-qf, qf, -ql, ql}, q[4] = {pf + bodyBack, bodyFront - pf, pl + bodyHalfWidth, bodyHalfWidth - pl};
-        bool hit = true;
-        for (int k = 0; k < 4 && hit; k++) {
-          if (std::fabs(p[k]) < 1e-12) { if (q[k] < 0) hit = false; continue; }
-          double r = q[k] / p[k];
-          if (p[k] < 0) { if (r > t1) hit = false; else if (r > t0) t0 = r; }
-          else { if (r < t0) hit = false; else if (r < t1) t1 = r; }
+    for (int tx = cx - 1; tx <= cx + 1; tx++) {
+      if (!W.in(tx, ty)) continue;
+      for (int k : obstaclesInCell[W.id(tx, ty)]) {
+        const field::Obstacle &o = W.obstacles[k];
+        if (std::hypot(o.x - x, o.y - y) > outlineRadius + o.r) continue;
+        // inside the outline, or closer than r to one of its edges
+        bool inside = true;
+        double best = 1e18;
+        for (int m = 0; m < n; m++) {
+          int j = (m + 1) % n;
+          double ex = px[j] - px[m], ey = py[j] - py[m], wx = o.x - px[m], wy = o.y - py[m];
+          if (ex * wy - ey * wx < 0) inside = false; // outline is counter-clockwise
+          double t = std::max(0.0, std::min(1.0, (wx * ex + wy * ey) / (ex * ex + ey * ey)));
+          double dx = wx - t * ex, dy = wy - t * ey;
+          best = std::min(best, dx * dx + dy * dy);
         }
-        if (hit) return true;
+        if (inside || best < o.r * o.r) return true;
       }
+    }
   return false;
 }
 
@@ -360,18 +457,12 @@ void simSerialOut(const char *text) {
   }
 }
 
-// largest share of the robot's footprint (CAD outline) over any one black tile, 0..1
-static double nextBlackCheckUs = 0;
-static double blackShare() {
-  int cx = (int)std::floor(rx / field::TILE), cy = (int)std::floor(ry / field::TILE);
-  bool near = false;
-  for (int y = cy - 1; y <= cy + 1 && !near; y++)
-    for (int x = cx - 1; x <= cx + 1; x++)
-      if (W.typeAt(x, y) == field::BLACK_T) { near = true; break; }
-  if (!near) return 0;
-  const int N = 12; // N x N sample points over the footprint
-  std::map<int, int> hits;
-  int best = 0;
+// RCJ 2026, 5.4.4: a tile is "visited" when more than half of the robot is inside it (seen from
+// above). Returns that tile's id, or -1 while the robot straddles tiles.
+static double nextFootprintUs = 0;
+static int majorityTile() {
+  const int N = 12; // N x N sample points over the footprint (CAD outline)
+  int ids[8], counts[8], n = 0;
   for (int i = 0; i < N; i++)
     for (int j = 0; j < N; j++) {
       double fwd = -bodyBack + (bodyFront + bodyBack) * (i + 0.5) / N;
@@ -379,9 +470,15 @@ static double blackShare() {
       double wx, wy;
       robotToWorld(fwd, left, wx, wy);
       int x = (int)std::floor(wx / field::TILE), y = (int)std::floor(wy / field::TILE);
-      if (W.typeAt(x, y) == field::BLACK_T) best = std::max(best, ++hits[W.id(x, y)]);
+      if (!W.in(x, y)) continue;
+      int id = W.id(x, y), k = 0;
+      while (k < n && ids[k] != id) k++;
+      if (k == n) { if (n == 8) continue; ids[n] = id; counts[n++] = 0; }
+      counts[k]++;
     }
-  return (double)best / (N * N);
+  for (int k = 0; k < n; k++)
+    if (counts[k] * 2 > N * N) return ids[k];
+  return -1;
 }
 
 static void refereeTick() {
@@ -391,20 +488,34 @@ static void refereeTick() {
   double runS = (tUs - runStartUs) / 1e6;
   if (runS >= P.runTimeS) throw SimEnd{"time"};
   int tx = (int)std::floor(rx / field::TILE), ty = (int)std::floor(ry / field::TILE);
-  if (W.in(tx, ty) && (tx != lastTileX || ty != lastTileY)) {
-    lastTileX = tx; lastTileY = ty; lastProgressUs = tUs;
-    int i = W.id(tx, ty), t = W.type[i];
-    if (t != field::RAMP_T) {
-      visited[i] = true;
-      if (lastLevel >= 0 && W.level[i] != lastLevel) rampCrossings++;
-      lastLevel = W.level[i];
+  if (!switchHigh && tUs >= nextFootprintUs) {
+    nextFootprintUs = tUs + 5000;
+    // standing still on the current tile (needed on blue tiles: 5 s)
+    if (std::hypot(rx - lastStillX, ry - lastStillY) < 0.5) stillUs += 5000; else stillUs = 0;
+    lastStillX = rx; lastStillY = ry;
+    if (curTile >= 0 && W.type[curTile] == field::BLUE_T && stillUs >= 5e6 && !blueStopped) { blueStopped = true; blueGood[curTile]++; }
+    int m = majorityTile();
+    if (m >= 0 && m != curTile) {
+      // RCJ 5.5.1c: visiting another tile without first stopping 5 s on a blue tile
+      bool leftBlueEarly = curTile >= 0 && W.type[curTile] == field::BLUE_T && !blueStopped;
+      int from = curTile;
+      if (from >= 0 && !W.bump.empty() && W.bump[from]) bumpsDone.insert(from); // left a speed-bump tile: crossed
+      curTile = m; stillUs = 0; blueStopped = false;
+      lastTileX = m % W.W; lastTileY = m / W.W; lastProgressUs = tUs;
+      int t = W.type[m];
+      if (t != field::RAMP_T) {
+        visited[m] = true;
+        if (lastLevel >= 0 && W.level[m] != lastLevel) {
+          rampCrossings++;
+          rampsDone.insert(lastRampRow); // up or down: 10 points per ramp, once
+        }
+        lastLevel = W.level[m];
+      } else lastRampRow = m / W.W;
+      if (t == field::SILVER_T) { cpX = m % W.W; cpY = m / W.W; cpVisited[m] = true; }
+      if (t == field::BLUE_T) blueVisits[m]++;
+      if (t == field::BLACK_T) lackOfProgress("drove onto a black tile");          // RCJ 5.5.1b
+      else if (leftBlueEarly) { (void)from; lackOfProgress("left a blue tile before stopping 5 s"); }
     }
-    if (t == field::SILVER_T) { cpX = tx; cpY = ty; }
-  }
-  // RCJ rule: more than half of the robot over a black tile is a lack of progress
-  if (!switchHigh && tUs >= nextBlackCheckUs) {
-    nextBlackCheckUs = tUs + 5000;
-    if (blackShare() > 0.5) lackOfProgress("drove onto a black tile");
   }
   if (!switchHigh && (tUs - lastProgressUs) / 1e6 > P.stuckTimeoutS) lackOfProgress("stuck");
   // is the code's map position right? (checked while it reads the walls of a tile)
@@ -428,6 +539,7 @@ static void lackOfProgress(const char *why) {
   rhead = wrap360(gauss(P.placeSigmaDeg)); // placed facing the start direction
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
+  curTile = W.id(cpX, cpY); stillUs = 0; blueStopped = false; lastStillX = rx; lastStillY = ry;
   if (traceOut) *traceOut << "{\"event\":\"lop\",\"why\":\"" << why << "\",\"t\":" << (int)((tUs - runStartUs) / 1000)
                              << ",\"cx\":" << cpX << ",\"cy\":" << cpY << "}\n";
 }
@@ -661,6 +773,34 @@ static bool loadGeometry(const std::string &path) {
     bodyBack = std::max(bodyBack, -tof[i].fwd + 0.7);
     bodyHalfWidth = std::max(bodyHalfWidth, std::fabs(tof[i].left) + 0.7);
   }
+  // the real outline (all parts that can touch a wall), if the geometry file has it
+  outF.clear(); outL.clear();
+  size_t o = js.find("\"outline_mm\"");
+  if (o != std::string::npos) {
+    size_t a = js.find('[', o), b = a;
+    for (int depth = 0; b < js.size(); b++) { // the matching ']' (the list spans many lines)
+      if (js[b] == '[') depth++;
+      else if (js[b] == ']' && --depth == 0) break;
+    }
+    std::string arr = js.substr(a, b - a + 1);
+    std::vector<double> v;
+    for (size_t i = 0; i < arr.size();) {
+      if (arr[i] == '-' || (arr[i] >= '0' && arr[i] <= '9')) { char *e; v.push_back(std::strtod(arr.c_str() + i, &e)); i = e - arr.c_str(); }
+      else i++;
+    }
+    for (size_t i = 0; i + 1 < v.size(); i += 2) { outF.push_back(v[i]); outL.push_back(v[i + 1]); }
+  }
+  if (outF.size() < 3) { // no outline: the box around the sensors
+    outF = {bodyFront, bodyFront, -bodyBack, -bodyBack};
+    outL = {-bodyHalfWidth, bodyHalfWidth, bodyHalfWidth, -bodyHalfWidth};
+  }
+  outlineRadius = 0;
+  bodyFront = bodyBack = bodyHalfWidth = 0;
+  for (size_t i = 0; i < outF.size(); i++) {
+    outlineRadius = std::max(outlineRadius, std::hypot(outF[i], outL[i]));
+    bodyFront = std::max(bodyFront, outF[i]); bodyBack = std::max(bodyBack, -outF[i]);
+    bodyHalfWidth = std::max(bodyHalfWidth, std::fabs(outL[i]));
+  }
   return found == 7;
 }
 
@@ -679,6 +819,7 @@ static int selfTest() {
   }
   for (int d : {0, 1, 3}) { int nx = 1 + field::DX[d], ny = 1 + field::DY[d]; W.wall[W.id(1, 1)][d] = true; W.wall[W.id(nx, ny)][(d + 2) % 4] = true; }
   W.sx = 1; W.sy = 1;
+  indexObstacles();
   simReady = true;
   auto place = [](double x, double y, double h) { rx = x; ry = y; rhead = h; for (int i = 1; i <= 4; i++) mot[i].speed = 0; };
   place(450, 450, 0);
@@ -747,7 +888,7 @@ int main(int argc, char **argv) {
     if (a == "--scenario" && i + 1 < argc) scenario = argv[++i];
     else if (a == "--seed" && i + 1 < argc) seed = std::atol(argv[++i]);
     else if (a == "--ideal") ideal = true;
-    else if (a == "--verbose") simSerialEcho = true;
+    else if (a == "--verbose") { simSerialEcho = true; std::setvbuf(stdout, nullptr, _IONBF, 0); } // unbuffered: nothing lost if the firmware crashes
     else if (a == "--trace" && i + 1 < argc) tracePath = argv[++i];
     else if (a == "--live") live = true;
     else if (a == "--live-speed" && i + 1 < argc) liveSpeed = std::atof(argv[++i]);
@@ -783,7 +924,10 @@ int main(int argc, char **argv) {
   for (const auto &s : field::SCENARIOS) if (scenario == s.name) sc = &s;
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
   std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(sc - field::SCENARIOS));
-  W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg);
+  field::Extras ex;
+  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
+  W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
+  indexObstacles();
   rng.seed((unsigned)seed * 7919u + 4242u);
 
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
@@ -796,6 +940,7 @@ int main(int argc, char **argv) {
   rhead = wrap360(gauss(P.placeSigmaDeg));
   cpX = W.sx; cpY = W.sy;
   visited.assign(W.W * W.H, false);
+  blueVisits.assign(W.W * W.H, 0); blueGood.assign(W.W * W.H, 0); cpVisited.assign(W.W * W.H, false);
   if (!tracePath.empty() || live) {
     if (live) traceOut = &std::cout;
     else { traceFile.open(tracePath); traceOut = &traceFile; }
@@ -804,9 +949,17 @@ int main(int argc, char **argv) {
     *traceOut << "\",\"robot\":{\"front\":" << bodyFront << ",\"back\":" << bodyBack << ",\"half\":" << bodyHalfWidth << ",\"axle\":" << axleOffset
           << ",\"track\":" << P.trackWidth << ",\"wheel\":" << P.wheelDiameter << ",\"colour\":[" << colourFwd << "," << colourLeft << "," << colourHeight << "],\"tof\":[";
     for (int i = 1; i <= 7; i++) *traceOut << (i > 1 ? "," : "") << "[" << tof[i].fwd << "," << tof[i].left << "," << tof[i].facing << "," << tof[i].height << "]";
-    *traceOut << "],\"cone\":" << P.tofConeDeg << "},\"map\":{\"size\":" << MAP_SIZE << ",\"floors\":" << NUM_FLOORS << ",\"start\":" << START_FLOOR << "}";
+    *traceOut << "],\"cone\":" << P.tofConeDeg << ",\"outline\":[";
+    for (size_t k = 0; k < outF.size(); k++) *traceOut << (k ? "," : "") << "[" << outF[k] << "," << outL[k] << "]";
+    *traceOut << "]},\"map\":{\"size\":" << MAP_SIZE << ",\"floors\":" << NUM_FLOORS << ",\"start\":" << START_FLOOR << "}";
     *traceOut << ",\"field\":{\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg
-          << ",\"rampX0\":" << W.rampX0 << ",\"rampLen\":" << W.rampLen << ",\"levelHeight\":[" << W.levelHeight[0] << "," << W.levelHeight[1] << "],\"tiles\":[";
+          << ",\"rampX0\":" << W.rampX0 << ",\"rampLen\":" << W.rampLen << ",\"levelHeight\":[" << W.levelHeight[0] << "," << W.levelHeight[1] << "]"
+          << ",\"wallT\":" << P.wallThicknessMm << ",\"bumpH\":" << W.bumpH << ",\"bumpW\":" << W.bumpW << ",\"obstacles\":[";
+    for (size_t k = 0; k < W.obstacles.size(); k++) *traceOut << (k ? "," : "") << "[" << (int)W.obstacles[k].x << "," << (int)W.obstacles[k].y << "," << (int)W.obstacles[k].r << "]";
+    *traceOut << "],\"bumps\":[";
+    bool firstBump = true;
+    for (int i = 0; i < W.W * W.H; i++) if (W.bump[i]) { *traceOut << (firstBump ? "" : ",") << "[" << i << "," << W.bump[i] << "]"; firstBump = false; }
+    *traceOut << "],\"tiles\":[";
     for (int i = 0; i < W.W * W.H; i++) {
       int walls = 0;
       for (int d = 0; d < 4; d++) walls |= W.wall[i][d] << d;
@@ -825,6 +978,7 @@ int main(int argc, char **argv) {
     lastProgressUs = tUs;
     lastTileX = W.sx; lastTileY = W.sy;
     visited[W.id(W.sx, W.sy)] = true;
+    curTile = W.id(W.sx, W.sy); lastStillX = rx; lastStillY = ry;
     lastLevel = W.level[W.id(W.sx, W.sy)];
     while (true) loop();
   } catch (const SimEnd &e) { reason = e.reason; }
@@ -846,13 +1000,25 @@ int main(int argc, char **argv) {
     for (int d = 0; d < 4; d++) { wallsAll++; if (t.getVisited() && t.getWall(d) == W.hasWall(x, y, d)) wallsOk++; }
   }
   double runS = runStarted ? (tUs - runStartUs) / 1e6 : 0;
+  // RCJ 2026 scoring, navigation part (no victims or rescue kits in the simulator)
+  int sbv = 0, bluePts = 0, checkpoints = 0;
+  for (int i = 0; i < W.W * W.H; i++) {
+    if (blueGood[i] > 0) { sbv++; bluePts += std::max(0, 30 - 10 * (blueVisits[i] - 1)); } // 5.6.6: revisits cost 10 each
+    if (cpVisited[i]) checkpoints++;
+  }
+  int srn = (int)rampsDone.size(), bumpsCrossed = (int)bumpsDone.size();
+  int reliability = std::max(0, sbv * 10 - lops * 15);          // 5.6.7
+  int exitBonus = home ? sbv * 10 + srn * 5 : 0;                // 5.6.12
+  int score = bluePts + checkpoints * 10 + srn * 10 + bumpsCrossed * 5 + reliability + exitBonus; // 5.6.8: 5 per speed-bump tile
   std::vector<char> resultBuf(1024 + lopReasons.size() + 2 * lcdText.size()); // a run with many restarts has a long list of reasons
   char *result = resultBuf.data();
   std::snprintf(result, resultBuf.size(), "{\"scenario\":\"%s\",\"seed\":%ld,\"ideal\":%s,\"end\":\"%s\",\"home\":%s,\"time_s\":%.1f,\"coverage\":%.3f,"
               "\"tiles\":%d,\"reachable\":%d,\"map_walls\":%.3f,\"lops\":%d,\"lop_reasons\":\"%s\",\"wall_contact_s\":%.1f,"
+              "\"score\":%d,\"score_parts\":\"blue %d (%d tiles), checkpoints %d, ramps %d, speed bumps %d, reliability %d, exit %d\","
               "\"lost_fraction\":%.3f,\"ramp_crossings\":%d,\"ramp_deg\":%.1f,\"last_lcd\":\"%s\"}\n",
               sc->name, seed, ideal ? "true" : "false", reason.c_str(), home ? "true" : "false", runS, total ? (double)covered / total : 1.0,
               covered, total, wallsAll ? (double)wallsOk / wallsAll : 1.0, lops, lopReasons.c_str(), contactUs / 1e6,
+              score, bluePts, sbv, checkpoints * 10, srn * 10, bumpsCrossed * 5, reliability, exitBonus,
               syncSamples ? (double)lostSamples / syncSamples : 0.0, rampCrossings, W.rampDeg, jsonEsc(lcdText).c_str());
   if (traceOut) {
     if (runStarted) traceFrame(runS);
