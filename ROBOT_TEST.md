@@ -131,6 +131,10 @@ b. **Sensor readings at that range.** In bench mode test 1 (or with `measure(2/3
 - **Backing into a blue tile: stop 5 s again.** Test: start a move from a blue tile toward something
   that makes it back up (a box ahead, so it stops short). Expect `back on a blue tile: 5 s stop` when it
   had got more than half way, and no lack of progress for leaving the blue tile early.
+- **parallel() turns back if it squared up off the grid.** In a corner the two side sensors can see two
+  different walls and read the same with the robot turned ~45 deg; it used to stop there. Test: put the
+  robot in a corner tile turned about 40 deg toward the corner and call a move (or let it explore from
+  there). Expect `parallel: ended off the grid, turning back` instead of the robot staying turned.
 - **Bench mode**: see above. With `BENCH_MODE 0` the firmware is unchanged.
 
 ## Already on main, worth a check: steering for the whole tile (`cc0fa71`)
