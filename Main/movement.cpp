@@ -32,6 +32,11 @@ static int avgEncoder(){
 // Reverse until the encoders are back at the start of the move (i.e. the centre of
 // the tile we started from). Timeout so a dead encoder can't trap us here.
 static void backUpToStart(){
+  // Driven far enough that more than half the robot was on the next tile (RCJ 5.4.4: that's a visit
+  // there), coming back is a new visit of this tile: on a blue one that's another 5 s stop before the
+  // robot moves on (5.5.1c), or the referee calls lack of progress. 120 mm = half the tile less a margin
+  // for not having started exactly in the middle.
+  bool leftTile = avgEncoder() >= pulsesForDistanceMm(120);
   unsigned long startMs = millis();
   while(drivetrain.encoderCountA >= 0 && drivetrain.encoderCountB >= 0 && drivetrain.encoderCountD >= 0
         && millis() - startMs < BACKUP_TIMEOUT_MS){
@@ -39,6 +44,10 @@ static void backUpToStart(){
     drivetrain.backward(200);
   }
   drivetrain.fullstop();
+  if(leftTile && Pausemaze == false && mapGrid[x_pos][y_pos].getType() == BLUE){
+    Serial.println("back on a blue tile: 5 s stop");
+    delay(5000);
+  }
 }
 
 void init_drive(){
@@ -302,16 +311,20 @@ void fwd(double dist){ // in mm
       break;
     }
     
-    // check pitch: if it is greater than 25, the robot is going up a slope, so the encoder is turned off.
-    if(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > RAMP_PITCH_DEG){
+    // check pitch: past RAMP_PITCH_DEG the robot is on a slope, so the encoder is turned off.
+    // One reading decides both "on a ramp" and "up or down": the up/down test used to read the gyro
+    // again, and with the pitch just past the threshold (noise, whole degrees) that second reading could
+    // miss it, so an up-ramp was taken as a down-ramp: descend() instead of elevation(), wrong floor.
+    int tilt = myGyro.modulus(myGyro.pitch_heading()) - init_pitch;
+    if(abs(tilt) > RAMP_PITCH_DEG){
       Serial.println("climbing");
       int _encoderCountA = drivetrain.encoderCountA; // save values before ramp
       int _encoderCountB = drivetrain.encoderCountB;
       int _encoderCountD = drivetrain.encoderCountD;
       climbtoggle = true; // prevent outer loop from exiting on encoder count
       climbed = true;
-      Serial.println(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch));
-      if(myGyro.modulus(myGyro.pitch_heading())-init_pitch>RAMP_PITCH_DEG) upwards = true; // distinguish between moving up and moving down.
+      Serial.println(tilt);
+      upwards = tilt > 0; // distinguish between moving up and moving down.
       double sectionPulses = pulses; // slope length of one tile at the current pitch
       timer climbTime;
       drivetrain.reset_encoderCount(true,true,true); // count ramp distance from the ramp start
