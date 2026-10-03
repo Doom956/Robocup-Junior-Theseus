@@ -67,6 +67,7 @@ static void handleAvoidanceResult(int prevdist){
 void fwd(double dist){ // in mm
   double pulses = dist/(wheel_diameter*M_PI)*wheel_cpr*gear_ratio; // easier to make a variable.
   bool black = false; // toggle for black tile
+  bool blueSeen = false; // the colour sensor saw blue during this move
   bool climbtoggle = false; // toggle for climbing
   bool climbed = false; // if climbing occured.
   bool upwards = false; // up/ down for elevation
@@ -239,6 +240,7 @@ void fwd(double dist){ // in mm
     }
     // silver seen once the sensor is well into the next tile -> that tile is a checkpoint
     if(color == 3 && avgEncoder() >= pulses / 2.0) silverDuringMove = true;
+    if(color == 1) blueSeen = true;
     if(climbtoggle == false && myTime.getTime() > fwdTimeoutUs){
       fwdExit = "timeout";
       drivetrain.fullstop();
@@ -392,6 +394,9 @@ void fwd(double dist){ // in mm
   if(obstacleAhead && moveInterrupted == false){
     fwdShort = true;
     Serial.println("[FWD] obstacle, backing up to start tile");
+    // Over a blue tile already (the colour sensor is ahead of the centre, so maybe more than half the
+    // robot is on it): stand still 5 s before leaving it, or the referee calls lack of progress (RCJ 5.5.1).
+    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(5000); }
     backUpToStart();
   }
   else if(climbed == false && black == false && moveInterrupted == false && avgEncoder() < pulses / 2.0){

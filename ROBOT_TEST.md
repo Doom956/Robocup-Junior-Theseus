@@ -57,6 +57,11 @@ c. **Dead end behind an obstacle** (the only way out passes it). After the block
 d. **Full run with no obstacles.** Count `obstacle ahead during the move` and `obstacle ahead: blocking
    edge` in the log. It should be about zero. Frequent ones mean the 4 deg / 250 mm limits need changing.
 
+e. **Obstacle just past a blue tile's edge.** Blue tile ahead, obstacle touching a side wall in its
+   first half. If the robot stops for it during the move with its nose already on blue, expect
+   `[FWD] on blue: waiting 5 s first` before it backs up (otherwise the referee calls lack of progress
+   for leaving a blue tile early). Sim: +1.2 +-0.9 points on 600 comp fields.
+
 ## Already on main, worth a check: steering for the whole tile (`cc0fa71`)
 
 `fwd()` used to clip both sides to 150 PWM, so the gyro and side-wall correction did nothing until the
