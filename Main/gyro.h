@@ -13,8 +13,11 @@ class gyro{
     int headingToCardinal(double);
     void reset_accel_filter();
     double opposite_heading(double);
+    // Squared up against a wall: take the drift out of the heading (see gyro.cpp).
+    bool resyncToNearestCardinal(double maxCorrectionDeg);
     private:
       bool accelFilterInitialized = false;
+      double headingOffset = 0; // subtracted from the BNO055 heading; set by resyncToNearestCardinal()
       double accelFiltered = 0.0;
       double v;
       unsigned long lastTime;

@@ -38,9 +38,24 @@ double gyro::heading(){
   i2cMutex.lock();
   bno.getEvent(&event);
   i2cMutex.unlock();
-  float heading = (double)event.orientation.x;
-  
+  double heading = (double)event.orientation.x - headingOffset;
+  while(heading < 0) heading += 360.0;
+  while(heading >= 360.0) heading -= 360.0;
   return heading;
+}
+
+// Walls run along the tile grid, so a robot squared up against one faces exactly 0, 90, 180 or
+// 270 deg. Whatever the gyro reads beyond that is drift: shift the offset to remove it. Only
+// small corrections are taken (a bigger one means the squaring-up itself went wrong).
+bool gyro::resyncToNearestCardinal(double maxCorrectionDeg){
+  double h = heading();
+  double nearest = 90.0 * round(h / 90.0);
+  double err = h - nearest;
+  while(err > 180.0) err -= 360.0;
+  while(err < -180.0) err += 360.0;
+  if(fabs(err) > maxCorrectionDeg) return false;
+  headingOffset += err;
+  return true;
 }
 double gyro::pitch_heading(){
   sensors_event_t event;

@@ -326,6 +326,9 @@ void parallel(){
     int diff = a - b;
     if (abs(diff) <= PARALLEL_TOL_MM) {
       Serial.println("paralleled");
+      // Square to a wall (both sensors within 3 mm, 176 mm apart: within ~1 deg): the true heading
+      // is a compass direction, so take any gyro drift out here.
+      myGyro.resyncToNearestCardinal(10.0);
       break;
     }
     // break out after rotation.
