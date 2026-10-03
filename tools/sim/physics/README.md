@@ -185,6 +185,15 @@ From the parts in the BOM and the CAD (`V2.step`):
 
 `--set robotMassKg=1.0` and `=1.3` bracket it; weigh the robot to replace the estimate.
 
+### Bench mode on the real robot
+
+`Main/bench.cpp` measures most of the **assumed** values above on the robot itself: set `BENCH_MODE` to 1
+in `Main/main.cpp`, upload, and follow the Serial monitor (the pause switch starts each test). It prints
+the distance sensor readings in a closed tile against what the CAD says, the lowest PWM that turns and
+that drives the robot, degrees turned by `turnright(150)` in 1 s, encoder distance and heading change
+over a 2 s straight drive, and the gyro's drift standing still. Put the numbers into `--set` (or the
+defaults above) so the simulator matches the robot. `BENCH_MODE 0` (the default) leaves the firmware as it is.
+
 `--selftest` runs these experiments on the simulated robot (sensor readings centred in a tile, speed
 and turn rate at several PWM values, the lowest PWM that moves or turns it, colour values). Run the
 same ones on the real robot and change the defaults until they match.
