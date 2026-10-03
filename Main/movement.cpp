@@ -329,7 +329,12 @@ void fwd(double dist){ // in mm
       Serial.println(adjustment, 1);
     }
     if(Scale*120 < 25) break;
-    drivetrain.drive(constrain(Scale*(120-adjustment),20,150),constrain(Scale*(120-adjustment),20,150),constrain(Scale*(120+adjustment),20,150),constrain(Scale*(120+adjustment),20,150));
+    // Steering: left = base - adjustment, right = base + adjustment. Scale starts around 5, so the old
+    // constrain(Scale*(120 -+ adjustment), 20, 150) gave 150 on both sides and no steering at all until
+    // the last ~60 mm of the tile. Lower the base instead, so the whole correction always fits under 150.
+    double base = min(Scale * 120, 150 - fabs(adjustment));
+    double driveL = constrain(base - adjustment, 20, 150), driveR = constrain(base + adjustment, 20, 150);
+    drivetrain.drive(driveL, driveL, driveR, driveR);
     //drivetrain.drive(150+adjustment,(150+adjustment)*1.25,(150-adjustment)*1.25,150+adjustment);
   }
   // Didn't get halfway (front blocked, stall, timeout): the robot is still in the

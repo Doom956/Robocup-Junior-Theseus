@@ -542,8 +542,10 @@ bool sideCentringError(double &e){
   // before the next wall) while the other still sees the wall. Read as one wall, that looks like
   // the robot turned 30-60 deg toward it and the follower steers hard enough to lose the heading.
   // The two sensors of a side are 176 mm apart, so a real wall reads more than SIDE_WALL_MAX_DIFF_MM
-  // differently only when the robot is already turned ~19 deg; then that side isn't a usable reference.
-  const int SIDE_WALL_MAX_DIFF_MM = 60;
+  // differently only when the robot is already turned ~10 deg; then that side isn't a usable reference.
+  // (Was 60 mm, ~19 deg. Now that fwd() steers for the whole tile, the 17-30 mm a wall end adds in the
+  // simulator steered the robot into weaving: 600 comp fields, -8.1 +-4.6 points without this change.)
+  const int SIDE_WALL_MAX_DIFF_MM = 30;
   bool right = isSideWall(rf) && isSideWall(rb) && abs(rf - rb) <= SIDE_WALL_MAX_DIFF_MM;
   bool left  = isSideWall(lf) && isSideWall(lb) && abs(lf - lb) <= SIDE_WALL_MAX_DIFF_MM;
   if(right && left){
