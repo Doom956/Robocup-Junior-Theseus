@@ -10,6 +10,7 @@
 - Results on 200 comp fields: original 57.4 -> main 110.7 -> relocalize 114.5.
 - On main: left-wall sign fix, avoidance recursion guard, map-edge guards, black check in avoidance, turn stops at target, re-read walls on the way home, retry when the map looks finished early, two-wall centring, restart revives a stopped robot, centreAlong (stop at tile centre), 100 ms sensor timeout, wall-end check (+19.6), gyro re-sync on walls, ramp wall-centring.
 - Tested and held (no clear gain): stall check, finishing moves at minimum power, centring after turns, longer centring range, turn power boost, TURN_MIN_PWM 45, 49/59 mm one-wall gap, move/avoidance progress checks.
+- Gyro: the BNO055's real heading drift isn't measured yet (sim assumes 0.5 deg/min); main re-syncs the heading on walls, so drift matters little.
 
 ## 2. Rules
 - Navigation only; don't touch victim detection or dispensing.
