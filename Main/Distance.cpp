@@ -50,6 +50,10 @@ void init_dist() {
     else{
       Serial.println("Sensor "+String(i)+" is able to initialize");
     }
+    // Without a timeout the Pololu library waits forever for a reading, so one sensor that stops
+    // answering (loose cable, I2C glitch) freezes the whole robot. With it, a read gives up after
+    // 100 ms and returns 65535, which measure() treats as "no reading". (A reading normally takes 33 ms.)
+    sensors[i].setTimeout(100);
     sensors[i].startContinuous(); // start continuous ranging.
   }
     
@@ -168,7 +172,7 @@ int measure(int sensor){
   int value = sensors[sensorIdx].readRangeContinuousMillimeters();
   i2cMutex.unlock();
 
-  if(value == -1 || value == 8191) return -1;          // keep the no-reading sentinel
+  if(value == -1 || value == 8191 || value == 65535) return -1; // no reading (65535 = timed out)
   int corrected = value - SENSOR_OFFSET_MM[sensor];     // apply per-sensor calibration
   return (corrected < 0) ? 0 : corrected;               // clamp: negative distance is nonsense
 }
@@ -193,7 +197,7 @@ int calibrateSensor(int sensor, int trueDistanceMm){
     myMux.setPort(port);
     int value = sensors[sensorIdx].readRangeContinuousMillimeters();
     i2cMutex.unlock();
-    if(value != -1 && value != 8191){
+    if(value != -1 && value != 8191 && value != 65535){
       sum += value;
       valid++;
     }
