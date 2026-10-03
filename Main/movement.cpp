@@ -272,7 +272,12 @@ void fwd(double dist){ // in mm
         if(yaw>180) yaw = yaw-360;
         if(yaw<-180) yaw+= 360;
     
-        double adjustment = climbPID.getPID(yaw);
+        // Steer between the ramp's side walls when both are in view (as on flat ground; walls are
+        // vertical, so tilting along the slope doesn't change the side readings). Holding the gyro
+        // heading alone let an off-centre start scrape a side wall all the way up: the wheels slip,
+        // the encoders over-count and the ramp comes out a tile or two too long.
+        double sideErr;
+        double adjustment = sideCentringError(sideErr) ? center_PID.getPID(sideErr) : climbPID.getPID(yaw);
         
         Serial.println("climbing");
         //Serial.println(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch));
