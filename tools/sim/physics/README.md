@@ -130,7 +130,7 @@ Not simulated yet: stairs, bridges (tiles over tiles), the dangerous zone (red t
 being pushed, floor height steps between tiles (up to 3 mm), victims and the cameras (victim code never
 fires), battery sag during a run (a 2200 mAh pack uses only about 6% in 8 minutes).
 
-To check whether a code change helps, compare the two versions on the same fields: `python tools/sim/physics/ab.py main WORK` (the last commit on main against your working copy of `Main/`; any two branches or commits work too, `--types comp,flat`, `--runs`). It prints the score change with a 95% interval; only an interval entirely above zero is a clear improvement.
+To check whether a code change helps, compare the two versions on the same fields: `python tools/sim/physics/ab.py main WORK` (the last commit on main against your working copy of `Main/`; any two branches or commits work too, `--types comp,flat`, `--runs`). It prints the score change, and the change in time spent lost and in runs that get back home, each with a 95% interval; only an interval entirely above zero (below zero for time lost) is a clear improvement. Use 600 comp fields (`--runs 600`) for a final decision: comp scores vary too much for 200 to show a gain of about 4 points.
 
 `--set oracleTile=1` is for analysis only, not something the real robot can do: each time the code starts reading a tile, its map position is set to the tile the robot is really on. Comparing a batch with and without it shows how many points getting lost costs. `--set oracleCentre=1` (also analysis only) puts the robot itself in the middle of its tile at the same moments; `=2` only along the way it faces, `=3` only sideways. These showed that stopping in the middle of the tile was the biggest thing to fix (it led to `centreAlong()`).
 

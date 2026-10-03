@@ -13,10 +13,15 @@
 - Gyro: the BNO055's real heading drift isn't measured yet (sim assumes 0.5 deg/min); main re-syncs the heading on walls, so drift matters little.
 
 ## 2. Rules
+- Start every session with git pull.
 - Navigation only; don't touch victim detection or dispensing.
 - No guessing in the sim: values from CAD, datasheets, the 2026 rules or my bench measurements; mark anything else as assumed.
 - Before changing firmware: diagnose with traces (run_physics.py --trace), try it on a temporary copy, A/B on 200 comp fields with ab.py, check pio run.
 - Push to main only if it clearly helps (interval above zero, or a definite logic/geometry bug). Otherwise keep it on a branch or uncommitted and tell me.
+- Final keep/hold decisions: A/B on 600 comp fields (200 can't show a +4 gain). Report the 95% intervals for score, time lost and back home (no victims in the sim, so staying on track and getting home matter more in a real run than the score shows).
+- Label every change: LOGIC BUG (wrong on any robot regardless of physics) -> main only if the 600-field A/B shows no harm (score interval not below zero) and pio run builds. PHYSICS-DEPENDENT (depends on how real the sim's motors, grip, turning, gyro or sensors are: gains, power boosts, avoidance strategy) -> never main; branch robot-test (from main) with ROBOT_TEST.md listing each change and a short real-robot test (what to run, what to watch in the Serial log).
+- Strategy changes (e.g. treating an obstacle like a wall) need my yes after I've seen the 600-field numbers, before they go anywhere.
+- The goal is the real robot; the sim is a tool and isn't perfect. Avoid real-life regressions: don't fully trust sim results unless they are conclusive or don't depend only on assumed values.
 - Keep ROBOT_WIDTH_MM as is (80 mm one-wall gap beat 49/59 mm).
 - Never add, pull from or push to my teammate's repo (Chrisyyyys/Robocup-Junoir-Theseus). My repo stays private.
 - Answer simply and directly.

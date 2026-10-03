@@ -7,3 +7,4 @@ tools/sim/sim.exe
 tools/sim/physics/physics.exe
 tools/sim/physics/replays/
 tools/sim/physics/build/
+.claude/

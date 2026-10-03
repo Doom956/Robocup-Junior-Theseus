@@ -6,8 +6,9 @@
   python tools/sim/physics/ab.py main WORK --set gyroDriftSigmaDegPerMin=2
 
 Both versions run on the same seeds (same fields, same noise), so the difference per field is
-the code's doing. The +- is a 95% interval on the mean difference: a change is only clearly
-better when the whole interval is above zero. Judge changes on `comp` (competition-size) fields.
+the code's doing. The +- is a 95% interval on the mean difference (score, and percentage points of
+time lost and of runs back home): a change is only clearly better when the whole interval is on the
+good side of zero. Judge changes on `comp` (competition-size) fields, 600 of them for a final decision.
 """
 import argparse, concurrent.futures, io, os, subprocess, sys, tarfile, tempfile
 
@@ -39,6 +40,22 @@ def ci(xs):
     return m, 1.96 * (sum((x - m) ** 2 for x in xs) / (n - 1)) ** .5 / n ** .5
 
 
+def summary(X, Y):
+    """One line: A -> B on the same fields, with the paired change and its 95% interval for the score,
+    the time spent lost and getting back home (the sim has no victims, so the last two matter more
+    in a real run than the score shows)."""
+    mean = lambda xs: sum(xs) / len(xs)
+    pair = lambda key: ci([float(y.get(key, 0)) - float(x.get(key, 0)) for x, y in zip(X, Y)])
+    (ms, hs), (ml, hl), (mh, hh) = pair("score"), pair("lost_fraction"), pair("home")
+    restarts = lambda R: mean([r.get("lops", 0) for r in R])
+    return (f"score {mean([x.get('score', 0) for x in X]):6.1f} -> {mean([y.get('score', 0) for y in Y]):6.1f}  ({ms:+.1f} +-{hs:.1f})"
+            f"  time lost {mean([x.get('lost_fraction', 0) for x in X]):4.0%} -> {mean([y.get('lost_fraction', 0) for y in Y]):4.0%}  ({100 * ml:+.0f} +-{100 * hl:.0f} pts)"
+            f"  home {mean([x.get('home', False) for x in X]):4.0%} -> {mean([y.get('home', False) for y in Y]):4.0%}  ({100 * mh:+.0f} +-{100 * hh:.0f} pts)"
+            f"  explored {mean([x.get('coverage', 0) for x in X]):4.0%} -> {mean([y.get('coverage', 0) for y in Y]):4.0%}"
+            f"  restarts/run {restarts(X):.2f} -> {restarts(Y):.2f}"
+            f"  crashed {sum(1 for r in Y if 'score' not in r)}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("a"); ap.add_argument("b")
@@ -57,14 +74,7 @@ def main():
     for sc in types + (["ALL"] if len(types) > 1 else []):
         keys = [(t, s) for t in (types if sc == "ALL" else [sc]) for s in range(1, args.runs + 1)]
         X = [res[(args.a,) + k] for k in keys]; Y = [res[(args.b,) + k] for k in keys]
-        m, h = ci([y.get("score", 0) - x.get("score", 0) for x, y in zip(X, Y)])
-        restarts = lambda R: mean([r.get("lops", 0) for r in R])
-        print(f"  {sc:8s} score {mean([x.get('score', 0) for x in X]):6.1f} -> {mean([y.get('score', 0) for y in Y]):6.1f}  ({m:+.1f} +-{h:.1f})"
-              f"  explored {mean([x.get('coverage', 0) for x in X]):4.0%} -> {mean([y.get('coverage', 0) for y in Y]):4.0%}"
-              f"  time lost {mean([x.get('lost_fraction', 0) for x in X]):4.0%} -> {mean([y.get('lost_fraction', 0) for y in Y]):4.0%}"
-              f"  home {mean([x.get('home', False) for x in X]):4.0%} -> {mean([y.get('home', False) for y in Y]):4.0%}"
-              f"  restarts/run {restarts(X):.2f} -> {restarts(Y):.2f}"
-              f"  crashed {sum(1 for r in Y if 'score' not in r)}")
+        print(f"  {sc:8s} " + summary(X, Y))
     for e in exes.values():
         os.remove(e)
 
