@@ -179,6 +179,7 @@ pre.err { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--fon
         <option value="big">big</option>
         <option value="ramp">ramp</option>
         <option value="bigramp">bigramp</option>
+        <option value="comp">comp</option>
       </select>
       <label class="lbl" for="robot">Robot</label>
       <select id="robot">
@@ -261,7 +262,7 @@ const css = name => getComputedStyle(document.documentElement).getPropertyValue(
 const STATES = ["SENSE_TILE", "CENTERING", "UPDATE_MAP", "PLAN_NEXT", "VICTIM_DETECT", "EXECUTE_MOVE",
   "BOTCHED_TURN_RECOVERY", "BOTCHED_FWD_RECOVERY", "BACKPEDAL", "PAUSE", "RETURN"];
 const DX = [0, 1, 0, -1], DY = [1, 0, -1, 0], DIRS = "NESW";
-const TYPES = ["flat", "loops", "big", "ramp", "bigramp"];
+const TYPES = ["flat", "loops", "big", "ramp", "bigramp", "comp"];
 const FT = { FLOOR: 0, BLACK: 1, BLUE: 2, SILVER: 3, RAMP: 4, SOLID: 5 };
 const TOF_NAMES = ["front-right", "right-front", "right-back", "back", "left-back", "left-front", "front-left"];
 const fmt = ms => { const s = Math.max(0, ms) / 1000, m = Math.floor(s / 60); return `${m}:${String(Math.floor(s - m * 60)).padStart(2, "0")}`; };

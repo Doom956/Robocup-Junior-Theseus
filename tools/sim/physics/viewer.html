@@ -423,7 +423,7 @@ function load(text) {
   R = rec; T = 0; playing = false; mapFloor = null; fieldLayerKey = "";
   showEmpty(false);
   const h = R.header, F = h.field;
-  const kind = { flat: "small field, no loops", loops: "field with loops", big: "big field", ramp: "two levels joined by a ramp", bigramp: "big field with two ramps" }[h.scenario] || h.scenario;
+  const kind = { flat: "small field, no loops", loops: "field with loops", big: "big field", ramp: "two levels joined by a ramp", bigramp: "big field with two ramps", comp: "competition-size field (48 tiles, two levels)" }[h.scenario] || h.scenario;
   $("subtitle").textContent = [`${h.scenario} (${kind})`, `seed ${h.seed}`, `${F.W} × ${F.H} tiles`, F.rampLen ? `ramp ${F.rampDeg.toFixed(0)}°` : null,
     h.ideal ? "ideal robot" : "realistic robot", h.sets && h.sets.trim() ? h.sets.trim() : null].filter(Boolean).join(" · ");
   buildBars();

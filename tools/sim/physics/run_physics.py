@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 EXE = os.path.join(HERE, "physics.exe" if os.name == "nt" else "physics")
 GEOMETRY = os.path.normpath(os.path.join(HERE, "..", "cad", "robot_geometry.json"))
-SCENARIOS = ["flat", "loops", "big", "ramp", "bigramp"]
+SCENARIOS = ["flat", "loops", "big", "ramp", "bigramp", "comp"]
 
 
 def firmware_copy(defines, patches=()):

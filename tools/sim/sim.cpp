@@ -134,6 +134,9 @@ static const Scenario SCENARIOS[] = {
   {"big",     12, 16, 12, 16, 20, 5, 3, 3, 0},
   {"ramp",    4, 7,   4, 8,   20, 5, 3, 3, 1},
   {"bigramp", 7, 8,   10, 14, 20, 5, 3, 4, 2},
+  // like the RoboCup 2025 international fields (rescue.rcj.cloud): about 48 tiles on two levels joined
+  // by a ramp, 6x8 to 7x10 overall, 2-4 checkpoints, 0-3 black and 2-4 blue tiles
+  {"comp",    4, 5,   5, 6,   20, 4, 6, 6, 1},
 };
 
 static World generate(const Scenario &sc, std::mt19937 &rng) {
@@ -582,7 +585,7 @@ int main(int argc, char **argv) {
     else if (a == "--random") randomStart = true;
     else if (a == "--show") show = true;
     else if (a == "--verbose") serialEcho = true;
-    else { std::printf("usage: sim [--robot perfect|realistic|harsh] [--runs N] [--scenario flat|loops|big|ramp|bigramp|all] [--random | --start S] [--seed S] [--show] [--verbose]\n"); return 2; }
+    else { std::printf("usage: sim [--robot perfect|realistic|harsh] [--runs N] [--scenario flat|loops|big|ramp|bigramp|comp|all] [--random | --start S] [--seed S] [--show] [--verbose]\n"); return 2; }
   }
   bool found = false;
   for (const Realism &p : REALISM) if (robot == p.name) { prof = p; found = true; }

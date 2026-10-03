@@ -981,7 +981,7 @@ int main(int argc, char **argv) {
       std::printf("}\n");
       return 0;
     }
-    else { std::printf("usage: physics --scenario flat|loops|big|ramp|bigramp --seed S [--ideal] [--set name=value]... [--verbose] [--trace FILE] [--geometry robot_geometry.json]\n"); return 2; }
+    else { std::printf("usage: physics --scenario flat|loops|big|ramp|bigramp|comp --seed S [--ideal] [--set name=value]... [--verbose] [--trace FILE] [--geometry robot_geometry.json]\n"); return 2; }
   }
   if (geomPath.empty()) {
     std::string exe = argv[0];
@@ -990,6 +990,7 @@ int main(int argc, char **argv) {
   }
   if (!loadGeometry(geomPath)) { std::printf("{\"error\":\"could not read 7 sensors from %s\"}\n", geomPath.c_str()); return 2; }
   if (ideal) makeIdeal();
+  if (scenario == "comp") P.bumpRate = 0.12; // the 2025 international fields had 2-13 speed-bump tiles (about 6 in 48)
   for (const std::string &s : sets)
     if (!setParam(s)) { std::printf("{\"error\":\"unknown --set %s\"}\n", s.c_str()); return 2; }
   if (selftest) {
