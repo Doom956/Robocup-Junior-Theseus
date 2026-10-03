@@ -98,6 +98,29 @@ b. **It doesn't move a right position.** A normal run with no interference: coun
    what you saw). A correction with the robot where the code thought means a wall was misread there:
    note the four `reading walls` values and the distance readings.
 
+## 2b. Steering from a wall one tile away (open areas)
+
+**What changed** (`Main/Distance.cpp`, `sideCentringError()`): the steering only used side walls closer
+than 200 mm, so in open areas the robot drifted 100-150 mm off-centre (then false obstacle alarms and
+scraped corners). A side reading of 260-440 mm is the wall one tile further out (a centred robot reads
+49 mm to its own tile's wall, 349 mm to the next; tiles are 300 mm), so it now counts as that reading
+less 300. 200-260 mm stays unused (can't tell which wall). The 30 mm front/back check still applies.
+
+**Simulator** (robot-test before it, same seeds): nominal 600 comp fields +8.9 +-4.1 points, time lost
+-3 +-3 pts, back home +5 +-4 pts. With the assumed values varied (200 fields each): sensor offsets x2
++18.4 +-7.8, x0.4 -3.3 +-5.8, low grip -2.0 +-6.9, high grip +7.5 +-7.4, motor spread +9.8 +-8.1, gyro
+drift x4 +3.4 +-7.5, slow robot +4.1 +-6.5: no clear harm in any.
+
+**Depends on:** how well the VL53L0X reads a wall 25-45 cm away to the side (datasheet range 120 cm).
+
+**Tests on the real robot:**
+
+a. **Open area, wall one tile away.** A 2-tile-wide open area with a wall along one side only. Start
+   the robot in the tile away from the wall, 5-6 cm off-centre, and let it drive 3 tiles along. It
+   should end closer to the tile centre than it started; the `[CENTER]` lines show err moving to 0.
+b. **Sensor readings at that range.** In bench mode test 1 (or with `measure(2/3/5/6)` printed), put a
+   wall 35 cm from a side sensor: readings should be steady within about 1 cm.
+
 ## 3. From overnight-fixes (logic fixes; branch overnight-fixes, one commit each)
 
 - **Ramp up or down from one pitch reading.** The up/down decision read the gyro a second time; with the

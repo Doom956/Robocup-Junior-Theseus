@@ -535,9 +535,15 @@ static bool isSideWall(int v){ return v != -1 && v != 8191 && v <= SIDE_WALL_MAX
 // Walls on both sides: balance the two gaps. That centres the robot whatever ROBOT_WIDTH_MM
 // says (a wrong width only moves the one-wall target below). One wall: same as center() /
 // centerLeft(). Returns false when neither side has a wall on both of its sensors.
+// A side reading of 260-440 mm is the wall one tile further out (a centred robot reads 49 mm to the wall
+// of its own tile, 349 mm to the next one; tiles are 300 mm): as a reference for the sideways position
+// it counts as that reading less 300. 200-260 is left out: near wall or far wall, can't tell.
+static int oneTileNearer(int v){ return (v >= 260 && v <= 440) ? v - TILE_MM : v; }
+
 bool sideCentringError(double &e){
-  int rf = measure(2), rb = measure(3);   // right front / back gaps (mm)
-  int lf = measure(6), lb = measure(5);   // left front / back gaps (mm)
+  // open areas: no wall within 200 mm, but often one a tile further, which still gives the position
+  int rf = oneTileNearer(measure(2)), rb = oneTileNearer(measure(3));   // right front / back gaps (mm)
+  int lf = oneTileNearer(measure(6)), lb = oneTileNearer(measure(5));   // left front / back gaps (mm)
   // A wall that ends beside the robot: one sensor already sees past its end (or into the gap
   // before the next wall) while the other still sees the wall. Read as one wall, that looks like
   // the robot turned 30-60 deg toward it and the follower steers hard enough to lose the heading.
