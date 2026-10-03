@@ -40,6 +40,10 @@ bool planExploreDir(Direction &outDir);
 void syncActiveFloor();
 Grid& floorGrid(int floor);
 void lcdPrint(const char* msg);
+void runBench(); // bench.cpp
+
+// 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 0 for competition.
+#define BENCH_MODE 0
 
 // movement constants
 #define MIN_DIST 120         // mm (tune this)
@@ -468,6 +472,9 @@ void setup(){
   state = SENSE_TILE;
   // start lcd
   lcd.begin(16, 2);
+#if BENCH_MODE
+  runBench(); // never returns
+#endif
   // start RTOS threads: camera victim detection + pause-switch watcher.
   cameraThread.start(cameraTask);
   cameraThread.set_priority(osPriorityAboveNormal);
