@@ -347,6 +347,41 @@ void restoreBlockedEdges(){
   clearedEdgeCount = 0;
 }
 
+// The walls just read don't match what the map recorded for this (visited) tile, so the
+// position is probably off by one tile -- almost always a move the code counted but the robot
+// didn't finish (wheels slipping on a wall, obstacle avoidance ending short). If the tile behind
+// matches the reading on all four sides, or exactly one other neighbour does, and the map has
+// no wall between it and this tile, move the position there. Otherwise change nothing.
+Direction rotateDir(Direction base, int offset); // navigation.cpp
+bool relocateOnMismatch(bool wallF, bool wallR, bool wallB, bool wallL){
+  bool seen[4];
+  seen[currentDir] = wallF;
+  seen[rotateDir(currentDir, +1)] = wallR;
+  seen[rotateDir(currentDir, +2)] = wallB;
+  seen[rotateDir(currentDir, -1)] = wallL;
+  int cx[4], cy[4]; bool ok[4];
+  for(int d = 0; d < 4; d++){
+    cx[d] = x_pos; cy[d] = y_pos;
+    stepForward((Direction)d, cx[d], cy[d]);
+    ok[d] = inBounds(cx[d], cy[d]) && !mapGrid[x_pos][y_pos].getWall(d) && mapGrid[cx[d]][cy[d]].getVisited();
+    for(int w = 0; w < 4 && ok[d]; w++) if(mapGrid[cx[d]][cy[d]].getWall(w) != seen[w]) ok[d] = false;
+  }
+  int pick = -1;
+  int behind = rotateDir(currentDir, +2);
+  if(ok[behind]) pick = behind;
+  else {
+    int n = 0;
+    for(int d = 0; d < 4; d++) if(ok[d]){ n++; pick = d; }
+    if(n != 1) pick = -1;
+  }
+  if(pick < 0) return false;
+  Serial.print("walls don't match this tile but match the neighbour ");
+  Serial.print(pick);
+  Serial.println(": position corrected");
+  x_pos = cx[pick]; y_pos = cy[pick];
+  return true;
+}
+
 // Record an obstacle on the edge between (x,y) and its neighbour in direction d
 // (both sides), so the planners stop routing across it.
 void blockEdge(int x, int y, Direction d){
@@ -546,6 +581,7 @@ void loop(){
       readWallsRel(wallF, wallR, wallB, wallL);
       // re-sense: does this tile actually match what the map already recorded for it?
       tilecheck = checkTileMismatch(wallF, wallR, wallB, wallL);
+      if(tilecheck && relocateOnMismatch(wallF, wallR, wallB, wallL)) tilecheck = false;
 
       delay(200);
       state = UPDATE_MAP; // next state.

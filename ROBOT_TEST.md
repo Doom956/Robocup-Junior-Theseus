@@ -62,6 +62,28 @@ e. **Obstacle just past a blue tile's edge.** Blue tile ahead, obstacle touching
    `[FWD] on blue: waiting 5 s first` before it backs up (otherwise the referee calls lack of progress
    for leaving a blue tile early). Sim: +1.2 +-0.9 points on 600 comp fields.
 
+## 2. Relocalize: shift the position one tile when the walls don't match the map
+
+**What changed** (`Main/main.cpp`, `relocateOnMismatch()`, from the `relocalize` branch): when the walls
+read in SENSE_TILE disagree with what the map recorded for that (visited) tile, and the tile behind, or
+exactly one other neighbour, matches the reading on all four sides with no wall in between, the code
+moves its position there. Otherwise nothing changes.
+
+**Simulator, 600 comp fields vs robot-test without it:** score +3.5 +-1.5, time lost -4 +-1 pts,
+back home +2 +-2 pts, restarts 0.80 -> 0.64 per run. With noisier distance sensors (offsets x2, noise
+x2, 5 mm extra noise), more grip or 4x gyro drift (300 fields each): +2.1 to +4.0 points, time lost
+3-4 pts lower every time.
+
+**Tests on the real robot:**
+
+a. **It corrects a real mistake.** Let the robot explore 3-4 tiles, then pause, carry it back one tile
+   (same heading) and resume. On the next tile read expect `walls don't match this tile but match the
+   neighbour N: position corrected`, and the map position (LCD / Serial) is right again.
+b. **It doesn't move a right position.** A normal run with no interference: count `position corrected`
+   in the log. Each one should be at a place where the robot really was off by a tile (check against
+   what you saw). A correction with the robot where the code thought means a wall was misread there:
+   note the four `reading walls` values and the distance readings.
+
 ## Already on main, worth a check: steering for the whole tile (`cc0fa71`)
 
 `fwd()` used to clip both sides to 150 PWM, so the gyro and side-wall correction did nothing until the
