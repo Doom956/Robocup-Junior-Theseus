@@ -4,6 +4,20 @@ Changes on this branch depend on how real the simulator's motors, grip, turning,
 so they stay off `main` until they pass on the real robot. Each one has a short test below: what to
 set up, what to run, and what to watch for in the Serial monitor.
 
+This branch also has everything on `overnight-fixes` (logic fixes: ramp up/down, 5 s stop when backing
+into a blue tile, bench mode), so one session tests it all. Whole branch vs main in the simulator (600
+comp fields): score +13.9 +-4.6, time lost 44% -> 17%, back home 48% -> 74%.
+
+**Suggested order for a test session**
+
+1. **Bench mode first** (`BENCH_MODE 1` in `Main/main.cpp`, see `Main/bench.cpp`): ~10 minutes, gives the
+   sensor offsets, turning power and gyro drift. Copy the `[BENCH]` lines; they tell us how far the
+   simulator is from this robot. Set `BENCH_MODE` back to 0.
+2. **Steering** (last section): a few tiles along a corridor; no weaving.
+3. **Ramp up and down** (section 3): the floor change.
+4. **Obstacles** (section 1, tests a-e), then **relocalize** (section 2).
+5. A few full runs on a practice field with an obstacle or two; save the Serial logs.
+
 ## 1. Obstacle ahead: treat it like a wall first (strategy change)
 
 **What changed** (`Main/movement.cpp` `fwd()`, `Main/main.cpp` `handleShortMove()`):
@@ -83,6 +97,18 @@ b. **It doesn't move a right position.** A normal run with no interference: coun
    in the log. Each one should be at a place where the robot really was off by a tile (check against
    what you saw). A correction with the robot where the code thought means a wall was misread there:
    note the four `reading walls` values and the distance readings.
+
+## 3. From overnight-fixes (logic fixes; branch overnight-fixes, one commit each)
+
+- **Ramp up or down from one pitch reading.** The up/down decision read the gyro a second time; with the
+  pitch just past 12 deg that reading could miss, so an up-ramp was mapped as a down-ramp (wrong floor).
+  Test: drive up a ramp and down it again, 3 times each way. After each, the Serial log shows the tilt
+  value printed after `climbing` (positive going up), and `adding ramp to map`; the floor in the log /
+  LCD must change the right way (up = floor + 1).
+- **Backing into a blue tile: stop 5 s again.** Test: start a move from a blue tile toward something
+  that makes it back up (a box ahead, so it stops short). Expect `back on a blue tile: 5 s stop` when it
+  had got more than half way, and no lack of progress for leaving the blue tile early.
+- **Bench mode**: see above. With `BENCH_MODE 0` the firmware is unchanged.
 
 ## Already on main, worth a check: steering for the whole tile (`cc0fa71`)
 
