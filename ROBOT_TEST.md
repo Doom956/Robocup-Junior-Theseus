@@ -98,7 +98,7 @@ b. **It doesn't move a right position.** A normal run with no interference: coun
    what you saw). A correction with the robot where the code thought means a wall was misread there:
    note the four `reading walls` values and the distance readings.
 
-## 2b. Steering from a wall one tile away (open areas)
+## 2b. Steering from a wall one tile away (open areas) - now also on main
 
 **What changed** (`Main/Distance.cpp`, `sideCentringError()`): the steering only used side walls closer
 than 200 mm, so in open areas the robot drifted 100-150 mm off-centre (then false obstacle alarms and
