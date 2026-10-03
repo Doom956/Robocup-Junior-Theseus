@@ -535,8 +535,14 @@ static bool isSideWall(int v){ return v != -1 && v != 8191 && v <= SIDE_WALL_MAX
 bool sideCentringError(double &e){
   int rf = measure(2), rb = measure(3);   // right front / back gaps (mm)
   int lf = measure(6), lb = measure(5);   // left front / back gaps (mm)
-  bool right = isSideWall(rf) && isSideWall(rb);
-  bool left  = isSideWall(lf) && isSideWall(lb);
+  // A wall that ends beside the robot: one sensor already sees past its end (or into the gap
+  // before the next wall) while the other still sees the wall. Read as one wall, that looks like
+  // the robot turned 30-60 deg toward it and the follower steers hard enough to lose the heading.
+  // The two sensors of a side are 176 mm apart, so a real wall reads more than SIDE_WALL_MAX_DIFF_MM
+  // differently only when the robot is already turned ~19 deg; then that side isn't a usable reference.
+  const int SIDE_WALL_MAX_DIFF_MM = 60;
+  bool right = isSideWall(rf) && isSideWall(rb) && abs(rf - rb) <= SIDE_WALL_MAX_DIFF_MM;
+  bool left  = isSideWall(lf) && isSideWall(lb) && abs(lf - lb) <= SIDE_WALL_MAX_DIFF_MM;
   if(right && left){
     double offset = ((lf + lb) - (rf + rb)) / 4.0;   // + = right of centre -> turn left
     double angle  = ((rb - rf) + (lf - lb)) / 2.0;   // + = nose toward the right wall -> turn left
