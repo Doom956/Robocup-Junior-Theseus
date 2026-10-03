@@ -93,6 +93,7 @@ def analyse(path):
 
     out = {"seed": head["seed"], "score": result.get("score") if result else None, "end": result.get("end") if result else "crashed",
            "home": result.get("home") if result else False, "lost_fraction": result.get("lost_fraction") if result else None,
+           "time_s": result.get("time_s") if result else None,
            "restarts": [x.strip() for x in (result or {}).get("lop_reasons", "").split(";") if x.strip()]}
 
     # the way home: is the code's tile right at each stop between RETURN moves (the last frame of each
@@ -109,6 +110,10 @@ def analyse(path):
         else:
             k += 1
     out["return_stops"] = len(stops)
+    out["final_state"] = STATES[frames[-1]["s"]] if frames else "?"
+    out["home_from_s"] = next((f["t"] / 1000 for f in frames if f["s"] == RETURN), None)  # when it first set off for home
+    ret_frames = [f for f in frames if f["s"] == RETURN]
+    out["return_moves"] = sum(1 for a, b in zip(ret_frames, ret_frames[1:]) if (a["mx"], a["my"], a["f"]) != (b["mx"], b["my"], b["f"]))
     out["return"] = "no return" if not stops else "lost before" if stops[0] else "went wrong" if any(stops) else "right"
 
     # the position checks: last frame of every stretch of SENSE_TILE
@@ -182,7 +187,7 @@ def run_one(exe, scenario, seed, sets, keep):
                        capture_output=True, text=True, timeout=600)
         return analyse(trace)
     except Exception as e:  # a crashed or stuck run: count it, don't stop the batch
-        return {"seed": seed, "cause": f"simulator problem ({type(e).__name__})", "end": "crashed", "restarts": [], "return": "no return"}
+        return {"seed": seed, "cause": f"simulator problem ({type(e).__name__})", "end": "crashed", "restarts": [], "return": "no return", "home_from_s": None}
     finally:
         if not keep and os.path.exists(trace):
             os.remove(trace)
@@ -221,6 +226,15 @@ def main():
     print("how runs ended: " + ", ".join(f"{k} {v}" for k, v in collections.Counter(r["end"] for r in res).most_common()))
     restarts = collections.Counter(x for r in res for x in r["restarts"])
     print(f"restarts: {sum(restarts.values()) / n:.2f} per run" + ("  (" + ", ".join(f"{k} {v}" for k, v in restarts.most_common()) + ")" if restarts else ""))
+    late = [r for r in res if r["end"] == "time"]
+    if late:
+        homeward = [r for r in late if r.get("home_from_s") is not None]
+        print(f"8:00 ran out in {len(late)} runs: {len(late) - len(homeward)} never set off for home, {len(homeward)} were on the way"
+              + (f" (set off at {sum(r['home_from_s'] for r in homeward) / len(homeward):.0f} s on average)" if homeward else ""))
+    made_it = [r for r in res if r["end"] == "home" and r.get("home_from_s") is not None and r.get("return_moves") and not r["restarts"]]
+    if made_it:
+        print(f"runs that got home without a restart took {sum(r['time_s'] - r['home_from_s'] for r in made_it) / sum(r['return_moves'] for r in made_it):.1f} s "
+              f"per tile on the way (the code plans for RETURN_SEC_PER_TILE)")
     ret = collections.Counter(r["return"] for r in res)
     print(f"driving home (RETURN): {ret['right']} stayed right, {ret['went wrong']} went wrong on the way, "
           f"{ret['lost before']} were already lost when they set off, {ret['no return']} never started home")
