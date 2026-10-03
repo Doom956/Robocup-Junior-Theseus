@@ -251,16 +251,20 @@ void fwd(double dist){ // in mm
       break;
     }
     
-    // check pitch: if it is greater than 25, the robot is going up a slope, so the encoder is turned off.
-    if(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > RAMP_PITCH_DEG){
+    // check pitch: past RAMP_PITCH_DEG the robot is on a slope, so the encoder is turned off.
+    // One reading decides both "on a ramp" and "up or down": the up/down test used to read the gyro
+    // again, and with the pitch just past the threshold (noise, whole degrees) that second reading could
+    // miss it, so an up-ramp was taken as a down-ramp: descend() instead of elevation(), wrong floor.
+    int tilt = myGyro.modulus(myGyro.pitch_heading()) - init_pitch;
+    if(abs(tilt) > RAMP_PITCH_DEG){
       Serial.println("climbing");
       int _encoderCountA = drivetrain.encoderCountA; // save values before ramp
       int _encoderCountB = drivetrain.encoderCountB;
       int _encoderCountD = drivetrain.encoderCountD;
       climbtoggle = true; // prevent outer loop from exiting on encoder count
       climbed = true;
-      Serial.println(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch));
-      if(myGyro.modulus(myGyro.pitch_heading())-init_pitch>RAMP_PITCH_DEG) upwards = true; // distinguish between moving up and moving down.
+      Serial.println(tilt);
+      upwards = tilt > 0; // distinguish between moving up and moving down.
       double sectionPulses = pulses; // slope length of one tile at the current pitch
       timer climbTime;
       drivetrain.reset_encoderCount(true,true,true); // count ramp distance from the ramp start
