@@ -356,14 +356,46 @@ void blockEdge(int x, int y, Direction d){
   if(nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE) mapGrid[nx][ny].setObstacle(opposite(d), true);
 }
 
+// Edges where fwd() saw an obstacle ahead. Kept when clearBlockedEdges() forgets the blocks, so the
+// next attempt at one of them drives around the obstacle instead of stopping in front of it again.
+const int MAX_OBSTACLE_EDGES = 64;
+struct SeenEdge { int8_t f; uint8_t x, y, d; };
+SeenEdge obstacleEdges[MAX_OBSTACLE_EDGES];
+int obstacleEdgeCount = 0;
+bool obstacleSeenAhead(){
+  int nx = x_pos, ny = y_pos;
+  stepForward(currentDir, nx, ny);
+  for(int i = 0; i < obstacleEdgeCount; i++){
+    const SeenEdge &e = obstacleEdges[i];
+    if(e.f != currentFloor) continue;
+    if(e.x == x_pos && e.y == y_pos && e.d == currentDir) return true;
+    if(e.x == nx && e.y == ny && e.d == opposite(currentDir)) return true;
+  }
+  return false;
+}
+void rememberObstacleAhead(){
+  if(obstacleSeenAhead() || obstacleEdgeCount >= MAX_OBSTACLE_EDGES) return;
+  obstacleEdges[obstacleEdgeCount++] = {(int8_t)currentFloor, (uint8_t)x_pos, (uint8_t)y_pos, (uint8_t)currentDir};
+}
+
 // fwd() came back without reaching the next tile and reversed to this tile's centre.
-// First time: re-sense and re-plan (a missed front wall is picked up by SENSE_TILE).
+// It saw an obstacle ahead: block that edge now (treat it like a wall; see fwd()).
+// Otherwise, first time: re-sense and re-plan (a missed front wall is picked up by SENSE_TILE).
 // Second time from the same tile in the same direction: block that edge so the
 // robot routes around it instead of retrying forever.
+extern bool obstacleAhead; // movement.cpp
 int shortMoveCount = 0;
 int shortX = -1, shortY = -1, shortFloor = -1;
 Direction shortDir = NORTH;
 void handleShortMove(){
+  if(obstacleAhead){
+    Serial.println("obstacle ahead: blocking edge");
+    obstacleAhead = false;
+    rememberObstacleAhead();
+    blockEdge(x_pos, y_pos, currentDir);
+    shortMoveCount = 0;
+    return;
+  }
   if(x_pos == shortX && y_pos == shortY && currentFloor == shortFloor && currentDir == shortDir){
     shortMoveCount++;
   } else {

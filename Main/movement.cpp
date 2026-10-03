@@ -21,6 +21,9 @@
 
 // true while obstacleavoidance() runs (its closing fwd() must not start another avoidance)
 bool avoidingObstacle = false;
+// fwd() saw something on one side ahead (an obstacle, or a wall end) and didn't move
+bool obstacleAhead = false;
+bool obstacleSeenAhead(); // main.cpp: an obstacle was seen at this edge before
 
 static int avgEncoder(){
   return (drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3;
@@ -80,6 +83,7 @@ void fwd(double dist){ // in mm
   moveInterrupted = false; // becomes true only if a pause aborts this move
   blacktoggle = false;
   fwdShort = false;
+  obstacleAhead = false;
   silverDuringMove = false;
   const double fwdTimeoutUs = max(2000000.0, FWD_TIMEOUT_US_PER_TILE * dist / TILE_MM);
   int init_pitch = myGyro.modulus((int)myGyro.pitch_heading());
@@ -105,14 +109,38 @@ void fwd(double dist){ // in mm
   // fwd() that obstacleavoidance() itself runs at the end: that re-triggered avoidance again
   // and again (recursion with no limit), leaving the robot stuck until a lack-of-progress
   // restart, and could overflow the stack.
+  // The first time at an edge, fwd() doesn't drive around it: it stops (during the move: backs up to the
+  // start tile) and the edge is blocked like a wall. Most of these readings were the end of a wall seen at
+  // an angle or from off-centre, and driving around a real obstacle often ended in the wrong tile. If the
+  // planner comes back to the same edge (nothing else left, or the only way home), it is driven around
+  // with obstacleavoidance() as before.
   bool canCheckObstacle = !avoidingObstacle;
+  bool secondTry = obstacleSeenAhead();
+  // One front sensor sees something close and the other doesn't, but the robot isn't square to the tile
+  // (a turn can stop a few degrees short): turn square and look again, so a wall end seen at an angle
+  // isn't taken for an obstacle.
+  if(canCheckObstacle && ((front_left<=OBSTACLE_DIST&&front_left!=-1&&front_right>=MIN_DIST&&front_right!=-1) ||
+                          (front_right<=OBSTACLE_DIST&&front_right!=-1&&front_left>=MIN_DIST&&front_left!=-1))){
+    double off = myGyro.heading() - init_yaw;
+    if(off > 180) off -= 360;
+    if(off < -180) off += 360;
+    if(fabs(off) > 3.0){
+      Serial.println("one-sided reading while not square: squaring up and looking again");
+      absoluteturn(init_yaw);
+      fwdActive = true;
+      front_left = measure(7); front_right = measure(1);
+    }
+  }
   // outside loop
     if(canCheckObstacle&&front_left<=OBSTACLE_DIST&&front_left!=-1&&front_right>=MIN_DIST&&front_right!=-1){ // trigger obstacleavoidance
       Serial.println("obstacle left");
-      int prevdist = obstacleavoidance(1);
-      drivetrain.fullstop();
-      delay(50);
-      handleAvoidanceResult(prevdist);
+      if(secondTry){
+        int prevdist = obstacleavoidance(1);
+        drivetrain.fullstop();
+        delay(50);
+        handleAvoidanceResult(prevdist);
+      }
+      else{ drivetrain.fullstop(); fwdShort = true; obstacleAhead = true; }
       /*
       if(prevdist - (measure(1)+measure(7))/2 > TILE_MM){
         int pulses = pulsesForDistanceMm(prevdist - (measure(1)+measure(7))/2-TILE_MM); // don't "overmove"
@@ -134,9 +162,13 @@ void fwd(double dist){ // in mm
     }
     else if(canCheckObstacle&&front_right<=OBSTACLE_DIST&&front_right!=-1&&front_left>=MIN_DIST&&front_left!=-1){ // same rule as the left side (was >= OBSTACLE_DIST)
       Serial.println("obstacle right");
-      int prevdist = obstacleavoidance(0);
-      drivetrain.fullstop();
-      delay(50);
+      int prevdist = 0;
+      if(secondTry){
+        prevdist = obstacleavoidance(0);
+        drivetrain.fullstop();
+        delay(50);
+      }
+      else{ drivetrain.fullstop(); fwdShort = true; obstacleAhead = true; }
       /*
       if(prevdist - (measure(1)+measure(7))/2 > TILE_MM){
         int pulses = pulsesForDistanceMm(prevdist - (measure(1)+measure(7))/2-TILE_MM);
@@ -153,7 +185,7 @@ void fwd(double dist){ // in mm
       
       drivetrain.fullstop();
       */
-      handleAvoidanceResult(prevdist);
+      if(secondTry) handleAvoidanceResult(prevdist);
       Serial.println("[FWD] exit=obstacle-right");
       fwdActive = false;
       return;
@@ -238,6 +270,23 @@ void fwd(double dist){ // in mm
     front_left_current = measure(7);
     front_right_current = measure(1);
     
+    // Something on one side ahead, before the far end of the next tile is in reach (its wall posts can't
+    // come within OBSTACLE_DIST of a front sensor before ~252 mm): an obstacle the check at the start
+    // didn't see yet. Stop, go back to the start tile and treat the edge like a wall. Only while pointing
+    // along the tile: angled by the steering, a front sensor looks across the next tile at its wall ends.
+    // Not on a second try at this edge (drive on, as before).
+    double yawNow = myGyro.heading() - init_yaw;
+    if(yawNow > 180) yawNow -= 360;
+    if(yawNow < -180) yawNow += 360;
+    if(canCheckObstacle && !secondTry && fabs(yawNow) <= 4.0 && avgEncoder() < pulsesForDistanceMm(250) &&
+       ((front_left_current<=OBSTACLE_DIST&&front_left_current!=-1&&front_right_current>=MIN_DIST&&front_right_current!=-1) ||
+        (front_right_current<=OBSTACLE_DIST&&front_right_current!=-1&&front_left_current>=MIN_DIST&&front_left_current!=-1))){
+      Serial.println("obstacle ahead during the move");
+      drivetrain.fullstop();
+      fwdExit = "obstacle-mid";
+      obstacleAhead = true;
+      break;
+    }
     if((front_left_current<=50&&front_left_current!=-1)&&(front_right_current<=50&&front_right_current!=-1)){
       Serial.println("stopping");
       // if the robot doesn't make it halfway across the tile, fwd failed.
@@ -340,7 +389,12 @@ void fwd(double dist){ // in mm
   // Didn't get halfway (front blocked, stall, timeout): the robot is still in the
   // tile it started from. Back up to its centre and report it so the caller
   // doesn't advance the map position.
-  if(climbed == false && black == false && moveInterrupted == false && avgEncoder() < pulses / 2.0){
+  if(obstacleAhead && moveInterrupted == false){
+    fwdShort = true;
+    Serial.println("[FWD] obstacle, backing up to start tile");
+    backUpToStart();
+  }
+  else if(climbed == false && black == false && moveInterrupted == false && avgEncoder() < pulses / 2.0){
     fwdShort = true;
     Serial.println("[FWD] short move, backing up to start tile");
     backUpToStart();
