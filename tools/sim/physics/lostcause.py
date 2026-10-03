@@ -96,25 +96,24 @@ def analyse(path):
            "time_s": result.get("time_s") if result else None,
            "restarts": [x.strip() for x in (result or {}).get("lop_reasons", "").split(";") if x.strip()]}
 
-    # the way home: is the code's tile right at each stop between RETURN moves (the last frame of each
-    # stretch of standing still)? Already wrong at the first stop = lost before it set off for home.
+    # the way home: is the code's tile right at the start of each RETURN move (when turnToDirection()
+    # prints "turn target=", after the last move has been added to the position)? Standing still inside
+    # a move doesn't count: on a ramp the position lags one tile until the move ends. Already wrong at
+    # the first one = lost before it set off for home.
     stops, k = [], 0
-    while k < len(frames):
-        if frames[k]["s"] == RETURN and not any(frames[k]["pw"]):
-            j = k
-            while j + 1 < len(frames) and frames[j + 1]["s"] == RETURN and not any(frames[j + 1]["pw"]):
-                j += 1
-            if truth(frames[j]) is not None:
-                stops.append(wrong(frames[j]))
-            k = j + 1
-        else:
+    for t, text in logs:
+        if not text.startswith("turn target="):
+            continue
+        while k + 1 < len(frames) and frames[k + 1]["t"] <= t:
             k += 1
+        if frames[k]["s"] == RETURN and truth(frames[k]) is not None:
+            stops.append((k, wrong(frames[k])))
     out["return_stops"] = len(stops)
     out["final_state"] = STATES[frames[-1]["s"]] if frames else "?"
     out["home_from_s"] = next((f["t"] / 1000 for f in frames if f["s"] == RETURN), None)  # when it first set off for home
     ret_frames = [f for f in frames if f["s"] == RETURN]
     out["return_moves"] = sum(1 for a, b in zip(ret_frames, ret_frames[1:]) if (a["mx"], a["my"], a["f"]) != (b["mx"], b["my"], b["f"]))
-    out["return"] = "no return" if not stops else "lost before" if stops[0] else "went wrong" if any(stops) else "right"
+    out["return"] = "no return" if not stops else "lost before" if stops[0][1] else "went wrong" if any(w for _, w in stops) else "right"
 
     # the position checks: last frame of every stretch of SENSE_TILE
     checks = [k for k, f in enumerate(frames) if f["s"] == SENSE and (k + 1 == len(frames) or frames[k + 1]["s"] != SENSE)]
@@ -126,55 +125,64 @@ def analyse(path):
             first_bad = k
             break
         prev_ok = k
+    def classify(t0, k_bad):
+        """What happened between time t0 (position right) and frame k_bad (first wrong)."""
+        c = {}
+        fr = frames[k_bad]
+        t1 = fr["t"]
+        ep_logs = [l for l in logs if t0 < l[0] <= t1]
+        ep_frames = [f for f in frames if t0 <= f["t"] <= t1]
+        texts = [l[1] for l in ep_logs]
+        tr = truth(fr)
+        d = fr["d"]
+        dx, dy = fr["mx"] - tr[0], fr["my"] - tr[1]
+        c.update(t_s=t1 / 1000, tiles_ahead=dx * DIRS[d][0] + dy * DIRS[d][1], tiles_right=dx * DIRS[(d + 1) % 4][0] + dy * DIRS[(d + 1) % 4][1],
+                 floor_off=fr["f"] - tr[2], log=texts[-15:])
+
+        def at(t):
+            return min(ep_frames or frames, key=lambda f: abs(f["t"] - t))
+
+        move_start = next((l[0] for l in ep_logs if l[1] == "forwarding"), None)
+        if move_start is not None:
+            c["start"] = pose(at(move_start))
+        if any(e for e in events if t0 < e[0] <= t1):
+            c["cause"] = "restart (" + next(e[1] for e in events if t0 < e[0] <= t1) + ")"
+        elif any("1 section of the ramp climbed" in s or "adding ramp to map" in s or s == "short tilt, not a ramp (bump/debris)" for s in texts):
+            c["cause"] = "ramp"
+        elif any(s == "obstacle avoidance" for s in texts):
+            t = next(l[0] for l in ep_logs if l[1] == "obstacle avoidance")
+            c["cause"] = ("real obstacle" if obstacle_ahead(at(t)) else "false obstacle alarm") +                          (" (avoidance gave up)" if any("avoidance timeout" in s for s in texts) else "")
+        elif any(s == "black" or s.startswith("black during") for s in texts):
+            c["cause"] = "black tile"
+        elif any("short move" in s for s in texts):
+            c["cause"] = "short move"
+        elif any("obstacle ahead during the move" in s for s in texts):
+            c["cause"] = "stopped for an obstacle during the move"
+        elif move_start is None:
+            c["cause"] = "no forward move"
+        else:
+            moving = [f for f in ep_frames if f["t"] >= move_start]
+            exits = [s[len("[FWD] exit="):] for s in texts if s.startswith("[FWD] exit=")]
+            how = {"emergency-front": "emergency stop", "timeout": "timed out"}.get(exits[-1] if exits else "", "")
+            if any(f["c"] and near_obstacle(f) for f in moving):
+                c["cause"] = "move: pushed obstacle"
+            elif any(f["c"] for f in moving):
+                c["cause"] = "move: scraped wall"
+            else:
+                c["cause"] = "move"
+            if how:
+                c["cause"] += " (" + how + ")"
+        return c
+
+    if out["return"] == "went wrong":  # what went wrong on the way home
+        k_bad = next(j for j, w in stops if w)
+        k_ok = max(j for j, w in stops if not w and j < k_bad)
+        out["return_cause"] = classify(frames[k_ok]["t"], k_bad)["cause"]
+
     if first_bad is None:
         out["cause"] = "never lost"
         return out
-    t0 = frames[prev_ok]["t"] if prev_ok is not None else 0
-    fr = frames[first_bad]
-    t1 = fr["t"]
-    ep_logs = [l for l in logs if t0 < l[0] <= t1]
-    ep_frames = [f for f in frames if t0 <= f["t"] <= t1]
-    texts = [l[1] for l in ep_logs]
-    tr = truth(fr)
-    d = fr["d"]
-    dx, dy = fr["mx"] - tr[0], fr["my"] - tr[1]
-    out.update(t_s=t1 / 1000, tiles_ahead=dx * DIRS[d][0] + dy * DIRS[d][1], tiles_right=dx * DIRS[(d + 1) % 4][0] + dy * DIRS[(d + 1) % 4][1],
-               floor_off=fr["f"] - tr[2], log=texts[-15:])
-
-    def at(t):
-        return min(ep_frames or frames, key=lambda f: abs(f["t"] - t))
-
-    move_start = next((l[0] for l in ep_logs if l[1] == "forwarding"), None)
-    if move_start is not None:
-        out["start"] = pose(at(move_start))
-    if any(e for e in events if t0 < e[0] <= t1):
-        out["cause"] = "restart (" + next(e[1] for e in events if t0 < e[0] <= t1) + ")"
-    elif any("1 section of the ramp climbed" in s or "adding ramp to map" in s or s == "short tilt, not a ramp (bump/debris)" for s in texts):
-        out["cause"] = "ramp"
-    elif any(s in ("obstacle avoidance",) for s in texts):
-        t = next(l[0] for l in ep_logs if l[1] == "obstacle avoidance")
-        out["cause"] = ("real obstacle" if obstacle_ahead(at(t)) else "false obstacle alarm") + \
-                       (" (avoidance gave up)" if any("avoidance timeout" in s for s in texts) else "")
-    elif any(s == "black" or s.startswith("black during") for s in texts):
-        out["cause"] = "black tile"
-    elif any("short move" in s for s in texts):
-        out["cause"] = "short move"
-    elif any("obstacle ahead during the move" in s for s in texts):
-        out["cause"] = "stopped for an obstacle during the move"
-    elif move_start is None:
-        out["cause"] = "no forward move"
-    else:
-        moving = [f for f in ep_frames if f["t"] >= move_start]
-        exits = [s[len("[FWD] exit="):] for s in texts if s.startswith("[FWD] exit=")]
-        how = {"emergency-front": "emergency stop", "timeout": "timed out"}.get(exits[-1] if exits else "", "")
-        if any(f["c"] and near_obstacle(f) for f in moving):
-            out["cause"] = "move: pushed obstacle"
-        elif any(f["c"] for f in moving):
-            out["cause"] = "move: scraped wall"
-        else:
-            out["cause"] = "move"
-        if how:
-            out["cause"] += " (" + how + ")"
+    out.update(classify(frames[prev_ok]["t"] if prev_ok is not None else 0, first_bad))
     return out
 
 
@@ -238,6 +246,8 @@ def main():
     ret = collections.Counter(r["return"] for r in res)
     print(f"driving home (RETURN): {ret['right']} stayed right, {ret['went wrong']} went wrong on the way, "
           f"{ret['lost before']} were already lost when they set off, {ret['no return']} never started home")
+    for cause, k in collections.Counter(r["return_cause"] for r in res if r.get("return_cause")).most_common():
+        print(f"  went wrong on the way home: {k:4d}  {cause}")
     for r in (lost if a.seed is None else res)[:max(a.show, 1 if a.seed is not None else 0)]:
         print(f"\nseed {r['seed']}: {r['cause']} at {r.get('t_s', 0):.1f} s, code {r.get('tiles_ahead')} tile(s) ahead / "
               f"{r.get('tiles_right')} right of the robot; move started {r.get('start')}")
