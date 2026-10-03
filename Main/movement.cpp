@@ -29,6 +29,11 @@ static int avgEncoder(){
 // Reverse until the encoders are back at the start of the move (i.e. the centre of
 // the tile we started from). Timeout so a dead encoder can't trap us here.
 static void backUpToStart(){
+  // Driven far enough that more than half the robot was on the next tile (RCJ 5.4.4: that's a visit
+  // there), coming back is a new visit of this tile: on a blue one that's another 5 s stop before the
+  // robot moves on (5.5.1c), or the referee calls lack of progress. 120 mm = half the tile less a margin
+  // for not having started exactly in the middle.
+  bool leftTile = avgEncoder() >= pulsesForDistanceMm(120);
   unsigned long startMs = millis();
   while(drivetrain.encoderCountA >= 0 && drivetrain.encoderCountB >= 0 && drivetrain.encoderCountD >= 0
         && millis() - startMs < BACKUP_TIMEOUT_MS){
@@ -36,6 +41,10 @@ static void backUpToStart(){
     drivetrain.backward(200);
   }
   drivetrain.fullstop();
+  if(leftTile && Pausemaze == false && mapGrid[x_pos][y_pos].getType() == BLUE){
+    Serial.println("back on a blue tile: 5 s stop");
+    delay(5000);
+  }
 }
 
 void init_drive(){
