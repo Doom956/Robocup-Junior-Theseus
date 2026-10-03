@@ -364,6 +364,19 @@ void parallel(){
     drivetrain.drive(PARALLEL_SPEED,PARALLEL_SPEED,PARALLEL_SPEED,PARALLEL_SPEED);
     
   }
+  drivetrain.fullstop();
+  // Walls only run along the grid, so squared up to one the robot faces a compass direction. Ending
+  // more than 10 deg from every compass direction means the two sensors weren't on one straight wall
+  // (in a corner each can see a different wall and read the same 45 deg off): turn back to where it was.
+  double endHeading = myGyro.heading();
+  double offCompass = endHeading - 90.0 * round(endHeading / 90.0);
+  double turnedBy = endHeading - startHeading;
+  while(turnedBy > 180.0) turnedBy -= 360.0;
+  while(turnedBy < -180.0) turnedBy += 360.0;
+  if(Pausemaze == false && fabs(offCompass) > 10.0 && fabs(turnedBy) > 3.0){
+    Serial.println("parallel: ended off the grid, turning back");
+    absoluteturn(startHeading);
+  }
   drivetrain.reset_encoderCount(true,true,true);
   drivetrain.fullstop();
 }
