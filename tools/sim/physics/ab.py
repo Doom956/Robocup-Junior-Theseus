@@ -61,18 +61,20 @@ def main():
     ap.add_argument("a"); ap.add_argument("b")
     ap.add_argument("--types", default="comp", help="field types, comma-separated (default comp)")
     ap.add_argument("--runs", type=int, default=200, help="fields per type (default 200)")
+    ap.add_argument("--start", type=int, default=1, help="first seed (default 1); e.g. --start 601 for fields not used before")
     ap.add_argument("--set", action="append", default=[], help="simulator parameter for both, e.g. gyroDriftSigmaDegPerMin=2")
     args = ap.parse_args()
     types = args.types.split(",")
     extra = [x for s in args.set for x in ("--set", s)]
     exes = {args.a: build_ref(args.a), args.b: build_ref(args.b)}
-    jobs = [(v, sc, s) for v in (args.a, args.b) for sc in types for s in range(1, args.runs + 1)]
+    seeds = range(args.start, args.start + args.runs)
+    jobs = [(v, sc, s) for v in (args.a, args.b) for sc in types for s in seeds]
     with concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 4) as pool:
         res = dict(zip(jobs, pool.map(lambda j: rp.run_one(j[1], j[2], extra, exes[j[0]]), jobs)))
     mean = lambda xs: sum(xs) / len(xs)
-    print(f"{args.a} -> {args.b}, {args.runs} fields per type, same fields for both")
+    print(f"{args.a} -> {args.b}, {args.runs} fields per type (seeds {args.start}-{args.start + args.runs - 1}), same fields for both")
     for sc in types + (["ALL"] if len(types) > 1 else []):
-        keys = [(t, s) for t in (types if sc == "ALL" else [sc]) for s in range(1, args.runs + 1)]
+        keys = [(t, s) for t in (types if sc == "ALL" else [sc]) for s in seeds]
         X = [res[(args.a,) + k] for k in keys]; Y = [res[(args.b,) + k] for k in keys]
         print(f"  {sc:8s} " + summary(X, Y))
     for e in exes.values():
