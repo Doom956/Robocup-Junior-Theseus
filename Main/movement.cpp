@@ -65,8 +65,8 @@ static void handleAvoidanceResult(int prevdist){
     steps = TURN;
   }
   else if(moveInterrupted == false){
-    obstacle = true;
-    fwdShort = false;       // inner fwd() covered only the remainder of the tile
+    obstacle = true;        // fwdShort stays as the inner fwd() left it: if that drive came up short
+                            // and backed up, the robot never reached the next tile
   }
 }
 
