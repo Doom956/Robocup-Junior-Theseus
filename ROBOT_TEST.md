@@ -4,8 +4,8 @@ Changes on this branch depend on how real the simulator's motors, grip, turning,
 so they stay off `main` until they pass on the real robot. Each one has a short test below: what to
 set up, what to run, and what to watch for in the Serial monitor.
 
-This branch also has everything on `overnight-fixes` (logic fixes: ramp up/down, 5 s stop when backing
-into a blue tile, bench mode), so one session tests it all. Whole branch vs main in the simulator (600
+Section 3 lists logic fixes that are on main now (ramp up/down, 5 s stop when backing into a blue
+tile, bench mode); worth checking in the same session. Whole branch vs main in the simulator (600
 comp fields): score +13.9 +-4.6, time lost 44% -> 17%, back home 48% -> 74%.
 
 **Suggested order for a test session**
@@ -149,7 +149,7 @@ b. **No jumps.** A few full runs; watch the `[FWD] entry hdg=` lines. They shoul
    degrees of 0/90/180/270 the whole run, with no sudden change of tens of degrees.
 c. **Drift.** Bench test 6 (2 min standing still): a few degrees at most.
 
-## 3. From overnight-fixes (logic fixes; branch overnight-fixes, one commit each)
+## 3. Logic fixes, now on main
 
 - **Ramp up or down from one pitch reading.** The up/down decision read the gyro a second time; with the
   pitch just past 12 deg that reading could miss, so an up-ramp was mapped as a down-ramp (wrong floor).
