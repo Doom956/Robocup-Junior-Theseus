@@ -98,6 +98,13 @@ b. **It doesn't move a right position.** A normal run with no interference: coun
    what you saw). A correction with the robot where the code thought means a wall was misread there:
    note the four `reading walls` values and the distance readings.
 
+**2c. Check the walls before stopping at home.** When the code thinks it is back on the start tile, it
+reads the walls first; if they don't match the start tile and relocalize can place the robot, it carries
+on home instead of stopping (a stop on the wrong tile is a lack of progress). Sim, 600 comp fields on two
+seed sets: +0.3 +-0.3 points and back home +1 pt both times; "stopped on the wrong tile" 40 -> 35.
+Test: carry the robot one tile away from the start, on its way home, pointing along the route (pause,
+move it, resume). Expect `walls don't match the start tile: not home yet`, then it drives to the start.
+
 ## 2b. Steering from a wall one tile away (open areas) - now also on main
 
 **What changed** (`Main/Distance.cpp`, `sideCentringError()`): the steering only used side walls closer

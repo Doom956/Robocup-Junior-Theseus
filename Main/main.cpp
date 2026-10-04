@@ -779,6 +779,17 @@ void loop(){
       // elevation()/descend()), so the floor bookkeeping stays in sync.
       returning = true;
       if(currentFloor == HOME.first && x_pos == HOME.second.first && y_pos == HOME.second.second){
+        // Check before stopping: do the walls here match the start tile? If not and relocalize can place
+        // the robot, it isn't home yet: carry on from the corrected position. (A stop on the wrong tile
+        // is a lack of progress.)
+        {
+          bool f, r, b, l;
+          readWallsRel(f, r, b, l);
+          if(checkTileMismatch(f, r, b, l) && relocateOnMismatch(f, r, b, l)){
+            Serial.println("walls don't match the start tile: not home yet");
+            break;
+          }
+        }
         drivetrain.fullstop();
         Serial.println("back at start");
         // Done: stop and blink, but keep watching the pause switch. If the robot is actually on
