@@ -18,6 +18,8 @@
 // turn on the spot at all; bench-test the lowest drivetrain.turnright(pwm) that turns the
 // robot and raise this to it plus a margin (the simulator's estimate is about 41).
 #define TURN_MIN_PWM 20
+// fwd(): the side-wall steering may turn the robot at most this far off the tile direction (see fwd()).
+#define MAX_STEER_DEG 10.0
 
 // true while obstacleavoidance() runs (its closing fwd() must not start another avoidance)
 bool avoidingObstacle = false;
@@ -110,6 +112,7 @@ void fwd(double dist){ // in mm
   Serial.println(_entry_hdg - init_yaw, 1);
   const char* fwdExit = "normal";
   int _fwd_tick = 0;
+  int steerLimited = 0; // loops in which MAX_STEER_DEG overrode the side-wall steering
   int front_left_current=measure(7); int front_right_current=measure(1);
   timer myTime;
   myTime.reset_delta_time();
@@ -265,14 +268,20 @@ void fwd(double dist){ // in mm
 
     // 2) No side wall at all — hold the initial gyro heading so the robot
     //    doesn't drift in open areas or corridors with only front/back walls.
+    double yaw = myGyro.heading() - init_yaw;
+    if (yaw > 180)  yaw -= 360;
+    if (yaw < -180) yaw += 360;
     if (!sideWall) {
-      double yaw = myGyro.heading() - init_yaw;
-      if (yaw > 180)  yaw -= 360;
-      if (yaw < -180) yaw += 360;
       _diag_pid_err = yaw;
       adjustment = gyroPID.getPID(_diag_pid_err);
     } else {
       adjustment = center_PID.getPID(_diag_pid_err);
+      // Already turned more than MAX_STEER_DEG off the tile direction: the side walls may only steer it
+      // back, not further away (adjustment > 0 turns left, yaw > 0 = turned right). A few degrees is
+      // enough to move sideways within a tile; past ~10 deg the two side sensors no longer see one wall
+      // square-on, and pressed close to a wall (under the VL53L0X's ~30 mm minimum) they can keep asking
+      // for more turn until the robot is 30-60 deg off and its corner is on the wall.
+      if (fabs(yaw) > MAX_STEER_DEG && adjustment * yaw < 0) { adjustment = gyroPID.getPID(yaw); steerLimited++; }
     }
     double Scale = Scale_PID.getPID(pulses-(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3);
     
@@ -419,6 +428,7 @@ void fwd(double dist){ // in mm
   }
   Serial.print("[FWD] exit=");
   Serial.println(fwdExit);
+  if(steerLimited > 0){ Serial.print("[FWD] steering limited "); Serial.print(steerLimited); Serial.println(" times"); }
   Serial.println("stop- end of fwd");
   // sometimes it barely makes it over the slope
   if(climbed == true){

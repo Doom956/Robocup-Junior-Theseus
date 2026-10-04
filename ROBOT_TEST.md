@@ -13,7 +13,7 @@ comp fields): score +13.9 +-4.6, time lost 44% -> 17%, back home 48% -> 74%.
 1. **Bench mode first** (`BENCH_MODE 1` in `Main/main.cpp`, see `Main/bench.cpp`): ~10 minutes, gives the
    sensor offsets, turning power and gyro drift. Copy the `[BENCH]` lines; they tell us how far the
    simulator is from this robot. Set `BENCH_MODE` back to 0.
-2. **Steering** (last section): a few tiles along a corridor; no weaving.
+2. **Steering** (last section, and 2e): a few tiles along a corridor; no weaving, no big turns off a wall.
 3. **Ramp up and down** (section 3): the floor change.
 4. **Obstacles** (section 1, tests a-e), then **relocalize** (section 2).
 5. A few full runs on a practice field with an obstacle or two; save the Serial logs.
@@ -127,6 +127,46 @@ a. **Open area, wall one tile away.** A 2-tile-wide open area with a wall along 
    should end closer to the tile centre than it started; the `[CENTER]` lines show err moving to 0.
 b. **Sensor readings at that range.** In bench mode test 1 (or with `measure(2/3/5/6)` printed), put a
    wall 35 cm from a side sensor: readings should be steady within about 1 cm.
+
+## 2e. Steering limit: side walls can't turn the robot more than 10 deg off
+
+**What changed** (`Main/movement.cpp`, `fwd()`, `MAX_STEER_DEG`): the side-wall steering had no limit on
+how far it turned the robot. Once the robot is more than 10 deg off the tile direction, the side walls may
+only steer it back toward that direction; steering further away is replaced by the gyro heading hold.
+Within 10 deg nothing changes.
+
+**Why:** in the simulator (200 comp fields, main), moves where the heading got more than 15 deg off were 12%
+of all moves but held 53% of the moments the map position first went wrong (26% of moves past 30 deg lost
+the position, about 1% of steady ones). Typical case: one wall, robot close to it; the one-wall target
+(80 mm) asks for a big turn away, the two side sensors pressed under ~30 mm keep asking for more, and the
+robot rotates 30-60 deg with its corner on the wall while the encoders count a tile. Turned that far, the
+mid-move obstacle check (4 deg) is also off, so it pushed obstacles it had seen.
+
+**Simulator:**
+
+| Test | Score | Time lost | Back home |
+|---|---|---|---|
+| robot-test, 600 comp fields (seeds 1-600) | +6.1 +-3.7 | -4 +-2 pts | +8 +-4 pts |
+| robot-test, seeds 601-1200 | +3.1 +-3.8 | -1 +-2 pts | +2 +-4 pts |
+| main, seeds 1-600 | +6.2 +-4.0 | -4 +-3 pts | +4 +-5 pts |
+| main, seeds 601-1200 | +7.4 +-4.2 | -2 +-3 pts | +1 +-5 pts |
+
+With the assumed values varied (main, 300 fields each): wheelMu 0.6 +8.5 +-5.5, wheelMu 1.2 +5.7 +-5.6,
+skidFactor 1.6 +2.3 +-5.0, motorGainSigma 0.08 +4.6 +-5.5, tofOffsetSigma 10 +2.8 +-5.9, tofOffsetSigma 2
++5.6 +-5.3, gyroDriftSigmaDegPerMin 2 +5.8 +-5.6, robotMassKg 1.3 +6.6 +-5.7: no harm in any.
+
+**Depends on:** how hard the real robot's wall following steers, and what the side VL53L0X read when
+they are pressed close to a wall (the sim follows the datasheet: unreliable under ~30 mm).
+
+**Tests on the real robot:**
+
+a. **One wall, robot close to it.** A corridor with a wall on one side only. Start the robot 2-3 cm from
+   that wall, turned about 5 deg toward it, and let it drive 3 tiles. Expected: it turns away by at most
+   about 10 deg, straightens, and the next `[FWD] entry hdg=` is within a few degrees of the tile direction.
+   `[FWD] steering limited N times` may appear on the first tile.
+b. **Full runs.** Count `[FWD] steering limited` in the log. A few per run is expected. On most moves means
+   the real steering needs more than 10 deg: raise `MAX_STEER_DEG` to 15. Note also any move where the
+   robot ended visibly turned or scraped a wall.
 
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
