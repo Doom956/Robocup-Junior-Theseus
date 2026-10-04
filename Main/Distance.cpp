@@ -782,8 +782,13 @@ static int obstacleavoidanceSteps(int leftright){
         // Read the front sensor ONCE (a second read can differ and overshoot) and
         // clamp to [0, TILE_MM]: if either front reading is invalid the front is
         // open/garbage, so fall back to one tile instead of a runaway distance.
-        int frontNow = measure(1);
-        int travelled = (_ != -1 && frontNow != -1) ? (_ - frontNow) : 0;
+        // Same sensor as _ (the front sensor on the clear side, read before the manoeuvre): with the
+        // obstacle on the right, _ was the front-left reading and frontNow the front-right one, so
+        // travelled was the difference between two different walls (often more than a tile: no drive).
+        // VL53L0X "out of range" is 8190 (measure() only filters 8191), so only readings under 2 m count.
+        int frontNow = measure(leftright == 1 ? 1 : 7);
+        bool inRange = _ > 0 && _ < 2000 && frontNow > 0 && frontNow < 2000;
+        int travelled = inRange ? (_ - frontNow) : 0;
         int remaining = constrain(TILE_MM - travelled, 0, TILE_MM);
         fwd(remaining);
         steps = TURN;
