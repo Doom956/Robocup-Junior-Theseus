@@ -15,8 +15,13 @@
 //   5 fw(150) for 2 s with no steering: encoder distance and heading change; measure the real distance
 //     and how far it went sideways with a ruler           -> tractionMean, motorGainSigma
 //   6 heading change standing still for 2 minutes (sim 0.5 deg/min) -> gyroDriftSigmaDegPerMin
+//   7 floor colours: what read_color() says on white, blue, silver and black tiles, and the raw values
+//     it prints, vs the thresholds in Globals.h (the simulator's colour values are assumed)
+// Before test 1 it prints the heading at power-on: the code expects about 0 whichever way the robot
+// faces. If it isn't, the BNO055 is giving heading from magnetic north (NDOF mode).
 #include "Globals.h"
 #include "Movement.h"
+#include "Color.h"
 
 void lcdPrint(const char* msg); // uart_camera_comms.cpp
 
@@ -168,14 +173,48 @@ static void benchGyroDrift(){
   Serial.println("[BENCH] per minute = the 120 s value / 2 (simulator assumes 0.5 deg/min)");
 }
 
+static void benchFloorColours(){
+  const char *tiles[4] = {"white", "blue", "silver", "black"};
+  const char *classes[5] = {"black", "white", "blue", "red", "silver"}; // read_color() -1..3
+  for(int t = 0; t < 4; t++){
+    char lcdText[17];
+    snprintf(lcdText, sizeof(lcdText), "7 %s", tiles[t]);
+    char howTo[80];
+    snprintf(howTo, sizeof(howTo), "7) colour sensor over the middle of a %s tile", tiles[t]);
+    waitForSwitch(lcdText, howTo);
+    int count[5] = {0, 0, 0, 0, 0};
+    for(int i = 0; i < 10; i++){
+      int c = read_color(); // prints r g b c and the clear ratio
+      if(c >= -1 && c <= 3) count[c + 1]++;
+      delay(60); // > one 50 ms measurement
+    }
+    Serial.print("[BENCH] ");
+    Serial.print(tiles[t]);
+    Serial.print(" tile read as:");
+    for(int k = 0; k < 5; k++){
+      if(count[k] == 0) continue;
+      Serial.print(" ");
+      Serial.print(classes[k]);
+      Serial.print(" x");
+      Serial.print(count[k]);
+    }
+    Serial.println();
+  }
+  Serial.println("[BENCH] thresholds: black if ratio < 0.1, silver if r > 800 (checked before white), white if ratio > 0.85");
+}
+
 void runBench(){
   Serial.println("[BENCH] bench mode: measurements for the simulator (BENCH_MODE in main.cpp)");
+  Serial.print("[BENCH] heading at power-on: ");
+  Serial.print(myGyro.heading(), 1);
+  Serial.println(" deg (should be about 0 whichever way the robot faced when switched on)");
   benchSensors();
   benchTurnPwm();
   benchTurnRate();
   benchStraightPwm();
   benchStraightLine();
   benchGyroDrift();
+  benchFloorColours();
   drivetrain.fullstop();
   Serial.println("[BENCH] done");
   lcdPrint("bench done");
