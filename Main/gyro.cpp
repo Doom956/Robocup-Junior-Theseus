@@ -12,7 +12,10 @@ gyro::gyro(){
 }
 void gyro::init_Gyro(){
   i2cMutex.lock();
-  bool found = bno.begin();
+  // IMUPLUS (gyro + accelerometer): heading 0 = the direction the robot faced at power-on, which is what
+  // the rest of the code assumes. The library default, NDOF, is absolute orientation (BNO055 datasheet
+  // 3.3.3.5): once the magnetometer calibrates, the heading can switch to magnetic north mid-run.
+  bool found = bno.begin(OPERATION_MODE_IMUPLUS);
   i2cMutex.unlock();
   if(!found) Serial.println("can't find gyro");
   else        Serial.println("gyro found");

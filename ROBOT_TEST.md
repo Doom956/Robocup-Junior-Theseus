@@ -128,6 +128,27 @@ a. **Open area, wall one tile away.** A 2-tile-wide open area with a wall along 
 b. **Sensor readings at that range.** In bench mode test 1 (or with `measure(2/3/5/6)` printed), put a
    wall 35 cm from a side sensor: readings should be steady within about 1 cm.
 
+## 2d. Gyro in IMUPLUS mode (no magnetometer)
+
+**What changed** (`Main/gyro.cpp`): `bno.begin()` used the library default, NDOF. The BNO055 datasheet
+(3.3.3.5) defines NDOF as absolute orientation: heading from magnetic north once the magnetometer has
+calibrated. The code assumes heading 0 = the direction the robot faced at power-on, and the wall re-sync
+only fixes up to 10 deg, so a switch to magnetic north mid-run (or bends from motors and steel near the
+field) would throw off every turn after it. IMUPLUS uses only the gyro and accelerometer: always relative
+to power-on, slow drift instead, which the wall re-sync removes. Pitch (ramps) works the same.
+
+**Simulator** (200 comp fields, robot-test with NDOF vs IMUPLUS): can't say how the real sensor
+behaves. With the sim's default (magnetometer never calibrates in a run) both are identical (133.9). If
+it calibrates 60 s into a run: NDOF 43.2, IMUPLUS 133.9 (+90.7 +-8.0), back home 41% -> 78%.
+
+**Tests on the real robot:**
+
+a. **Heading at power-on.** Bench mode prints `heading at power-on` first. Switch on facing four
+   different directions: it should read about 0 every time.
+b. **No jumps.** A few full runs; watch the `[FWD] entry hdg=` lines. They should stay within a few
+   degrees of 0/90/180/270 the whole run, with no sudden change of tens of degrees.
+c. **Drift.** Bench test 6 (2 min standing still): a few degrees at most.
+
 ## 3. From overnight-fixes (logic fixes; branch overnight-fixes, one commit each)
 
 - **Ramp up or down from one pitch reading.** The up/down decision read the gyro a second time; with the
@@ -142,7 +163,10 @@ b. **Sensor readings at that range.** In bench mode test 1 (or with `measure(2/3
   different walls and read the same with the robot turned ~45 deg; it used to stop there. Test: put the
   robot in a corner tile turned about 40 deg toward the corner and call a move (or let it explore from
   there). Expect `parallel: ended off the grid, turning back` instead of the robot staying turned.
-- **Bench mode**: see above. With `BENCH_MODE 0` the firmware is unchanged.
+- **Bench mode**: see above. With `BENCH_MODE 0` the firmware is unchanged. Test 7 prints what the
+  colour sensor reads on white, blue, silver and black tiles: if a white tile reads as silver (r > 800)
+  or silver reads as white, set `SILVER_THRESHOLD` / `WHITE_THRESHOLD` in `Main/Globals.h` from those
+  numbers (a wrong checkpoint puts the robot in the wrong place after a lack-of-progress restart).
 
 ## Already on main, worth a check: steering for the whole tile (`cc0fa71`)
 
