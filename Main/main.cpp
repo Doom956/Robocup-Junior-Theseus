@@ -683,6 +683,9 @@ void loop(){
         turnCompletedForMove = true;
         botchedTurnAttempts = 0; // clean turn -> reset the recovery counter
       }
+      // as in RETURN: only an avoidance during this move may block an edge in finishTileMove()
+      // (BACKPEDAL goes straight back to planning, so one from a move that ended on black stayed set)
+      obstacle = false;
       fwd(TILE_MM);
       // A pause aborted the move before the tile was completed: don't advance
       // position or write walls/edges (the robot didn't actually traverse the tile).
