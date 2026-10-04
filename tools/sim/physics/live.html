@@ -308,6 +308,10 @@ function take(slot, o) {
       if (F.in(tx, ty) && F.type[F.id(tx, ty)] !== FT.RAMP && F.type[F.id(tx, ty)] !== FT.SOLID) slot.visited.add(F.id(tx, ty));
       const m = slot.h.map;
       if (o.m) for (const [fl, x, y, c] of o.m) slot.map[(fl * m.size + x) * m.size + y] = c;
+      if (o.ob) { // obstacles the robot pushed: move them and redraw the static field layer
+        for (const [k, x, y] of o.ob) if (F.obstacles && F.obstacles[k]) { F.obstacles[k][0] = x; F.obstacles[k][1] = y; }
+        slot.obGen = (slot.obGen || 0) + 1;
+      }
       const c = posCheck(slot, o);
       if (c.off) { if (slot.offSince === null) slot.offSince = o.t; } else if (!c.onRamp) slot.offSince = null;
     }
@@ -497,7 +501,7 @@ function drawTrail(ctx, slot, V, from) {
 function drawField(cv, slot, maxH, beams, cache) {
   const w = cv.clientWidth; if (!w || !slot.F || !slot.cur) return;
   const V = view(slot.F, w, maxH), dpr = window.devicePixelRatio || 1, ctx = prepCanvas(cv, w, V.h);
-  const key = `${w}|${V.h}|${dpr}|${colors.tile}|${slot.gen}`;
+  const key = `${w}|${V.h}|${dpr}|${colors.tile}|${slot.gen}|${slot.obGen || 0}`;
   let L = slot[cache];
   if (!L || L.key !== key) {
     const c = document.createElement("canvas"); c.width = Math.round(w * dpr); c.height = Math.round(V.h * dpr);

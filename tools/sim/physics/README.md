@@ -120,14 +120,20 @@ Keys: Space play/pause, ← → 1 s, Shift+← → 10 s. A batch run lists faile
 | TCS34725 | raw r/g/b/clear of the tile under its CAD position |
 | Pause switch / referee | the RCJ 2026 rules: a tile is visited when more than half of the robot is on it (5.4.4); lack of progress when it visits a black tile, or leaves a blue tile without first standing still 5 s (5.5.1); and (standing in for the team captain) when it hasn't reached a new tile for 60 s, or 2 s after it stops for good away from home ("no path found", or "back to start" on the wrong tile). Then: switch HIGH for 3 s, robot placed on the last checkpoint it visited, facing the start direction. If the code doesn't respond to that last kind of restart, the run ends where it stopped and the restart isn't counted |
 | Score | the RCJ 2026 navigation points (5.6): blue tiles 30 each (10 less per revisit), checkpoints 10, ramps 10 each (once), speed-bump tiles 5, reliability bonus = blue tiles x 10 - lack of progress x 15 (never below 0), exit bonus (back on the start tile) = blue tiles x 10 + ramps x 5. Victims and rescue kits aren't simulated, so a real score adds those |
-| Fields | the same generator as the tile simulator (black tiles never wall anything off), plus real ramp slopes of 15-25 degrees, walls 20 mm thick with posts at their ends (280 mm path, RCJ 3.3.3), obstacles (RCJ 3.4.3-4: upright, 5-9 cm across, either in the open at least 20 cm from every wall or touching a wall and reaching at most 10 cm in; `obstacleRate` per plain tile, default 0.03) and speed bumps (1 cm, across the middle of a tile, not on ramps; `bumpRate`, default 0.05) |
+| Fields | the same generator as the tile simulator (black tiles never wall anything off), plus real ramp slopes of 15-25 degrees, walls 20 mm thick with posts at their ends (280 mm path, RCJ 3.3.3), obstacles (RCJ 3.4.3-4: upright, 5-9 cm across, either in the open at least 20 cm from every wall or touching a wall and reaching at most 10 cm in; `obstacleRate` per plain tile, default 0.03; fixed unless `obstacleMovableFrac` > 0, see below) and speed bumps (1 cm, across the middle of a tile, not on ramps; `bumpRate`, default 0.05) |
 
 Field types: `comp` is the one to judge changes by. It is shaped like the RoboCup 2025 international fields (rescue.rcj.cloud: 48 tiles on two levels joined by a ramp, 2-4 checkpoints, 0-3 black and 2-4 blue tiles, about 6 speed-bump tiles; here 40-60 tiles, speed bumps at 12% of plain tiles). `flat`, `loops` and `ramp` are smaller single features; `big` (up to 256 tiles) and `bigramp` are much larger than any real field and are only stress tests.
 
 Scoring checked against the 2026 rules (RCJRescueMaze2026-final.pdf, 5.6): blue tiles, checkpoints, ramps, speed bumps, the reliability bonus and the exit bonus are counted exactly as written. Victims are not simulated, so their points (5/10/15/30 per identification, 10/30 per rescue kit) and their share of the reliability bonus (+10 per identification and per kit) and the exit bonus (+10 per identification) are missing; stairs (10 + 5 exit) too. A real score is higher, and getting home and avoiding lack-of-progress restarts are worth more than the sim shows.
 
-Not simulated yet: stairs, bridges (tiles over tiles), the dangerous zone (red tile, debris), obstacles
-being pushed, floor height steps between tiles (up to 3 mm), victims and the cameras (victim code never
+Obstacles that move (RCJ 3.4.3: "large, heavy items" that "may be fixed to the floor"; 3.4.5: one that is
+moved stays where it ends up): with `--set obstacleMovableFrac=0.5` half of them are loose. The robot pushes
+a loose one along when its wheels' grip (`wheelMu` x weight) beats the obstacle's floor friction
+(`obstacleMu` x its mass), slowing down by the share the friction takes; a wall or another obstacle stops
+it, and it stays where it ends up (the distance sensors see it there, and the replay shows it moving). The
+result line gives `obstacle_pushed_mm`. Knocking one over isn't simulated. Default 0: all fixed, as before.
+
+Not simulated yet: stairs, bridges (tiles over tiles), the dangerous zone (red tile, debris), floor height steps between tiles (up to 3 mm), victims and the cameras (victim code never
 fires), battery sag during a run (a 2200 mAh pack uses only about 6% in 8 minutes).
 
 To check whether a code change helps, compare the two versions on the same fields: `python tools/sim/physics/ab.py main WORK` (the last commit on main against your working copy of `Main/`; any two branches or commits work too, `--types comp,flat`, `--runs`). It prints the score change, and the change in time spent lost and in runs that get back home, each with a 95% interval; only an interval entirely above zero (below zero for time lost) is a clear improvement. Use 600 comp fields (`--runs 600`) for a final decision: comp scores vary too much for 200 to show a gain of about 4 points.
@@ -142,6 +148,7 @@ All of them are in `Params` at the top of `physics.cpp` and can be changed per r
 
 | Setting | Default | Source | How to check on the robot |
 |---|---|---|---|
+| `obstacleMovableFrac`, `obstacleMassMinKg/MaxKg`, `obstacleMu` | 0, 0.5-2 kg, 0.4 | **assumed** (the rules only say "large, heavy items" that may be fixed) | the competition's obstacles: weigh one, and find the force that slides it (a luggage scale) |
 | `noLoadRpmAt12V`, `stallKgcmAt12V`, `frictionFracAt12V` | 72 RPM, 10 kg.cm, 0.05 | **datasheet**: Pololu #3493 (72 RPM, 80 mA no-load, 1.6 A / 10 kg.cm stall at 12 V; 46 g) | lowest `drivetrain.fw(pwm)` that moves the robot (model: about 13-17) |
 | `driverOhms` | 0.5 ohm | **datasheet**: TB6612FNG output ON resistance, upper + lower, typical (the motor itself is 12 V / 1.6 A = 7.5 ohm, so stall torque is about 6% lower than the motor alone) | - |
 | encoder counts | 5 per motor turn | **datasheet**: Pololu #3499 encoder, 20 counts per motor turn counting both edges of both channels; the code counts rising edges of one channel = 5 | - |

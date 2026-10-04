@@ -69,6 +69,11 @@ struct Params {
   double rampMinDeg = 15, rampMaxDeg = 25;
   // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
   double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
+  // RCJ 2026 3.4.3: obstacles are "large, heavy items" and "may be fixed to the floor"; 3.4.5: one that is
+  // moved stays where it ends up. ASSUMED (the rules give no mass or material): this share of the obstacles
+  // is loose, each with a mass between obstacleMassMinKg and obstacleMassMaxKg and floor friction
+  // obstacleMu; the rest are fixed. 0 = all fixed (the default, as before).
+  double obstacleMovableFrac = 0, obstacleMassMinKg = 0.5, obstacleMassMaxKg = 2.0, obstacleMu = 0.4;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
@@ -93,7 +98,8 @@ static std::map<std::string, double *> paramTable() {
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
-    {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
+    {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
+    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
     {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
@@ -231,6 +237,8 @@ static void robotToWorld(double fwd, double left, double &wx, double &wy) {
 // (the posts holding them count as wall, RCJ 3.1.4), so two facing walls leave a 280 mm path
 // (RCJ 3.3.3). Obstacles are upright cylinders (RCJ 3.4.3).
 static std::vector<std::vector<int>> obstaclesInCell; // obstacle indices overlapping each tile
+static std::vector<double> obstacleMass;              // per obstacle: kg if loose, 0 if fixed (empty = all fixed)
+static double pushedMm = 0;                           // how far the robot pushed obstacles in this run
 static void indexObstacles() {
   obstaclesInCell.assign(W.W * W.H, {});
   for (size_t k = 0; k < W.obstacles.size(); k++) {
@@ -309,7 +317,9 @@ static double raycast(double ox, double oy, double dx, double dy, double maxd, d
 
 // does the robot body at pose (x,y,head) touch any wall or obstacle? The body is the outline from
 // the CAD (convex); walls are boxes (thickness + posts), obstacles circles.
-static bool collides(double x, double y, double head) {
+// wallsOnly: ignore obstacles. hit: if not null, set to the obstacle touched (or -1 for a wall).
+static bool collides(double x, double y, double head, bool wallsOnly = false, int *hit = nullptr) {
+  if (hit) *hit = -1;
   const int n = (int)outF.size();
   double sh, ch, px[32], py[32];
   collideSC.at(head, sh, ch);
@@ -341,6 +351,7 @@ static bool collides(double x, double y, double head) {
   for (int gx = cx - 1; gx <= cx + 2; gx++)       // walls along x = gx
     for (int gy = cy - 2; gy <= cy + 1; gy++)
       if (W.hasWall(gx, gy, 3)) { edgeBox(gx, gy, false, b); if (hitsBox(b)) return true; }
+  if (wallsOnly) return false;
   for (int ty = cy - 1; ty <= cy + 1; ty++)
     for (int tx = cx - 1; tx <= cx + 1; tx++) {
       if (!W.in(tx, ty)) continue;
@@ -358,7 +369,7 @@ static bool collides(double x, double y, double head) {
           double dx = wx - t * ex, dy = wy - t * ey;
           best = std::min(best, dx * dx + dy * dy);
         }
-        if (inside || best < o.r * o.r) return true;
+        if (inside || best < o.r * o.r) { if (hit) *hit = k; return true; }
       }
     }
   return false;
@@ -368,6 +379,47 @@ static bool collides(double x, double y, double head) {
 // Physics + referee, advanced by every hardware call
 // =====================================================================================
 static void lackOfProgress(const char *why);
+
+// Does obstacle k (a circle) overlap a wall or another obstacle?
+static bool obstacleBlocked(int k) {
+  const field::Obstacle &o = W.obstacles[k];
+  int cx = (int)std::floor(o.x / field::TILE), cy = (int)std::floor(o.y / field::TILE);
+  bool hit = false;
+  for (int ty = cy - 1; ty <= cy + 1 && !hit; ty++)
+    for (int tx = cx - 1; tx <= cx + 1 && !hit; tx++)
+      wallsNearCell(tx, ty, [&](const double *b) {
+        double qx = std::max(b[0], std::min(o.x, b[2])), qy = std::max(b[1], std::min(o.y, b[3]));
+        if (std::hypot(o.x - qx, o.y - qy) < o.r) hit = true;
+      });
+  for (size_t j = 0; j < W.obstacles.size() && !hit; j++)
+    if ((int)j != k && std::hypot(W.obstacles[j].x - o.x, W.obstacles[j].y - o.y) < W.obstacles[j].r + o.r) hit = true;
+  return hit;
+}
+
+// The robot's next pose (nx, ny, nh) runs into a loose obstacle: push it along if the wheels' grip can
+// overcome its floor friction (the robot slows down by the share of its push the friction takes), unless
+// that would shove it into a wall or another obstacle. On success nx, ny are the robot's pose after the push.
+static bool pushObstacle(double &nx, double &ny, double nh) {
+  if (obstacleMass.empty() || collides(nx, ny, nh, true)) return false; // no loose obstacles, or a wall in the way
+  int k;
+  collides(nx, ny, nh, false, &k);
+  if (k < 0 || obstacleMass[k] <= 0) return false;                     // a fixed obstacle
+  double need = P.obstacleMu * obstacleMass[k] * 9.81, can = P.wheelMu * P.robotMassKg * 9.81;
+  if (need >= can) return false;                                        // too heavy for the wheels' grip
+  double f = 1 - need / can, px = rx + (nx - rx) * f, py = ry + (ny - ry) * f;
+  field::Obstacle before = W.obstacles[k];
+  W.obstacles[k].x += px - rx; W.obstacles[k].y += py - ry;             // moves with the robot
+  indexObstacles();
+  for (int it = 0, j; it < 40 && collides(px, py, nh, false, &j) && j == k; it++) { // still overlapping (turning): out of the way
+    double d = std::max(1e-6, std::hypot(W.obstacles[k].x - px, W.obstacles[k].y - py));
+    W.obstacles[k].x += (W.obstacles[k].x - px) / d; W.obstacles[k].y += (W.obstacles[k].y - py) / d;
+    indexObstacles();
+  }
+  if (obstacleBlocked(k) || collides(px, py, nh)) { W.obstacles[k] = before; indexObstacles(); return false; }
+  pushedMm += std::hypot(W.obstacles[k].x - before.x, W.obstacles[k].y - before.y);
+  nx = px; ny = py;
+  return true;
+}
 
 static double motorOhms() { return 12.0 / 1.6; } // Pololu #3493: 12 V, 1.6 A stall
 
@@ -424,6 +476,7 @@ static void physicsStep(double dt) {
   double nx = rx + v * dt * std::sin(mid), ny = ry + v * dt * std::cos(mid);
   inContact = false;
   if (!collides(nx, ny, nh)) { rx = nx; ry = ny; rhead = nh; }
+  else if (pushObstacle(nx, ny, nh)) { rx = nx; ry = ny; rhead = nh; contactUs += dt * 1e6; inContact = true; }
   else {
     contactUs += dt * 1e6;
     inContact = true;
@@ -483,6 +536,18 @@ static void traceFrame(double runS) {
       }
   }
   if (!first) *traceOut << "]";
+  // obstacles the robot pushed since the last frame: "ob":[[index, x, y], ...]
+  static std::vector<std::array<int, 2>> obTraced;
+  if (obTraced.size() != W.obstacles.size()) { obTraced.clear(); for (const field::Obstacle &o : W.obstacles) obTraced.push_back({(int)o.x, (int)o.y}); }
+  bool firstOb = true;
+  for (size_t k = 0; k < W.obstacles.size(); k++) {
+    int x = (int)W.obstacles[k].x, y = (int)W.obstacles[k].y;
+    if (x == obTraced[k][0] && y == obTraced[k][1]) continue;
+    obTraced[k] = {x, y};
+    *traceOut << (firstOb ? ",\"ob\":[" : ",") << "[" << k << "," << x << "," << y << "]";
+    firstOb = false;
+  }
+  if (!firstOb) *traceOut << "]";
   *traceOut << "}\n";
   if (live) traceOut->flush();
 }
@@ -1009,6 +1074,13 @@ int main(int argc, char **argv) {
   W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
   indexObstacles();
   rng.seed((unsigned)seed * 7919u + 4242u);
+  if (P.obstacleMovableFrac > 0) { // which obstacles are loose and how heavy: own generator, the rest of the run is unchanged
+    std::mt19937 orng((unsigned)seed * 104729u + 17u);
+    std::uniform_real_distribution<double> u(0, 1);
+    obstacleMass.assign(W.obstacles.size(), 0);
+    for (double &m : obstacleMass)
+      if (u(orng) < P.obstacleMovableFrac) m = P.obstacleMassMinKg + (P.obstacleMassMaxKg - P.obstacleMassMinKg) * u(orng);
+  }
 
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
   for (int i = 1; i <= 7; i++) { tof[i].offset = gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
@@ -1036,6 +1108,8 @@ int main(int argc, char **argv) {
           << ",\"rampX0\":" << W.rampX0 << ",\"rampLen\":" << W.rampLen << ",\"levelHeight\":[" << W.levelHeight[0] << "," << W.levelHeight[1] << "]"
           << ",\"wallT\":" << P.wallThicknessMm << ",\"bumpH\":" << W.bumpH << ",\"bumpW\":" << W.bumpW << ",\"obstacles\":[";
     for (size_t k = 0; k < W.obstacles.size(); k++) *traceOut << (k ? "," : "") << "[" << (int)W.obstacles[k].x << "," << (int)W.obstacles[k].y << "," << (int)W.obstacles[k].r << "]";
+    *traceOut << "],\"obstacleKg\":[";
+    for (size_t k = 0; k < obstacleMass.size(); k++) *traceOut << (k ? "," : "") << obstacleMass[k];
     *traceOut << "],\"bumps\":[";
     bool firstBump = true;
     for (int i = 0; i < W.W * W.H; i++) if (W.bump[i]) { *traceOut << (firstBump ? "" : ",") << "[" << i << "," << W.bump[i] << "]"; firstBump = false; }
@@ -1095,11 +1169,11 @@ int main(int argc, char **argv) {
   std::snprintf(result, resultBuf.size(), "{\"scenario\":\"%s\",\"seed\":%ld,\"ideal\":%s,\"end\":\"%s\",\"home\":%s,\"time_s\":%.1f,\"coverage\":%.3f,"
               "\"tiles\":%d,\"reachable\":%d,\"map_walls\":%.3f,\"lops\":%d,\"lop_reasons\":\"%s\",\"wall_contact_s\":%.1f,"
               "\"score\":%d,\"score_parts\":\"blue %d (%d tiles), checkpoints %d, ramps %d, speed bumps %d, reliability %d, exit %d\","
-              "\"lost_fraction\":%.3f,\"ramp_crossings\":%d,\"ramp_deg\":%.1f,\"last_lcd\":\"%s\"}\n",
+              "\"lost_fraction\":%.3f,\"ramp_crossings\":%d,\"ramp_deg\":%.1f,\"obstacle_pushed_mm\":%.0f,\"last_lcd\":\"%s\"}\n",
               sc->name, seed, ideal ? "true" : "false", reason.c_str(), home ? "true" : "false", runS, total ? (double)covered / total : 1.0,
               covered, total, wallsAll ? (double)wallsOk / wallsAll : 1.0, lops, lopReasons.c_str(), contactUs / 1e6,
               score, bluePts, sbv, checkpoints * 10, srn * 10, bumpsCrossed * 5, reliability, exitBonus,
-              syncSamples ? (double)lostSamples / syncSamples : 0.0, rampCrossings, W.rampDeg, jsonEsc(lcdText).c_str());
+              syncSamples ? (double)lostSamples / syncSamples : 0.0, rampCrossings, W.rampDeg, pushedMm, jsonEsc(lcdText).c_str());
   if (traceOut) {
     if (runStarted) traceFrame(runS);
     *traceOut << "{\"result\":" << std::string(result, std::strlen(result) - 1) << ",\"t\":" << (int)(runS * 1000) << "}\n";

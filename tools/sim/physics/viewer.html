@@ -366,6 +366,15 @@ function buildMaps(rec) {
   });
   rec.work = new Int32Array(N);
   rec.workAt = -1;
+  // obstacles the robot pushed (RCJ 3.4.5: they stay where they end up): [frame, index, x, y]
+  rec.obMoves = [];
+  rec.frames.forEach((f, i) => { if (f.ob) for (const [k, x, y] of f.ob) rec.obMoves.push([i, k, x, y]); });
+}
+// where each obstacle is at frame i: [x, y, r]
+function obstaclesAt(rec, i) {
+  const obs = (rec.header.field.obstacles || []).map(o => o.slice());
+  for (const [j, k, x, y] of rec.obMoves) { if (j > i) break; obs[k][0] = x; obs[k][1] = y; }
+  return obs;
 }
 function mapAt(rec, i) {
   if (rec.workAt === i) return rec.work;
@@ -532,10 +541,14 @@ function drawTiles(ctx, V) {
     ctx.moveTo(a, b); ctx.lineTo(c, e);
   }
   ctx.stroke();
-  // obstacles
-  for (const [ox, oy, r] of F.obstacles || []) {
+}
+// obstacles where they are at frame i (they can be pushed), drawn over the static field layer
+function drawObstacles(ctx, V, i) {
+  const sc = V.sc;
+  if (!(sc > 0)) return; // canvas not laid out (3D view showing)
+  for (const [ox, oy, r] of obstaclesAt(R, i)) {
     const [a, b] = V.P(ox, oy);
-    ctx.fillStyle = col.solid; ctx.strokeStyle = col.wall; ctx.lineWidth = Math.max(1, sc * 4);
+    ctx.fillStyle = css("--solid"); ctx.strokeStyle = css("--wall"); ctx.lineWidth = Math.max(1, sc * 4);
     ctx.beginPath(); ctx.arc(a, b, r * sc, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
   }
 }
@@ -563,6 +576,7 @@ function drawField() {
     ctx.drawImage(fieldLayer, 0, 0, w, h);
   }
   const p = poseAt(T), f = R.frames[p.i], c = posCheck(R, f), sc = V.sc;
+  drawObstacles(ctx, V, p.i);
   // trail
   if (showTrail) {
     ctx.strokeStyle = css("--robot"); ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(1.2, sc * 6); ctx.lineJoin = "round";
@@ -960,9 +974,11 @@ function build3D() {
   scene.add(meshFrom(walls, mat(COL3.wall, { roughness: 0.7 })));
 
   // obstacles (upright cylinders, at least 15 cm tall) and speed bumps
+  G.obstacleMeshes = [];
   for (const [ox, oy, r] of F.obstacles || []) {
     const c = new T3.Mesh(new T3.CylinderGeometry(r, r, 180, 28), mat(0x6b5a48, { side: T3.FrontSide }));
     c.position.set(ox, floorH(ox, oy) + 90, -oy); c.castShadow = c.receiveShadow = true; scene.add(c);
+    G.obstacleMeshes.push(c);
   }
   for (const [i, o] of F.bumps || []) {
     const x = i % F.W, y = Math.floor(i / F.W), bw = F.bumpW || 40, bh = F.bumpH || 10;
@@ -1102,6 +1118,7 @@ function draw3D() {
   G.scene.background = new T3.Color(css("--panel"));
 
   const p = poseAt(T), f = R.frames[p.i], c = posCheck(R, f), F = R.header.field;
+  if (R.obMoves.length) obstaclesAt(R, p.i).forEach(([ox, oy], k) => { const m = G.obstacleMeshes[k]; if (m) m.position.set(ox, floorH(ox, oy) + 90, -oy); });
   const gy = floorH(p.x, p.y);
   G.robot.position.set(p.x, gy, -p.y);
   G.robot.rotation.set(f.p * Math.PI / 180, -p.h * Math.PI / 180, 0);
