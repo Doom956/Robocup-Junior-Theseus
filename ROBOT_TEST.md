@@ -6,7 +6,7 @@ set up, what to run, and what to watch for in the Serial monitor.
 
 Section 3 lists logic fixes that are on main now (ramp up/down, 5 s stop when backing into a blue
 tile, bench mode); worth checking in the same session. Whole branch vs main in the simulator (600
-comp fields): score +13.9 +-4.6, time lost 44% -> 17%, back home 48% -> 74%.
+comp fields, main at d8c8c75): score +19.2 +-4.5, time lost 29% -> 10%, back home 64% -> 86%.
 
 **Suggested order for a test session**
 
