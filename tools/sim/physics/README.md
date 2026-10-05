@@ -195,10 +195,13 @@ From the parts in the BOM and the CAD (`V2.step`):
 ### Bench mode on the real robot
 
 `Main/bench.cpp` measures most of the **assumed** values above on the robot itself: set `BENCH_MODE` to 1
-in `Main/main.cpp`, upload, and follow the Serial monitor (the pause switch starts each test). It prints
-the distance sensor readings in a closed tile against what the CAD says, the lowest PWM that turns and
-that drives the robot, degrees turned by `turnright(150)` in 1 s, encoder distance and heading change
-over a 2 s straight drive, and the gyro's drift standing still. Put the numbers into `--set` (or the
+in `Main/main.cpp` and upload. The pause switch starts each test (flip on and off) and the LED shows the
+state (slow blink = waiting, on = testing, fast blink = done), so no LCD or USB cable is needed while it
+runs; at the end each switch flip prints all results again over USB. The test list is at the top of
+`bench.cpp`. It prints the heading at power-on, the distance sensor readings in a closed tile against
+what the CAD says, the lowest PWM that turns and that drives the robot, degrees turned by
+`turnright(150)` in 1 s, encoder distance and heading change over a 2 s straight drive, the gyro's drift
+standing still, and the colour sensor on white, blue, silver and black tiles. Put the numbers into `--set` (or the
 defaults above) so the simulator matches the robot. `BENCH_MODE 0` (the default) leaves the firmware as it is.
 
 `--selftest` runs these experiments on the simulated robot (sensor readings centred in a tile, speed
