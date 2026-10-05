@@ -10,8 +10,10 @@ comp fields, main at d8c8c75): score +19.2 +-4.5, time lost 29% -> 10%, back hom
 
 **Suggested order for a test session**
 
-1. **Bench mode first** (`BENCH_MODE 1` in `Main/main.cpp`, see `Main/bench.cpp`): ~10 minutes, gives the
-   sensor offsets, turning power and gyro drift. Copy the `[BENCH]` lines; they tell us how far the
+1. **Bench mode first** (`BENCH_MODE 1` in `Main/main.cpp`, see `Main/bench.cpp`): ~15 minutes, gives the
+   sensor offsets, turning power, gyro drift and floor colours. No LCD or USB cable needed: the LED blinks
+   slowly while it waits for the pause switch, stays on during a test and blinks fast when done; then plug
+   in USB and flip the switch to print every result. Copy the `[BENCH]` lines; they tell us how far the
    simulator is from this robot. Set `BENCH_MODE` back to 0.
 2. **Steering** (last section, and 2e): a few tiles along a corridor; no weaving, no big turns off a wall.
 3. **Ramp up and down** (section 3): the floor change.
