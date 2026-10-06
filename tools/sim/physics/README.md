@@ -156,6 +156,7 @@ All of them are in `Params` at the top of `physics.cpp` and can be changed per r
 | `robotMassKg` | 1.15 | **estimate**: parts from their datasheets + printed parts, see "Robot mass" below | weigh it |
 | `wheelMu` | 0.8 | **assumed** (silicone on the field floor; no datasheet) | lowest `turnright(pwm)` that turns it on the spot (model: about 43) |
 | `skidFactor`, `trackWidth` | 1.3, 156 mm | **assumed**, CAD | degrees turned by `turnright(150)` in 1 s (model: about 77) |
+| `wallNudgeMm` | 0.3 mm per ms | **assumed**: what a wall does to a corner that hits it mid-turn (the CAD leaves ~7 mm each side when turning on the spot). 0.3 = the wall shoves the robot sideways and the turn carries on; 0 = the turn jams | turn on the spot 5 mm off the middle of a tile, close to one wall: does it scrape round, or stall? |
 | `motorGainSigma` | 0.03 | **assumed** (Pololu gives no motor-to-motor spread) | how far `fw(150)` drifts sideways over 1 m with no walls |
 | `tractionMean/Sigma` | 0.97 / 0.02 | **assumed** | encoder counts vs real distance over 2 m |
 | `tofNoiseMm/Pct`, `tofOffsetSigma` | 1.5 mm + 3%, 5 mm | **datasheet**: VL53L0X table 12, standard deviation 4% at 33 ms (white target, including part-to-part); table 14, offset drift < 3% | repeated `measure()` at known distances |
