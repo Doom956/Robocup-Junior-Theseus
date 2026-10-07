@@ -283,7 +283,9 @@ void fwd(double dist){ // in mm
       // for more turn until the robot is 30-60 deg off and its corner is on the wall.
       if (fabs(yaw) > MAX_STEER_DEG && adjustment * yaw < 0) { adjustment = gyroPID.getPID(yaw); steerLimited++; }
     }
-    double Scale = Scale_PID.getPID(pulses-(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3);
+    // The loop below stops once Scale * 120 < 25; with Scale = 0.0045 x counts left that was 46 counts (12 mm)
+    // before the target on every move. Counted from 46 counts past the target, that point is the target.
+    double Scale = Scale_PID.getPID(pulses + 25.0 / (120 * 0.0045) - (drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3);
     
     // emergency stop
     
@@ -405,7 +407,9 @@ void fwd(double dist){ // in mm
     // Steering: left = base - adjustment, right = base + adjustment. Scale starts around 5, so the old
     // constrain(Scale*(120 -+ adjustment), 20, 150) gave 150 on both sides and no steering at all until
     // the last ~60 mm of the tile. Lower the base instead, so the whole correction always fits under 150.
-    double base = min(Scale * 120, 150 - fabs(adjustment));
+    // Never under 55: the robot needs about PWM 50 to keep all wheels turning (bench test 4, wheel A), and
+    // slowing below that it stalled short of the middle of the tile.
+    double base = max(55.0, min(Scale * 120, 150 - fabs(adjustment)));
     double driveL = constrain(base - adjustment, 20, 150), driveR = constrain(base + adjustment, 20, 150);
     drivetrain.drive(driveL, driveL, driveR, driveR);
     //drivetrain.drive(150+adjustment,(150+adjustment)*1.25,(150-adjustment)*1.25,150+adjustment);

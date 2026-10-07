@@ -17,6 +17,9 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
 | 2d c. Gyro drift | IMUPLUS 0.00 deg in 2 min. On main (NDOF) one run jumped 12.5 deg while standing still: passed, and NDOF is a real risk |
 | 2e / steering a | corrects itself, but then waits ~4 s; drives very close to a wall on its right. **Repeat with the Serial log** (wall on the right, then on the left) |
 | 3. Ramp up and down | 6 of 6 |
+| 2026-10-07: pause switch | read "pause" almost always: the board's pull-down resistor came loose (pin 22 floats in the run position). Fixed in code on main (`INPUT_PULLDOWN`); re-solder the resistor (pin 22 to GND, ~10 k) when you can |
+| 2026-10-07: 4 s wait | the camera thread, not navigation: it stops for any camera byte (`!= -1`) and `detectCam` waits 4 s for a letter. Gone with the cameras off. Victim code: not changed (team decision) |
+| 2026-10-07: stops at the back of tiles | seen on the robot; fixed on this branch in 2f, to test |
 | 1. Obstacles, 2. relocalize, full runs | not yet |
 
 **Suggested order for a test session**
@@ -30,7 +33,7 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
    line is `SENSOR_OFFSET_MM` for `Main/Distance.cpp`, ready to paste (the sensors read long, the right ones
    about 20 mm more than the left: probably why it hugs right-hand walls). Tests 1-10 can be skipped by
    flipping through them if they were done already.
-2. **Steering** (last section, and 2e): a few tiles along a corridor; no weaving, no big turns off a wall.
+2. **Steering** (last section, 2e and 2f): a few tiles along a corridor; no weaving, no big turns off a wall, each move ends in the middle of the tile.
 3. **Ramp up and down** (section 3): the floor change.
 4. **Obstacles** (section 1, tests a-e), then **relocalize** (section 2).
 5. A few full runs on a practice field with an obstacle or two; save the Serial logs.
@@ -185,6 +188,38 @@ b. **Full runs.** Count `[FWD] steering limited` in the log. A few per run is ex
    the real steering needs more than 10 deg: raise `MAX_STEER_DEG` to 15. Note also any move where the
    robot ended visibly turned or scraped a wall.
 
+## 2f. End each tile at its target, never under PWM 55
+
+**What changed** (`Main/movement.cpp`, `fwd()`): two things in the slow-down at the end of each tile.
+- The drive power never goes under 55. It used to slow to about 20, but this robot needs about PWM 50 to
+  keep all wheels turning (bench test 4: wheel A), so it stalled short of the middle.
+- The loop stopped once the power fell under 25, which was always 46 encoder counts (12 mm) before its
+  target. It now counts the slow-down from 46 counts past the target, so it stops on the target.
+
+**Why:** on 2026-10-07 the robot was often at the back of the tiles. In the sim (with the weak motor A from
+bench test 4) a quarter of the moves ended more than 30 mm short.
+
+**Simulator** (600 comp fields vs robot-test before it):
+
+| Test | Score | Time lost | Back home |
+|---|---|---|---|
+| minimum PWM 55, seeds 1-600 | +7.2 +-3.3 | -1 +-2 pts | +0 +-3 pts |
+| minimum PWM 55, seeds 601-1200 | +5.5 +-3.0 | -0 +-2 pts | +2 +-3 pts |
+| + stop on the target, seeds 1-600 | +2.9 +-2.9 | -1 +-2 pts | +4 +-3 pts |
+| + stop on the target, seeds 601-1200 | +1.9 +-3.0 | -1 +-2 pts | +2 +-3 pts |
+
+Where moves end along the tile (`stopcentre.py`, 60 fields; negative = short of the middle): before, median
+-18 mm when `fwd()` ends, 25% more than 30 mm short, -5 mm after `centreAlong()`; now -6 mm, 6%, and 0 mm.
+
+**Depends on:** the real robot's lowest moving power (bench test 4 said ~50) and how far it coasts at PWM 55.
+
+**Tests on the real robot:**
+
+a. **Middle of the tile.** A corridor of 4-5 tiles, cameras off. Let it drive along; after each move, before
+   it reads the walls, check where it stopped. It should be within about 1-2 cm of the middle, not at the
+   back of the tile. The end of each move shouldn't creep or pause.
+b. **No overshoot.** Same corridor ending in a wall: on the last tile it must not touch the end wall.
+   `centring along:` lines in the log should mostly show small numbers (under 20 mm).
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
 **What changed** (`Main/gyro.cpp`): `bno.begin()` used the library default, NDOF. The BNO055 datasheet
