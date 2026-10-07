@@ -41,7 +41,9 @@ EVENTS = [
 
 
 def summarize(path):
-    lines = [l.strip() for l in open(path, encoding="utf-8", errors="replace")]
+    # tools/serial_log.py puts the time in front of each line ("12:34:56 ...") and adds "--- ..." notes
+    lines = [re.sub(r"^\d\d:\d\d:\d\d ", "", l.strip()) for l in open(path, encoding="utf-8", errors="replace")
+             if not l.startswith("--- ")]
     c = collections.Counter()
     turn_err, entry_off, tilts, center_err, bench = [], [], [], [], []
     for i, s in enumerate(lines):
