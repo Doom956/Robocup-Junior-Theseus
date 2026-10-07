@@ -15,12 +15,13 @@
 //     switched on. If it isn't, the BNO055 is giving heading from magnetic north (NDOF mode).
 //   1 middle of a tile with walls on all 4 sides, square to them: average of 50 readings per distance
 //     sensor vs what the CAD says it should read there   -> tofOffsetSigma, SENSOR_OFFSET_MM
-//   2 middle of a tile, room to turn: lowest PWM that turns the robot on the spot (sim 41) -> wheelMu, TURN_MIN_PWM
-//   3 same: degrees turned by turnright(150) in 1 s (sim 75) -> skidFactor
-//   4 open floor, 30 cm free ahead: lowest PWM that moves it straight (sim 13-17) -> frictionFracAt12V
+//   2 middle of a tile, room to turn: lowest PWM that turns the robot on the spot (sim 25) -> wheelMu, TURN_MIN_PWM
+//   3 same: degrees turned by turnright(150) in 1 s (sim 95) -> skidFactor
+//   4 open floor, 50 cm free ahead: lowest PWM that drives all three encoder wheels forward (sim 19)
+//     -> frictionFracAt12V. Tests 2-4 also print the encoder counts A/B/D, so a weak or backwards wheel shows.
 //   5 open floor, 60 cm free ahead, mark its centre: fw(150) for 2 s with no steering: encoder distance and
 //     heading change; measure the real distance and how far it went sideways -> tractionMean, motorGainSigma
-//   6 anywhere, untouched for 2 minutes: heading change (sim 0.5 deg/min) -> gyroDriftSigmaDegPerMin
+//   6 anywhere, untouched for 2 minutes: heading change (sim 0.03 deg/min) -> gyroDriftSigmaDegPerMin
 //   7-10 colour sensor over the middle of a white, blue, silver, then black tile: what read_color() says
 //     and the raw values, vs the thresholds in Globals.h (the simulator's colour values are assumed)
 #include "Globals.h"
@@ -33,7 +34,7 @@ extern int LEDPIN;              // main.cpp
 static const int BENCH_SWITCH_PIN = 22; // the pause (logic) switch, logicswitch in main.cpp
 
 // ---- results: printed as they come and kept, so they can be printed again at the end ----
-static const int MAX_RESULTS = 48, LINE_LEN = 100;
+static const int MAX_RESULTS = 48, LINE_LEN = 160;
 static char results[MAX_RESULTS][LINE_LEN];
 static int resultCount = 0;
 static char line[LINE_LEN];
@@ -116,33 +117,49 @@ static void benchSensors(){
   Serial.println("[BENCH] (placing it in the exact middle is hard, +-5 mm; the left+right and front+back sums don't depend on it)");
 }
 
+// encoder counts of wheels A/B/D since the last reset, as "a/b/d" (one counting backwards, or one stuck
+// at 0, shows up here)
+static void addEncoders(){
+  addInt(drivetrain.encoderCountA); add("/"); addInt(drivetrain.encoderCountB); add("/"); addInt(drivetrain.encoderCountD);
+}
+
 static void benchTurnPwm(){
   waitForSwitch("2 turn PWM", "2) robot in the middle of a tile, room to turn");
+  double firstHeading = myGyro.heading();
+  bool gyroChanged = false;
   for(int pwm = 20; pwm <= 150; pwm += 5){
     double h0 = myGyro.heading();
+    drivetrain.reset_encoderCount(true, true, true);
     drivetrain.turnright(pwm);
     delay(1000);
     drivetrain.fullstop();
     delay(300);
     double moved = wrap180(myGyro.heading() - h0);
+    if(fabs(myGyro.heading() - firstHeading) > 0.01) gyroChanged = true;
     Serial.print("[BENCH] turnright(");
     Serial.print(pwm);
     Serial.print("): ");
     Serial.print(moved, 1);
-    Serial.println(" deg in 1 s");
+    Serial.print(" deg in 1 s, encoders A/B/D ");
+    Serial.print(drivetrain.encoderCountA); Serial.print("/");
+    Serial.print(drivetrain.encoderCountB); Serial.print("/");
+    Serial.println(drivetrain.encoderCountD);
     if(fabs(moved) > 5.0){
-      add("2 lowest PWM that turns it on the spot: "); addInt(pwm); add(" (simulator 41; TURN_MIN_PWM is 20)");
+      add("2 lowest PWM that turns it on the spot: "); addInt(pwm); add(" (robot 25-30 on 2026-10-06, sim 25; TURN_MIN_PWM is 20); encoders ");
+      addEncoders();
       endLine();
       return;
     }
   }
-  add("2 didn't turn even at 150");
+  add("2 didn't turn 5 deg even at 150; encoders at 150 "); addEncoders();
+  add(gyroChanged ? "" : "; GYRO NEVER CHANGED (not reading?)");
   endLine();
 }
 
 static void benchTurnRate(){
   waitForSwitch("3 turn rate", "3) robot in the middle of a tile, room to turn");
   double h0 = myGyro.heading(), total = 0, last = h0;
+  drivetrain.reset_encoderCount(true, true, true);
   drivetrain.turnright(150);
   unsigned long start = millis();
   while(millis() - start < 1000){ // add up small steps so a turn past 180 deg is counted right
@@ -152,26 +169,35 @@ static void benchTurnRate(){
     delay(10);
   }
   drivetrain.fullstop();
-  add("3 turnright(150) for 1 s: "); addNum(total, 1); add(" deg (simulator 75)");
+  add("3 turnright(150) for 1 s: "); addNum(total, 1); add(" deg (robot 92-97, sim 95); encoders "); addEncoders();
   endLine();
 }
 
 static void benchStraightPwm(){
-  waitForSwitch("4 drive PWM", "4) robot on open floor with 30 cm free ahead");
-  for(int pwm = 5; pwm <= 60; pwm += 2){
+  waitForSwitch("4 drive PWM", "4) robot on open floor with 50 cm free ahead");
+  // up to 60 in small steps, then on to 150 in case it needs more; stops at the first PWM that turns all
+  // three wheels forward 10 counts (about 3 mm), so it only creeps. (One wheel alone isn't enough: a motor
+  // humming without turning made an encoder count noise, some of it backwards.)
+  for(int pwm = 5; pwm <= 150; pwm += (pwm < 60 ? 2 : 10)){
     drivetrain.reset_encoderCount(true, true, true);
     drivetrain.fw(pwm);
     delay(1000);
     drivetrain.fullstop();
     delay(300);
-    int counts = encoderAvg();
-    if(counts > 10){
-      add("4 lowest PWM that drives it straight from standstill: "); addInt(pwm); add(" (simulator 17)");
+    Serial.print("[BENCH] fw(");
+    Serial.print(pwm);
+    Serial.print("): encoders A/B/D ");
+    Serial.print(drivetrain.encoderCountA); Serial.print("/");
+    Serial.print(drivetrain.encoderCountB); Serial.print("/");
+    Serial.println(drivetrain.encoderCountD);
+    if(drivetrain.encoderCountA > 10 && drivetrain.encoderCountB > 10 && drivetrain.encoderCountD > 10){
+      add("4 lowest PWM that drives it straight from standstill: "); addInt(pwm); add(" (robot 49-51, set by wheel A; sim 19); encoders ");
+      addEncoders();
       endLine();
       return;
     }
   }
-  add("4 didn't move even at 60");
+  add("4 the three wheels never all counted forward, even at fw(150): encoders "); addEncoders();
   endLine();
 }
 
@@ -200,7 +226,7 @@ static void benchGyroDrift(){
     add("6 heading change after "); addInt(s); add(" s standing still: "); addNum(wrap180(myGyro.heading() - h0), 2); add(" deg");
     endLine();
   }
-  Serial.println("[BENCH] per minute = the 120 s value / 2 (simulator assumes 0.5 deg/min)");
+  Serial.println("[BENCH] per minute = the 120 s value / 2 (simulator 0.03 deg/min, from this test)");
 }
 
 static void benchFloorColours(){
