@@ -25,7 +25,11 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
    sensor offsets, turning power, gyro drift and floor colours. No LCD or USB cable needed: the LED blinks
    slowly while it waits for the pause switch, stays on during a test and blinks fast when done; then plug
    in USB and flip the switch to print every result. Copy the `[BENCH]` lines; they tell us how far the
-   simulator is from this robot. Set `BENCH_MODE` back to 0.
+   simulator is from this robot. Set `BENCH_MODE` back to 0. New test 11 (at the end, one switch flip per
+   sensor): a flat wall exactly 100 mm in front of each distance sensor (a printed 100 mm spacer); its last
+   line is `SENSOR_OFFSET_MM` for `Main/Distance.cpp`, ready to paste (the sensors read long, the right ones
+   about 20 mm more than the left: probably why it hugs right-hand walls). Tests 1-10 can be skipped by
+   flipping through them if they were done already.
 2. **Steering** (last section, and 2e): a few tiles along a corridor; no weaving, no big turns off a wall.
 3. **Ramp up and down** (section 3): the floor change.
 4. **Obstacles** (section 1, tests a-e), then **relocalize** (section 2).
