@@ -38,6 +38,12 @@ struct Params {
   double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
   double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
   double stictionFactor = 1.3;    // extra friction to start from standstill
+  // Motor A (left front) only: extra friction at low power, fraction of stall torque, fading to none at
+  // PWM 128. FITTED to bench mode on the robot (2026-10-06, 11.76 V): test 4 needed PWM 49-51 before wheel A
+  // counted forward, and even then A counted 42-56 against 250-340 for B and D (it feels free by hand, so motor
+  // or driver channel); at PWM 150 (test 3) A counted like the others (1010 vs 984-1105). 0.16 gives --selftest
+  // tests 2/3/4 = 30 / 93 deg / 51 (robot 25-30 / 92-97 deg / 49-51); 0 = motor A like the others.
+  double motorAExtraFriction = 0.16;
   double robotMassKg = 1.15;      // ESTIMATE from the parts' datasheets + printed parts (README "Robot mass") - weigh it
   double driverOhms = 0.5;        // TB6612FNG output ON resistance, upper + lower, typ (Toshiba datasheet); motor 12 V / 1.6 A = 7.5 ohm
   // wheelMu and skidFactor FITTED to the robot's bench mode (Main/bench.cpp, 3 runs on 2026-10-06): lowest
@@ -97,7 +103,7 @@ struct Params {
 static std::map<std::string, double *> paramTable() {
   return {
     {"batteryVoltage", &P.batteryVoltage}, {"noLoadRpmAt12V", &P.noLoadRpmAt12V}, {"stallKgcmAt12V", &P.stallKgcmAt12V},
-    {"frictionFracAt12V", &P.frictionFracAt12V}, {"stictionFactor", &P.stictionFactor}, {"robotMassKg", &P.robotMassKg},
+    {"frictionFracAt12V", &P.frictionFracAt12V}, {"stictionFactor", &P.stictionFactor}, {"motorAExtraFriction", &P.motorAExtraFriction}, {"robotMassKg", &P.robotMassKg},
     {"wheelMu", &P.wheelMu}, {"motorTau", &P.motorTau},
     {"motorGainSigma", &P.motorGainSigma}, {"trackWidth", &P.trackWidth}, {"skidFactor", &P.skidFactor},
     {"tractionMean", &P.tractionMean}, {"tractionSigma", &P.tractionSigma},
@@ -126,7 +132,7 @@ static bool setParam(const std::string &kv) {
 }
 
 static void makeIdeal() { // no noise, no drift, identical motors, perfect grip
-  P.motorGainSigma = 0; P.tractionMean = 1; P.tractionSigma = 0;
+  P.motorGainSigma = 0; P.motorAExtraFriction = 0; P.tractionMean = 1; P.tractionSigma = 0;
   P.tofNoiseMm = 0; P.tofNoisePct = 0; P.tofOffsetSigma = 0; P.tofOffsetMeanMm = 0; P.magErrorDeg = 0;
   P.gyroNoiseDeg = 0; P.gyroDriftSigmaDegPerMin = 0; P.pitchNoiseDeg = 0; P.colourNoise = 0;
   P.placeSigmaMm = 0; P.placeSigmaDeg = 0;
@@ -456,7 +462,8 @@ static void physicsStep(double dt) {
   for (int i = 1; i <= 4; i++) {
     Motor &m = mot[i];
     double d = duty[i];
-    double resist = friction + skidSpin * turning;
+    double extraA = i == 1 ? P.motorAExtraFriction * std::max(0.0, 1 - std::fabs(d) / (128 / 255.0)) : 0;
+    double resist = friction + extraA + skidSpin * turning;
     if (std::fabs(m.speed) < 1) resist *= P.stictionFactor;
     double eff = std::fabs(d) - resist - gravity * (d >= 0 ? 1 : -1); // driving uphill costs, downhill helps
     double target = eff > 0 ? (d > 0 ? 1 : -1) * eff * vNoLoad * m.gain : 0;
