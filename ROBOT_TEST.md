@@ -6,7 +6,18 @@ set up, what to run, and what to watch for in the Serial monitor.
 
 Section 3 lists logic fixes that are on main now (ramp up/down, 5 s stop when backing into a blue
 tile, bench mode); worth checking in the same session. Whole branch vs main in the simulator (600
-comp fields, main at d8c8c75): score +19.2 +-4.5, time lost 29% -> 10%, back home 64% -> 86%.
+comp fields, main at d8c8c75): score +19.2 +-4.5, time lost 29% -> 10%, back home 64% -> 86%. With the
+simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 32% -> 10%, home 62% -> 84%.
+
+**Results so far (2026-10-06, robot-test at 816307b)**
+
+| Test | Result |
+|---|---|
+| 1. Bench mode | done, 3 runs (2 on main, 1 on robot-test); see CLAUDE.md. Turning needs PWM 25-30, wheel A lags at low power |
+| 2d c. Gyro drift | IMUPLUS 0.00 deg in 2 min. On main (NDOF) one run jumped 12.5 deg while standing still: passed, and NDOF is a real risk |
+| 2e / steering a | corrects itself, but then waits ~4 s; drives very close to a wall on its right. **Repeat with the Serial log** (wall on the right, then on the left) |
+| 3. Ramp up and down | 6 of 6 |
+| 1. Obstacles, 2. relocalize, full runs | not yet |
 
 **Suggested order for a test session**
 
