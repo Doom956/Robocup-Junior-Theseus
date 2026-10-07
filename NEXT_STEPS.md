@@ -73,18 +73,29 @@ Follow the rules in `CLAUDE.md`: diagnose with traces, A/B on 600 comp fields an
 1. **Low-power stall (likely the ~4 s wait).** The robot needs about PWM 50 to keep all wheels turning
    (wheel A), but `fwd()` slows to as little as 20 near the end of a tile and `centreAlong()` drives at 50.
    It probably stops a couple of cm short and waits out the move's time limit (8 s per tile).
-   - Make the sim reproduce bench test 4: a weaker or stiffer motor A (e.g. a per-motor friction value)
-     until `--selftest` gives about 50 for test 4 with A far behind B and D, while tests 2 and 3 stay 25
-     and 95. Mark it as measured from bench test 4.
-   - Then try a minimum drive PWM in `fwd()` (and a higher `centreAlong()` speed) on robot-test, A/B
-     against robot-test. Confirm with the steering log before pushing.
-2. **Distance sensor offsets.** All sensors read long (sides about +10 mm each). Add a bench test that reads
-   each sensor against a wall at exactly 100 mm (print a 100 mm spacer block to hold against the wall),
-   then put the results in `SENSOR_OFFSET_MM` (`Main/Distance.cpp`). This should also stop it hugging
-   right-hand walls (the right sensors read about 20 mm more than the left ones).
-3. **Re-check held physics experiments on the fitted sim.** These were judged with the old turning and
-   friction: TURN_MIN_PWM 35/45, finishing moves at minimum power, turn power boost, turn stall boost,
-   minimum turn pace. A/B each against `origin/robot-test`, 600 fields + `--start 601`.
+   - DONE (2026-10-06, on main): the sim has a weak motor A, `motorAExtraFriction` 0.16 fading to 0 at
+     PWM 128; `--selftest` tests 2/3/4 = 30 / 93 deg / 51 (robot 25-30 / 92-97 / 49-51). It makes moves
+     slower (median 2.6 -> 2.9 s) but does NOT reproduce a 4 s wait: moves over 4 s stay at 3%. So the wait
+     is still unexplained; the steering log will tell.
+   - TESTED, NOT PUSHED (waiting for the steering log): a minimum drive power in `fwd()`. PHYSICS-DEPENDENT,
+     for robot-test. In `Main/movement.cpp` replace `double base = min(Scale * 120, 150 - fabs(adjustment));`
+     with `double base = max(55.0, min(Scale * 120, 150 - fabs(adjustment)));`. Against robot-test, 600 comp:
+     seeds 1-600 +7.2 +-3.3, seeds 601-1200 +5.5 +-3.0 (home +2 +-3, time lost -0 +-2, explored 75 -> 78%),
+     with motor A fixed (`--set motorAExtraFriction=0`) +6.0 +-3.1, with jamming turns (`wallNudgeMm=0`)
+     -0.6 +-2.9. It helps mostly by moving faster near the end of each tile. Robot test: a few tiles in a
+     corridor; the end of each move shouldn't creep, and the robot should stop within ~1 cm of the centre.
+     `centreAlong()` at PWM 60 instead of 50: +3.0 +-3.1, adds nothing on top (+4.8 +-3.1 together on new
+     seeds): held.
+2. **Distance sensor offsets.** All sensors read long (sides about +10 mm each).
+   - DONE (on main): bench test 11 reads each sensor against a flat wall exactly 100 mm away (one switch
+     flip per sensor; print a 100 mm spacer block) and prints `SENSOR_OFFSET_MM` ready to paste into
+     `Main/Distance.cpp`. That should also stop it hugging right-hand walls (the right sensors read about
+     20 mm more than the left ones). Needs the robot.
+3. **Re-check held physics experiments on the fitted sim.** DONE: against robot-test with the weak motor A,
+   600 comp fields, seeds 1-600 / 601-1200: TURN_MIN_PWM 35 +4.0 +-3.1 / -0.2 +-3.1 (time lost +4 +-2 on
+   the new seeds), TURN_MIN_PWM 45 +4.5 +-3.4 / +2.2 +-3.1, turn stall boost +4.0 +-3.0 / -0.2 +-2.8,
+   minimum turn pace +5.3 +-3.1 / +1.9 +-3.0. None holds on the new seeds: all still held. ("Finishing moves
+   at minimum power" is the minimum drive power in item 1.)
 4. **Exploring faster** (strategy: needs the user's yes before anything goes anywhere). Time runs out in
    72% of runs; turns take 25% of the exploring time (`timeprof.py`); the code thinks it's done too early
    when blocked edges cut the map (`earlydone.py`).
