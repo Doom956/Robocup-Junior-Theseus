@@ -24,6 +24,11 @@
 //   6 anywhere, untouched for 2 minutes: heading change (sim 0.03 deg/min) -> gyroDriftSigmaDegPerMin
 //   7-10 colour sensor over the middle of a white, blue, silver, then black tile: what read_color() says
 //     and the raw values, vs the thresholds in Globals.h (the simulator's colour values are assumed)
+//   11 (one switch flip per sensor, 1 to 7) a flat wall exactly 100 mm in front of that sensor, measured from the
+//     front of its board (hold a 100 mm spacer block between the sensor and the wall, then take it away, or
+//     stand the robot on a line 100 mm from the wall), square to it: raw average of 100 readings, and the
+//     offset it needs. The last line is SENSOR_OFFSET_MM (Main/Distance.cpp) with all seven, ready to paste.
+//     -> SENSOR_OFFSET_MM, tofOffsetMeanMm / tofOffsetSigma
 #include "Globals.h"
 #include "Movement.h"
 #include "Color.h"
@@ -264,6 +269,30 @@ static void benchFloorColours(){
   endLine();
 }
 
+static void benchSensorOffsets(){
+  const char *names[8] = {"", "front-right", "right-front", "right-back", "back", "left-back", "left-front", "front-left"};
+  int offset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  for(int s = 1; s <= 7; s++){
+    char lcdText[17];
+    snprintf(lcdText, sizeof(lcdText), "11 sensor %d", s);
+    char howTo[110];
+    snprintf(howTo, sizeof(howTo), "11) flat wall exactly 100 mm in front of sensor %d (%s), square to it", s, names[s]);
+    waitForSwitch(lcdText, howTo);
+    bool reads = false; // calibrateSensor() returns -1 for "no reading", which is also a possible offset
+    for(int i = 0; i < 5 && !reads; i++) reads = measure(s) != -1;
+    int off = reads ? calibrateSensor(s, 100) : 0; // averages 100 raw readings (SENSOR_OFFSET_MM not applied)
+    add("11 sensor "); addInt(s); add(" "); add(names[s]);
+    if(!reads) add(": no valid reading (offset left at 0)");
+    else { add(" at 100 mm reads "); addInt(100 + off); add(", offset "); addInt(off); }
+    endLine();
+    offset[s] = off;
+  }
+  add("11 paste into Main/Distance.cpp: const int SENSOR_OFFSET_MM[8] = {0");
+  for(int s = 1; s <= 7; s++){ add(", "); addInt(offset[s]); }
+  add("};");
+  endLine();
+}
+
 void runBench(){
   pinMode(LEDPIN, OUTPUT);
   Serial.println("[BENCH] bench mode: measurements for the simulator (BENCH_MODE in main.cpp)");
@@ -276,6 +305,7 @@ void runBench(){
   benchStraightLine();
   benchGyroDrift();
   benchFloorColours();
+  benchSensorOffsets();
   drivetrain.fullstop();
   Serial.println("[BENCH] done. Flip the pause switch on and off to print every result again.");
   lcdPrint("bench done");
