@@ -1,0 +1,22 @@
+﻿19:41:00 [BENCH] ---- all results ----
+19:41:00 [BENCH] 0 heading at power-on: 0.0 deg (should be about 0 whichever way the robot faced)
+19:41:00 [BENCH] 1 sensor 1 front-right: 58.0 mm, CAD says 41.6, off by 16.4
+19:41:00 [BENCH] 1 sensor 2 right-front: 73.4 mm, CAD says 49.2, off by 24.2
+19:41:00 [BENCH] 1 sensor 3 right-back: 75.6 mm, CAD says 49.2, off by 26.4
+19:41:00 [BENCH] 1 sensor 4 back: 37.7 mm, CAD says 37.2, off by 0.5
+19:41:00 [BENCH] 1 sensor 5 left-back: 44.1 mm, CAD says 49.2, off by -5.1
+19:41:00 [BENCH] 1 sensor 6 left-front: 44.2 mm, CAD says 49.2, off by -5.0
+19:41:00 [BENCH] 1 sensor 7 front-left: 57.8 mm, CAD says 41.6, off by 16.2
+19:41:00 [BENCH] 2 lowest PWM that turns it on the spot: 25 (simulator 41; TURN_MIN_PWM is 20); encoders -165/-151/-59
+19:41:00 [BENCH] 3 turnright(150) for 1 s: 94.6 deg (simulator 75); encoders 1020/-1144/-952
+19:41:00 [BENCH] 4 lowest PWM that drives it straight from standstill: 49 (simulator 17); encoders 42/249/305
+19:41:00 [BENCH] 6 heading change after 30 s standing still: 0.00 deg
+19:41:00 [BENCH] 6 heading change after 60 s standing still: 0.00 deg
+19:41:00 [BENCH] 6 heading change after 90 s standing still: 0.00 deg
+19:41:00 [BENCH] 6 heading change after 120 s standing still: 0.00 deg
+19:41:00 [BENCH] 7 white tile: r 603 g 868 b 1063 c 2521 ratio 0.96; read as white x10
+19:41:00 [BENCH] 8 blue tile: r 53 g 159 b 283 c 490 ratio 0.19; read as blue x10
+19:41:00 [BENCH] 9 silver tile: r 275 g 403 b 477 c 1149 ratio 0.44; read as blue x10
+19:41:00 [BENCH] 10 black tile: r 41 g 50 b 56 c 145 ratio 0.05; read as black x10
+19:41:00 [BENCH] thresholds: black if ratio < 0.1, silver if r > 800 (checked before white), white if ratio > 0.85
+19:41:00 [BENCH] ---- end ----
