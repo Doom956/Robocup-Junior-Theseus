@@ -149,22 +149,24 @@ All of them are in `Params` at the top of `physics.cpp` and can be changed per r
 | Setting | Default | Source | How to check on the robot |
 |---|---|---|---|
 | `obstacleMovableFrac`, `obstacleMassMinKg/MaxKg`, `obstacleMu` | 0, 0.5-2 kg, 0.4 | **assumed** (the rules only say "large, heavy items" that may be fixed) | the competition's obstacles: weigh one, and find the force that slides it (a luggage scale) |
-| `noLoadRpmAt12V`, `stallKgcmAt12V`, `frictionFracAt12V` | 72 RPM, 10 kg.cm, 0.05 | **datasheet**: Pololu #3493 (72 RPM, 80 mA no-load, 1.6 A / 10 kg.cm stall at 12 V; 46 g) | lowest `drivetrain.fw(pwm)` that moves the robot (model: about 13-17) |
+| `noLoadRpmAt12V`, `stallKgcmAt12V`, `frictionFracAt12V` | 72 RPM, 10 kg.cm, 0.05 | **datasheet**: Pololu #3493 (72 RPM, 80 mA no-load, 1.6 A / 10 kg.cm stall at 12 V; 46 g) | bench test 4, lowest `fw(pwm)` that drives all three encoder wheels forward (sim 19). **Bench 2026-10-06: 51 and 49**, but set by wheel A alone (left front: 42-56 counts while B and D did 250-340): that wheel drags at low power. Check it by hand; not modelled |
 | `driverOhms` | 0.5 ohm | **datasheet**: TB6612FNG output ON resistance, upper + lower, typical (the motor itself is 12 V / 1.6 A = 7.5 ohm, so stall torque is about 6% lower than the motor alone) | - |
 | encoder counts | 5 per motor turn | **datasheet**: Pololu #3499 encoder, 20 counts per motor turn counting both edges of both channels; the code counts rising edges of one channel = 5 | - |
-| `batteryVoltage` | 11.8 V | 3S LiPo (Zeee 2200 mAh in the team BOM; cell count read from the photo) | multimeter on the pack before a run; check it is 3S |
+| `batteryVoltage` | 11.76 V | **measured** (multimeter, 2026-10-06), 3S LiPo | multimeter on the pack before a run |
 | `robotMassKg` | 1.15 | **estimate**: parts from their datasheets + printed parts, see "Robot mass" below | weigh it |
-| `wheelMu` | 0.8 | **assumed** (silicone on the field floor; no datasheet) | lowest `turnright(pwm)` that turns it on the spot (model: about 43) |
-| `skidFactor`, `trackWidth` | 1.3, 156 mm | **assumed**, CAD | degrees turned by `turnright(150)` in 1 s (model: about 77) |
+| `wheelMu` | 0.2 | **fitted to bench test 2** (2026-10-06): lowest `turnright(pwm)` that turns it 5 deg in 1 s was 25, 30, 25 on the robot; 25 in the sim (was 0.8, assumed, giving 45) | bench test 2 |
+| `skidFactor`, `trackWidth` | 1.1, 156 mm | **fitted to bench test 3** (2026-10-06): `turnright(150)` for 1 s turned 97, 92, 95 deg on the robot; 95 in the sim (was 1.3, assumed, giving 70); track from the CAD | bench test 3 |
+| `wallNudgeMm` | 0.3 mm per ms | **assumed**: what a wall does to a corner that hits it mid-turn (the CAD leaves ~7 mm each side when turning on the spot). 0.3 = the wall shoves the robot sideways and the turn carries on; 0 = the turn jams | turn on the spot 5 mm off the middle of a tile, close to one wall: does it scrape round, or stall? |
 | `motorGainSigma` | 0.03 | **assumed** (Pololu gives no motor-to-motor spread) | how far `fw(150)` drifts sideways over 1 m with no walls |
 | `tractionMean/Sigma` | 0.97 / 0.02 | **assumed** | encoder counts vs real distance over 2 m |
 | `tofNoiseMm/Pct`, `tofOffsetSigma` | 1.5 mm + 3%, 5 mm | **datasheet**: VL53L0X table 12, standard deviation 4% at 33 ms (white target, including part-to-part); table 14, offset drift < 3% | repeated `measure()` at known distances |
+| `tofOffsetMeanMm` | +8 mm | **measured**, bench test 1 (3 runs, 2026-10-06, centred by hand): left + right read 21/19/20 mm and front + back 14/8/17 mm more than the CAD distances (sums of opposite sensors don't depend on the centring). On the team's practice tile; thinner walls than RCJ's would explain part of it | each sensor against a wall at a distance measured with a ruler |
 | `tofConeDeg`, `tofMaxRange`, `tofPeriodUs` | 25 deg, 1200 mm, 33 ms | **datasheet**: VL53L0X field of view 25 deg; 120 cm minimum on white at 33 ms (table 11); default timing budget | - |
 | `tofMinReliableMm` | 30 | Adafruit #3317 page ("approximately 30 mm to 1.2 m") | `measure()` with a wall 10-40 mm away |
 | `gyroMagnetic` | -1 = follow the firmware | **datasheet + code**: `bno.begin()` defaults to NDOF, which the BNO055 datasheet (3.3.3.5) defines as absolute orientation, i.e. heading from magnetic north. `IMUPLUS` would be relative to the start. `--set gyroMagnetic=0` / `=1` forces one or the other | does `heading()` read 0 at power-on whichever way the robot faces? |
-| `gyroMagneticAfterS` | never (1e9) | NDOF heading only turns magnetic once the magnetometer is calibrated (needs the robot turned through many orientations); the real robot explored like a relative heading, so by default that never happens in a run. `0` = calibrated from the start, `60` = switches 60 s in | watch `bno.getCalibration()` during a run |
+| `gyroMagneticAfterS` | never (1e9) | NDOF heading only turns magnetic once the magnetometer is calibrated (needs the robot turned through many orientations); by default that never happens in a run. `0` = calibrated from the start, `60` = switches 60 s in. **Bench 2026-10-06**: in NDOF (main) the heading jumped 12.5 deg once, about 4-5 min after power-on, after the spin tests; another run didn't jump in 5 min. robot-test uses IMUPLUS, where this can't happen | watch `bno.getCalibration()` during a run |
 | `magErrorDeg` | 2.5 deg | **datasheet**: BNO055 magnetometer heading accuracy +-2.5 deg, fully calibrated (real rooms with motors and steel are usually worse) | heading at the same spot facing the same way in different parts of the field |
-| `gyroDriftSigmaDegPerMin` | 0.5 | **assumed** (the datasheet gives the raw gyro offset, which the fusion removes; no figure for fused drift) | heading change while standing still for 5 min (IMUPLUS mode) |
+| `gyroDriftSigmaDegPerMin` | 0.03 | **measured**, bench test 6 (2026-10-06): 0.00 deg in 2 min standing still (BNO055 steps are 1/16 deg), in IMUPLUS and once in NDOF. In the other NDOF run the heading jumped 12.5 deg within the first 30 s and then stayed: the magnetometer taking over (see `gyroMagneticAfterS`). Drift while moving isn't measured (was 0.5, assumed) | bench test 6 |
 | colour raw values | in `getRawData()` | **assumed**; counts clip at (256 - ATIME) x 1024 = 10240 at 24 ms (**datasheet**, TCS34725) | `read_color()` printout on each tile type of your field |
 | time costs | in each simulated library call | library behaviour | time `loop()` iterations with `micros()` |
 
@@ -206,7 +208,9 @@ defaults above) so the simulator matches the robot. `BENCH_MODE 0` (the default)
 
 `--selftest` runs these experiments on the simulated robot (sensor readings centred in a tile, speed
 and turn rate at several PWM values, the lowest PWM that moves or turns it, colour values). Run the
-same ones on the real robot and change the defaults until they match.
+same ones on the real robot and change the defaults until they match. Its `BENCH` lines repeat bench tests 2-4 of the
+robot's bench mode (`BENCH_MODE` in `Main/main.cpp`, `Main/bench.cpp`) with the same steps and pass rules, so they
+compare one to one with the robot's `[BENCH]` lines.
 
 ## Trying code changes without editing Main/
 

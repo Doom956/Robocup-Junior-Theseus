@@ -33,18 +33,22 @@
 struct Params {
   // Motors: Pololu 195.3125:1 Metal Gearmotor 20Dx44L mm 12V (#3493) on a Carobot V3 shield
   // (TB6612FNG + PCA9685, like the Adafruit Motor Shield V2), powered by a 3S LiPo.
-  double batteryVoltage = 11.8;   // 3S LiPo: 12.6 V full, 11.1 V nominal (assumed part-charged)
+  double batteryVoltage = 11.76;  // 3S LiPo, measured before the bench tests (2026-10-06)
   double noLoadRpmAt12V = 72;     // datasheet
   double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
   double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
   double stictionFactor = 1.3;    // extra friction to start from standstill
   double robotMassKg = 1.15;      // ESTIMATE from the parts' datasheets + printed parts (README "Robot mass") - weigh it
   double driverOhms = 0.5;        // TB6612FNG output ON resistance, upper + lower, typ (Toshiba datasheet); motor 12 V / 1.6 A = 7.5 ohm
-  double wheelMu = 0.8;           // ASSUMED - silicone wheels on the field's floor
+  // wheelMu and skidFactor FITTED to the robot's bench mode (Main/bench.cpp, 3 runs on 2026-10-06): lowest
+  // turnright() PWM that turns it 5 deg in 1 s 25/30/25 (sim 25), turnright(150) for 1 s 97/92/95 deg (sim 95).
+  // (Before: 0.8 and 1.3, assumed, gave 45 and 70.) wheelMu is the sideways drag when turning on the spot; it is
+  // also the grip for pushing a loose obstacle (off by default).
+  double wheelMu = 0.2;
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
   double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
-  double skidFactor = 1.3;        // skid steering turns slower than the ideal track predicts
+  double skidFactor = 1.1;        // skid steering turns slower than the ideal track predicts (fitted, see wheelMu)
   double tractionMean = 0.97, tractionSigma = 0.02, tractionTau = 0.5; // wheel grip (ground speed / wheel speed)
   double wallNudgeMm = 0.3;       // how far a wall can shove a turning robot sideways, mm per ms (0 = it jams)
   double wheelDiameter = 80;
@@ -63,7 +67,13 @@ struct Params {
   // VL53L0X datasheet table 12: standard deviation 4 % at 33 ms (white target, incl. part-to-part); table 14:
   // offset drift < 3 %. Here ~3 % reading-to-reading + a fixed per-sensor offset.
   double tofNoiseMm = 1.5, tofNoisePct = 0.03, tofOffsetSigma = 5, tofMaxRange = 1200, tofConeDeg = 25, tofPeriodUs = 33000;
-  double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.5, pitchNoiseDeg = 0.5;
+  // Bench test 1 (3 runs, robot centred by hand): opposite sensors added up read 21/19/20 mm (left + right) and
+  // 14/8/17 mm (front + back) more than the CAD says, whatever the centring: about +8 mm per sensor on average.
+  // (Measured on the team's practice tile; walls thinner than the 20 mm used here would explain part of it.)
+  double tofOffsetMeanMm = 8;
+  // Bench test 6: 0.00 deg in 2 min standing still (BNO055 steps are 1/16 deg), so under 0.03 deg/min at rest.
+  // Drift while moving isn't measured. (Before: 0.5, assumed.)
+  double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.03, pitchNoiseDeg = 0.5;
   double colourNoise = 0.04;
   double placeSigmaMm = 8, placeSigmaDeg = 2; // how accurately a person places the robot
   double rampMinDeg = 15, rampMaxDeg = 25;
@@ -94,7 +104,7 @@ static std::map<std::string, double *> paramTable() {
     {"gyroMagnetic", &P.gyroMagnetic}, {"magErrorDeg", &P.magErrorDeg}, {"driverOhms", &P.driverOhms}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
     {"tofMinReliableMm", &P.tofMinReliableMm},
     {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
-    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
+    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
@@ -117,7 +127,7 @@ static bool setParam(const std::string &kv) {
 
 static void makeIdeal() { // no noise, no drift, identical motors, perfect grip
   P.motorGainSigma = 0; P.tractionMean = 1; P.tractionSigma = 0;
-  P.tofNoiseMm = 0; P.tofNoisePct = 0; P.tofOffsetSigma = 0; P.magErrorDeg = 0;
+  P.tofNoiseMm = 0; P.tofNoisePct = 0; P.tofOffsetSigma = 0; P.tofOffsetMeanMm = 0; P.magErrorDeg = 0;
   P.gyroNoiseDeg = 0; P.gyroDriftSigmaDegPerMin = 0; P.pitchNoiseDeg = 0; P.colourNoise = 0;
   P.placeSigmaMm = 0; P.placeSigmaDeg = 0;
 }
@@ -1005,6 +1015,34 @@ static int selfTest() {
     drivetrain.fullstop(); delay(500);
     std::printf("  turnright(%3d): %5.0f deg/s\n", pwm, unwrapped);
   }
+  // The robot's bench mode (Main/bench.cpp) tests 2-4, with the same steps and the same pass rules, so the
+  // numbers compare one to one with the [BENCH] lines from the real robot.
+  std::printf("BENCH (as Main/bench.cpp)\n");
+  {
+    place(450, 450, 0);
+    int found = -1;
+    for (int pwm = 20; pwm <= 150 && found < 0; pwm += 5) {
+      double h0 = rhead;
+      drivetrain.turnright(pwm); delay(1000); drivetrain.fullstop(); delay(300);
+      double moved = rhead - h0; if (moved > 180) moved -= 360; if (moved < -180) moved += 360;
+      if (std::fabs(moved) > 5.0) found = pwm;
+    }
+    std::printf("  2 lowest PWM that turns it on the spot: %d\n", found);
+    place(450, 450, 0);
+    double total = 0, last = rhead;
+    drivetrain.turnright(150);
+    for (int k = 0; k < 100; k++) { delay(10); double d = rhead - last; if (d < -180) d += 360; if (d > 180) d -= 360; total += d; last = rhead; }
+    drivetrain.fullstop(); delay(500);
+    std::printf("  3 turnright(150) for 1 s: %.1f deg\n", total);
+    found = -1;
+    for (int pwm = 5; pwm <= 150 && found < 0; pwm += (pwm < 60 ? 2 : 10)) {
+      place(450, 120, 0);
+      drivetrain.reset_encoderCount(true, true, true);
+      drivetrain.fw(pwm); delay(1000); drivetrain.fullstop(); delay(300);
+      if (drivetrain.encoderCountA > 10 && drivetrain.encoderCountB > 10 && drivetrain.encoderCountD > 10) found = pwm;
+    }
+    std::printf("  4 lowest PWM that drives all three encoder wheels forward: %d\n", found);
+  }
   {
     double V = P.batteryVoltage, stallNm = P.stallKgcmAt12V * V / 12.0 * 0.0980665 * motorOhms() / (motorOhms() + P.driverOhms), rM = P.wheelDiameter / 2000.0;
     double fr = P.frictionFracAt12V * 12.0 / V, spin = P.wheelMu * P.robotMassKg * 9.81 / 4 * (axleOffset / (P.trackWidth / 2)) * rM / stallNm;
@@ -1061,7 +1099,7 @@ int main(int argc, char **argv) {
   if (selftest) {
     rng.seed(1);
     for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
-    for (int i = 1; i <= 7; i++) tof[i].offset = gauss(P.tofOffsetSigma);
+    for (int i = 1; i <= 7; i++) tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma);
     return selfTest();
   }
 
@@ -1083,7 +1121,7 @@ int main(int argc, char **argv) {
   }
 
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
-  for (int i = 1; i <= 7; i++) { tof[i].offset = gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
+  for (int i = 1; i <= 7; i++) { tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
   gyroBiasDegPerUs = gauss(P.gyroDriftSigmaDegPerMin) / 60e6;
   magOffsetDeg = P.gyroMagneticOffsetDeg >= 0 ? P.gyroMagneticOffsetDeg : std::uniform_real_distribution<double>(0, 360)(rng);
   for (double &ph : magPhase) ph = std::uniform_real_distribution<double>(0, 2 * M_PI)(rng);
