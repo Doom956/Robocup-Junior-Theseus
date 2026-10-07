@@ -441,7 +441,10 @@ void setup(){
   pinMode(gpio1, INPUT);
   pinMode(gpio2, INPUT);
   // initialize logic switch pin
-  pinMode(logicswitch, INPUT);
+  // The switch connects pin 22 to 3.3 V for "pause" and leaves it open for "run". With a plain INPUT an
+  // open pin floats: when the board's pull-down resistor came loose (2026-10-07) it read "pause" almost
+  // all the time and the robot sat still or inched. The GIGA's own pull-down holds it low either way.
+  pinMode(logicswitch, INPUT_PULLDOWN);
   pinMode(LEDPIN,OUTPUT);
   // begin UART communication.
   Serial.begin(115200);
