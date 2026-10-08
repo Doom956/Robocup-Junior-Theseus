@@ -14,10 +14,11 @@
 #define BACKUP_TIMEOUT_MS 2500
 // absoluteturn(): finished when within this many degrees of the target.
 #define TURN_DONE_DEG 2.0
-// Lowest PWM absoluteturn() uses (same as before). Skid steering may need more than this to
-// turn on the spot at all; bench-test the lowest drivetrain.turnright(pwm) that turns the
-// robot and raise this to it plus a margin (the simulator's estimate is about 41).
-#define TURN_MIN_PWM 20
+// Lowest PWM absoluteturn() uses. Bench test 2 (2026-10-06): the robot only starts turning on the spot at
+// 25-30, and at that power it turns ~5 deg/s. With the old 20 every turn stalled a few degrees short and waited
+// out its time limit (2 s per 90 deg); 45 finishes them. The turn PID gain went from 4.5 to 8 with it (full
+// power until ~19 deg before the target). Sim: turning time 111 -> 68 s per run.
+#define TURN_MIN_PWM 45
 // fwd(): the side-wall steering may turn the robot at most this far off the tile direction (see fwd()).
 #define MAX_STEER_DEG 10.0
 
@@ -475,7 +476,7 @@ void fwd(double dist){ // in mm
 
 void absoluteturn(double angle){
   // create PID instance.
-  PID myPID(4.5,0,0.3);
+  PID myPID(8,0,0.3);
   double MOTORSPEED = 0;
   // allow the camera RTOS thread to flag victims during the turn
   turnActive = true;

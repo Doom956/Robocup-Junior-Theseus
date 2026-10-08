@@ -245,6 +245,33 @@ b. **One wall only:** same; start 3-4 cm off the 80 mm target gap and check it s
    without swinging past it. In the log, the `[CENTER] ... err=` values should shrink without changing sign
    back and forth.
 c. If it now drifts toward a wall and corrects too slowly, try 1.5 (between the old 2 and this 1).
+
+## 2h. Turns that finish: minimum power 45, gain 8
+
+**What changed** (`Main/movement.cpp`, `absoluteturn()`): `TURN_MIN_PWM` 20 -> 45, turn PID gain 4.5 -> 8.
+
+**Why:** the robot only starts turning on the spot at PWM 25-30 (bench test 2), and turns about 5 deg/s
+there. With power = 4.5 x the angle left, never under 20, every turn crawled or stalled a few degrees short
+of the 2 deg finish window and waited out its time limit: in the sim 90 deg turns took exactly 2.00 s and
+180 deg turns 4.00 s, 26% of the exploring time (on 2026-10-07 small turns often didn't move the robot at
+all). Now: full power until about 19 deg before the target, then 45, which finishes.
+
+**Simulator** (600 comp fields vs robot-test before it; the sim's turning is fitted to bench tests 2 and 3):
+turning time 111 -> 68 s per run, moves starting more than 5 deg off 10% -> 6%. Score +12.2 +-3.5 (seeds
+1-600), +9.0 +-3.3 (601-1200); time lost +2 +-2 / +2 +-2 pts, home -1 +-3 / -4 +-3 pts (it explores
+79% -> 85% of the field, so more moves and more chances to hit something; see 2j). Gain 12 or 10 with
+minimum 50 gave the same score.
+
+**Depends on:** how far the real robot coasts after a turn at full power (overshoot) and its real minimum.
+
+**Tests on the real robot** (cameras off, Serial log):
+
+a. **90 and 180 deg turns** in the middle of a tile, 5 each way: each should take about 1-1.5 s (90) or 2-2.5 s
+   (180), from `[TURN] target=` to `finished turning`, not 2.0 / 4.0 s, and end within 2-3 deg (`turn target=...
+   err=`). It mustn't swing past the target and back more than once.
+b. **Small turns** of 5-15 deg (start the robot a little crooked before a move): they should move it.
+c. If it overshoots, lower the gain (6) before the minimum; if small turns still stall, raise the minimum.
+
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
 **What changed** (`Main/gyro.cpp`): `bno.begin()` used the library default, NDOF. The BNO055 datasheet
