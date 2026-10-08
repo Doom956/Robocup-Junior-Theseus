@@ -17,6 +17,7 @@ typedef uint8_t byte;
 #define INPUT 0
 #define OUTPUT 1
 #define INPUT_PULLUP 2
+#define INPUT_PULLDOWN 3
 #define CHANGE 1
 #define FALLING 2
 #define RISING 3
