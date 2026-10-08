@@ -272,6 +272,28 @@ a. **90 and 180 deg turns** in the middle of a tile, 5 each way: each should tak
 b. **Small turns** of 5-15 deg (start the robot a little crooked before a move): they should move it.
 c. If it overshoots, lower the gain (6) before the minimum; if small turns still stall, raise the minimum.
 
+## 2i. Shorter waits between moves
+
+**What changed** (`Main/main.cpp`): the fixed waits on every tile.
+- SENSE_TILE: the 200 ms wait after reading the walls is gone (nothing reads anything after it).
+- EXECUTE_MOVE, after the turn: 200 / 100 ms around `parallel()` -> 80 / 30 ms (a fresh distance reading takes
+  ~33 ms; 80 ms lets the robot settle after the turn).
+- EXECUTE_MOVE, after the move: `delay(200); parallel(); delay(100);` -> `delay(80);`. SENSE_TILE's
+  `centreAlong()` squares up with `parallel()` first thing, so it was done twice.
+
+**Why:** about 0.8 s of waiting per tile, 14% of the exploring time in the sim.
+
+**Simulator** (600 comp fields vs robot-test before it): +10.7 +-3.3 (seeds 1-600), +8.7 +-3.2 (601-1200);
+time lost +0 +-2 / +3 +-2 pts, home -2 +-3 / -4 +-3 pts (explores 79% -> 84%; more moves, see 2j). Keeping the
+second `parallel()` with the short waits: +9.7, home -4: worse.
+
+**Depends on:** how long the real robot takes to stop rocking after a turn or a move (the sim's motors stop in
+~50 ms, an assumed value).
+
+**Tests on the real robot** (cameras off, Serial log): a few full runs. The `reading walls` values and the walls
+in the map should be as reliable as before: watch for `tile mismatch` and `position corrected` lines and walls
+missed or invented on tiles you know. If walls get misread, raise the 80 ms waits back toward 200.
+
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
 **What changed** (`Main/gyro.cpp`): `bno.begin()` used the library default, NDOF. The BNO055 datasheet

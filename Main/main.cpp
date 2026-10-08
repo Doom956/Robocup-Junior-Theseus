@@ -593,7 +593,6 @@ void loop(){
       tilecheck = checkTileMismatch(wallF, wallR, wallB, wallL);
       if(tilecheck && relocateOnMismatch(wallF, wallR, wallB, wallL)) tilecheck = false;
 
-      delay(200);
       state = UPDATE_MAP; // next state.
       // (front/back centring: centreAlong() above, before the walls are read)
       
@@ -674,9 +673,9 @@ void loop(){
         if(plannedMoveDir != currentDir){
           absoluteturn(plannedTurnDeg);
         }
-        delay(200);
+        delay(80);  // settle after the turn (a fresh distance reading takes ~33 ms)
         parallel();
-        delay(100);
+        delay(30);
 
         if (turnCompletedSuccessfully(plannedMoveDir) == false) {
           state = BOTCHED_TURN_RECOVERY;
@@ -712,9 +711,7 @@ void loop(){
       // update map + robot position only on a completed move
       finishTileMove();
 
-      delay(200);
-      parallel();
-      delay(100);
+      delay(80); // settle; SENSE_TILE's centreAlong() squares up (parallel) first thing
       iterator += 1;
 
       isVictim = false;
