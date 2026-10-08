@@ -84,7 +84,10 @@ void fwd(double dist){ // in mm
   bool upwards = false; // up/ down for elevation
   int cnt = 0; // tiles traversed while climbing.
   PID climbPID(2,0,0.1); // pid for centering on ramp
-  PID center_PID(2,0,0.5);
+  // Side-wall steering gain 1 (was 2): the robot wove left and right along walls (2026-10-07). PID's D term
+  // does next to nothing (its time step is in microseconds) and a real one amplified the sensor noise, so
+  // the gain is the damping. Sim: heading swing per tile 7.2 -> 5.3 deg, tiles swinging back and forth 47% -> 22%.
+  PID center_PID(1,0,0.5);
   PID gyroPID(1,0.001,0.03);
   PID Scale_PID(0.0045,0,0.0008); // pid for encoder 
   Serial.println("forwarding");

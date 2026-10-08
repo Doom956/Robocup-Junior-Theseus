@@ -20,6 +20,8 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
 | 2026-10-07: pause switch | read "pause" almost always: the board's pull-down resistor came loose (pin 22 floats in the run position). Fixed in code on main (`INPUT_PULLDOWN`); re-solder the resistor (pin 22 to GND, ~10 k) when you can |
 | 2026-10-07: 4 s wait | the camera thread, not navigation: it stops for any camera byte (`!= -1`) and `detectCam` waits 4 s for a letter. Gone with the cameras off. Victim code: not changed (team decision) |
 | 2026-10-07: stops at the back of tiles | seen on the robot; fixed on this branch in 2f, to test |
+| 2026-10-07: weaves left and right | seen on the robot (main); steering gain halved on this branch in 2g, to test |
+| 2026-10-07: `can't find gyro` at one start-up | heading then stuck at 0.00, turns never finish. Check the gyro cable, connector and power |
 | 1. Obstacles, 2. relocalize, full runs | not yet |
 
 **Suggested order for a test session**
@@ -220,6 +222,29 @@ a. **Middle of the tile.** A corridor of 4-5 tiles, cameras off. Let it drive al
    back of the tile. The end of each move shouldn't creep or pause.
 b. **No overshoot.** Same corridor ending in a wall: on the last tile it must not touch the end wall.
    `centring along:` lines in the log should mostly show small numbers (under 20 mm).
+## 2g. Side-wall steering gain 1 instead of 2
+
+**What changed** (`Main/movement.cpp`, `fwd()`): `center_PID(2,0,0.5)` -> `center_PID(1,0,0.5)`.
+
+**Why:** on 2026-10-07 the robot wove left and right along walls. The steering is in effect only a P
+controller: `PID`'s D term divides by microseconds, so it does next to nothing, and a D term that works
+(0.1 or 0.3 per second) made it worse in the sim by amplifying the distance-sensor noise. A lower gain
+is the damping.
+
+**Simulator** (robot-test before it; `weave.py`, 40 comp fields): heading swing during a tile median 7.2 ->
+5.3 deg (90%: 14.8 -> 12.1), tiles where it swings back and forth 2+ times 47% -> 22%, 4+ times 8% -> 1%.
+Score, 600 comp fields: -1.6 +-3.1 (seeds 1-600), +1.8 +-2.9 (601-1200); time lost +1 / +0 pts, home -0 /
++0 pts: no change. Gain 0.7 weaves even less (11%) but got home 2-3 pts less often, so not taken.
+
+**Depends on:** how fast the real robot answers a steering command and how noisy its side sensors are.
+
+**Tests on the real robot** (cameras off):
+
+a. **Corridor with walls on both sides,** 4-5 tiles: it should go straight, no visible left-right swing.
+b. **One wall only:** same; start 3-4 cm off the 80 mm target gap and check it settles within about a tile
+   without swinging past it. In the log, the `[CENTER] ... err=` values should shrink without changing sign
+   back and forth.
+c. If it now drifts toward a wall and corrects too slowly, try 1.5 (between the old 2 and this 1).
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
 **What changed** (`Main/gyro.cpp`): `bno.begin()` used the library default, NDOF. The BNO055 datasheet
