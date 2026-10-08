@@ -208,6 +208,14 @@ void fwd(double dist){ // in mm
       return;
     }
     
+  // No-progress check: the encoders count wheel turns, so pushing against something the front sensors can't
+  // see (an obstacle between their beams) looks like driving. A wall far ahead (front sensors) or behind (back
+  // sensor) should come nearer / move away as fast as the encoders say; if none does, the robot is blocked.
+  const int prog0R = measure(1), prog0L = measure(7), prog0B = measure(4);
+  const bool frontRef = prog0R >= 150 && prog0R <= 400 && prog0L >= 150 && prog0L <= 400 && abs(prog0R - prog0L) <= 30;
+  const bool backRef = prog0B >= 20 && prog0B <= 400;
+  int noProgressLoops = 0;
+  bool noProgress = false, noProgressOff = false; // off for the rest of the move once it tilts (ramp, bump)
   while((climbtoggle==true||(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3<=pulses)&&black!=true){
     Serial.print("distance travelled: ");
     Serial.println((((double)(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3)/5)/195*wheel_diameter*M_PI);
@@ -313,6 +321,29 @@ void fwd(double dist){ // in mm
       obstacleAhead = true;
       break;
     }
+    if(!climbtoggle && !noProgressOff && canCheckObstacle && avgEncoder() >= pulsesForDistanceMm(160)){
+      double encMm = avgEncoder() / pulsesForDistanceMm(1);
+      int bNow = measure(4);
+      int refs = 0;
+      double best = -1e9; // the most progress any usable reading shows, mm
+      // a wall square ahead, at most at the end of the next tile (both front sensors agree), or a wall behind
+      if(frontRef && front_right_current > 0 && front_left_current > 0 && abs(front_right_current - front_left_current) <= 40){
+        refs++; best = max(best, (prog0R + prog0L) / 2.0 - (front_right_current + front_left_current) / 2.0);
+      }
+      if(backRef && bNow > 0 && bNow <= 1100){ refs++; best = max(best, (double)(bNow - prog0B)); }
+      if(refs > 0 && best < 0.35 * encMm) noProgressLoops++; else noProgressLoops = 0;
+      if(noProgressLoops >= 3){
+        Serial.print("[FWD] no progress: encoders ");
+        Serial.print(encMm, 0);
+        Serial.print(" mm, distance sensors at most ");
+        Serial.print(best, 0);
+        Serial.println(" mm");
+        drivetrain.fullstop();
+        fwdExit = "no-progress";
+        noProgress = true;
+        break;
+      }
+    }
     if((front_left_current<=50&&front_left_current!=-1)&&(front_right_current<=50&&front_right_current!=-1)){
       Serial.println("stopping");
       // if the robot doesn't make it halfway across the tile, fwd failed.
@@ -338,6 +369,7 @@ void fwd(double dist){ // in mm
       int _encoderCountD = drivetrain.encoderCountD;
       climbtoggle = true; // prevent outer loop from exiting on encoder count
       climbed = true;
+      noProgressOff = true; // after any tilt the readings from the start of the move mean nothing
       Serial.println(tilt);
       upwards = tilt > 0; // distinguish between moving up and moving down.
       double sectionPulses = pulses; // slope length of one tile at the current pitch
@@ -421,7 +453,21 @@ void fwd(double dist){ // in mm
   // Didn't get halfway (front blocked, stall, timeout): the robot is still in the
   // tile it started from. Back up to its centre and report it so the caller
   // doesn't advance the map position.
-  if(obstacleAhead && moveInterrupted == false){
+  if(noProgress && moveInterrupted == false){
+    // blocked: treat the edge like an obstacle. Back up by the same readings (the encoders over-counted, so
+    // backing up by them would go too far), until one is back where it was at the start of the move.
+    fwdShort = true;
+    obstacleAhead = true;
+    Serial.println("[FWD] blocked, backing up by the distance sensors");
+    unsigned long backStart = millis();
+    while(millis() - backStart < 2000 && Pausemaze == false){
+      int r = measure(1), l = measure(7), b = measure(4);
+      if((frontRef && r > 0 && l > 0 && (r + l) / 2 >= (prog0R + prog0L) / 2 - 10) || (backRef && b > 0 && b <= prog0B + 10)) break;
+      drivetrain.backward(120);
+    }
+    drivetrain.fullstop();
+  }
+  else if(obstacleAhead && moveInterrupted == false){
     fwdShort = true;
     Serial.println("[FWD] obstacle, backing up to start tile");
     // Over a blue tile already (the colour sensor is ahead of the centre, so maybe more than half the

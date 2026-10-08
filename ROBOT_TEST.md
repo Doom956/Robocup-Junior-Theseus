@@ -294,6 +294,38 @@ second `parallel()` with the short waits: +9.7, home -4: worse.
 in the map should be as reliable as before: watch for `tile mismatch` and `position corrected` lines and walls
 missed or invented on tiles you know. If walls get misread, raise the 80 ms waits back toward 200.
 
+## 2j. No-progress check: stuck against something the front sensors can't see
+
+**What changed** (`Main/movement.cpp`, `fwd()`): at the start of a move it notes a wall square ahead (both
+front sensors 150-400 mm and within 30 mm of each other: at most the end of the next tile) and/or a wall
+behind (back sensor 20-400 mm). From 160 mm of encoder travel on, those readings must have changed by at least
+35% of what the encoders say. If none has, three loops in a row, the robot is stuck: it stops, backs up until
+the reading is back where it started (by the sensors: the encoders over-counted), and the edge is treated
+like an obstacle (blocked the first time, as in section 1). Not after a tilt (ramp, bump) in that move.
+
+**Why:** the biggest way the robot gets lost in the sim is driving into something the front sensors can't see
+(an obstacle between their beams, or a corner on a wall): the wheels slip, the encoders count a tile it never
+drove. In 100 sim runs the check fired 54 times: 48 with the robot really stuck (37 on a wall, 11 on an
+obstacle), 6 while it was moving.
+
+**Simulator** (600 comp fields): on robot-test +5.2 +-3.1 / -1.4 +-2.9 (seeds 1-600 / 601-1200), time lost
+-1 / -1 pts. On top of 2h and 2i: +0.8 +-3.2 / +3.2 +-3.1, time lost -2 +-2 / -4 +-2 pts, home -1 / +2 pts.
+**2h + 2i + 2j together vs robot-test before them:** +18.9 +-3.7 / +16.9 +-3.4, time lost +1 +-2 / +1 +-2 pts,
+home -3 +-3 / -2 +-3 pts, explored 79% -> 89%; with turns that jam on walls (`wallNudgeMm=0`) +9.5 +-2.9, time
+lost -3 pts, home +6 pts; with motor A like the others +13.5 +-3.4.
+
+**Depends on:** how the VL53L0X sees a wall 150-400 mm ahead while driving, and what the wheels do when the
+robot is blocked (in the sim they keep turning and the encoders count).
+
+**Tests on the real robot** (cameras off, Serial log):
+
+a. **Blocked.** Put a heavy box (or tape one down) in the middle of the next tile, narrower than the gap
+   between the two front sensors (~16 cm) so neither sees it, with a wall at the far end of that tile. Start a
+   move toward it: expect `[FWD] no progress: ...` within about 20 cm of travel, `[FWD] blocked, backing up by
+   the distance sensors`, the robot back near the middle of its tile, and `obstacle ahead: blocking edge`.
+b. **No false alarms.** A few normal runs with nothing in the way: `no progress` must not appear while the
+   robot is moving freely. If it does, note the readings in the log line and the place.
+
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
 **What changed** (`Main/gyro.cpp`): `bno.begin()` used the library default, NDOF. The BNO055 datasheet
