@@ -1,0 +1,5 @@
+--- connected on COM3 at 14:41:31
+14:41:31 pause
+--- 14:42:56 disconnected (SerialException)
+--- 14:42:58 robot not plugged in
+--- 15:28:26 robot not plugged in

@@ -1,0 +1,634 @@
+--- connected on COM3 at 14:21:31
+14:22:09 [TURN] target=0.00 hdg=341.9 init_diff=18.1
+14:22:09 finished turning
+14:22:09 checkpoint coordinates
+14:22:09 20
+14:22:09 20
+14:22:09 0
+14:22:09 paralleling
+14:22:09 reading walls
+14:22:09 0
+14:22:09 1
+14:22:09 0
+14:22:09 0
+14:22:09 pause
+14:22:10 [TURN] target=0.00 hdg=346.7 init_diff=13.3
+14:22:10 finished turning
+14:22:10 checkpoint coordinates
+14:22:10 20
+14:22:10 20
+14:22:10 0
+14:22:10 paralleling
+14:22:10 reading walls
+14:22:10 0
+14:22:10 1
+14:22:10 0
+14:22:10 0
+14:22:10 pause
+14:22:10 [TURN] target=0.00 hdg=346.9 init_diff=13.1
+14:22:11 finished turning
+14:22:11 checkpoint coordinates
+14:22:11 20
+14:22:11 20
+14:22:11 0
+14:22:11 paralleling
+14:22:11 reading walls
+14:22:11 0
+14:22:11 1
+14:22:11 0
+14:22:11 0
+14:22:11 pause
+14:22:11 [TURN] target=0.00 hdg=347.2 init_diff=12.8
+14:22:11 finished turning
+14:22:11 checkpoint coordinates
+14:22:11 20
+14:22:11 20
+14:22:11 0
+14:22:11 paralleling
+14:22:11 reading walls
+14:22:11 0
+14:22:11 1
+14:22:11 0
+14:22:11 0
+14:22:12 pause
+14:22:12 [TURN] target=0.00 hdg=347.2 init_diff=12.8
+14:22:12 finished turning
+14:22:12 checkpoint coordinates
+14:22:12 20
+14:22:12 20
+14:22:12 0
+14:22:12 paralleling
+14:22:12 reading walls
+14:22:12 0
+14:22:12 1
+14:22:12 0
+14:22:12 0
+14:22:12 pause
+14:22:13 [TURN] target=0.00 hdg=345.5 init_diff=14.5
+14:22:13 finished turning
+14:22:13 checkpoint coordinates
+14:22:13 20
+14:22:13 20
+14:22:13 0
+14:22:13 paralleling
+14:22:13 reading walls
+14:22:13 0
+14:22:13 1
+14:22:13 0
+14:22:13 0
+14:22:13 pause
+14:22:15 [TURN] target=0.00 hdg=347.4 init_diff=12.6
+14:22:15 finished turning
+14:22:15 checkpoint coordinates
+14:22:15 20
+14:22:15 20
+14:22:15 0
+14:22:15 paralleling
+14:22:15 reading walls
+14:22:15 0
+14:22:15 1
+14:22:15 0
+14:22:15 0
+14:22:15 updating tile
+14:22:15 victim detect
+14:22:15 plan next
+14:22:15 0
+14:22:15 paralleling
+14:22:16 turn target=0.00, actual=342.81, err=17.19
+14:22:16 forwarding
+14:22:16 init_yaw
+14:22:16 0
+14:22:16 [FWD] entry hdg=342.8 init_yaw=0 offset=342.8
+14:22:16 distance travelled: 1.03
+14:22:16 616 835 1025 c=2466 ratio=40.43
+14:22:16 color
+14:22:16 0
+14:22:16 distance travelled: 1.03
+14:22:16 distance travelled: 3.27
+14:22:16 distance travelled: 8.94
+14:22:16 [FWD] exit=normal
+14:22:16 [FWD] steering limited 3 times
+14:22:16 stop- end of fwd
+14:22:16 [TURN] target=0.00 hdg=342.9 init_diff=17.1
+14:22:17 finished turning
+14:22:17 checkpoint coordinates
+14:22:17 20
+14:22:17 20
+14:22:17 0
+14:22:17 paralleling
+14:22:17 parallel: ended off the grid, turning back
+14:22:17 [TURN] target=348.12 hdg=344.8 init_diff=3.3
+14:22:18 finished turning
+14:22:18 reading walls
+14:22:18 0
+14:22:18 1
+14:22:18 0
+14:22:18 0
+14:22:18 updating tile
+14:22:18 victim detect
+14:22:18 plan next
+14:22:18 0
+14:22:19 paralleling
+14:22:19 parallel: ended off the grid, turning back
+14:22:19 [TURN] target=346.00 hdg=342.1 init_diff=3.9
+14:22:19 finished turning
+14:22:19 turn target=0.00, actual=341.56, err=18.44
+14:22:19 forwarding
+14:22:19 init_yaw
+14:22:19 0
+14:22:19 [FWD] entry hdg=341.6 init_yaw=0 offset=341.6
+14:22:19 distance travelled: -0.09
+14:22:19 630 863 1058 c=2540 ratio=41.64
+14:22:19 color
+14:22:19 0
+14:22:19 distance travelled: -0.09
+14:22:19 distance travelled: 2.84
+14:22:19 distance travelled: 9.19
+14:22:19 distance travelled: 15.64
+14:22:19 [FWD] exit=normal
+14:22:19 [FWD] steering limited 4 times
+14:22:19 stop- end of fwd
+14:22:20 [TURN] target=0.00 hdg=342.4 init_diff=17.6
+14:22:21 finished turning
+14:22:21 checkpoint coordinates
+14:22:21 20
+14:22:21 20
+14:22:21 0
+14:22:21 paralleling
+14:22:21 paralleled
+14:22:21 reading walls
+14:22:21 0
+14:22:21 1
+14:22:21 0
+14:22:21 0
+14:22:21 updating tile
+14:22:21 victim detect
+14:22:21 plan next
+14:22:21 0
+14:22:21 paralleling
+14:22:21 paralleled
+14:22:21 turn target=0.00, actual=345.12, err=14.88
+14:22:21 forwarding
+14:22:21 init_yaw
+14:22:21 0
+14:22:21 [FWD] entry hdg=345.1 init_yaw=0 offset=345.1
+14:22:21 distance travelled: -0.17
+14:22:21 633 863 1059 c=2543 ratio=41.69
+14:22:21 color
+14:22:21 0
+14:22:21 distance travelled: -0.17
+14:22:22 distance travelled: 2.06
+14:22:22 distance travelled: 8.08
+14:22:22 distance travelled: 15.12
+14:22:22 [FWD] exit=normal
+14:22:22 [FWD] steering limited 4 times
+14:22:22 stop- end of fwd
+14:22:22 [TURN] target=0.00 hdg=344.1 init_diff=15.9
+14:22:23 finished turning
+14:22:23 checkpoint coordinates
+14:22:23 20
+14:22:23 20
+14:22:23 0
+14:22:23 paralleling
+14:22:23 paralleled
+14:22:23 parallel: ended off the grid, turning back
+14:22:23 [TURN] target=349.06 hdg=336.1 init_diff=12.5
+14:22:23 finished turning
+14:22:23 centring along: 47 mm off (back wall)
+14:22:23 reading walls
+14:22:23 0
+14:22:23 1
+14:22:23 0
+14:22:23 0
+14:22:24 pause
+--- 14:22:37 disconnected (SerialException)
+--- 14:22:39 robot not plugged in
+--- connected on COM3 at 14:23:00
+14:23:02 [CAL] sensor 2  meanRaw=155.9mm  true=80mm  valid=100/100  -> SENSOR_OFFSET_MM[2] = 76
+14:23:02 Port 0: 0x28 0x30 0x60 0x70
+14:23:02 Port 1: 0x28 0x30 0x60 0x70
+14:23:02 Port 2: 0x28 0x30 0x60 0x70
+14:23:02 Port 3: 0x28 0x30 0x60 0x70
+14:23:02 Port 4: 0x28 0x30 0x60 0x70
+14:23:02 Port 5: 0x28 0x30 0x60 0x70
+14:23:02 Port 6: 0x28 0x30 0x60 0x70
+14:23:02 Port 7: 0x28 0x29 0x60 0x70
+14:23:02 Found tcs34725 sensor
+14:23:02 clear value
+14:23:02 128.00
+14:23:02 motor shield found
+14:23:03 gyro found
+14:23:03 paralleling
+14:23:03 reading walls
+14:23:03 0
+14:23:03 1
+14:23:03 0
+14:23:03 0
+14:23:03 pause
+14:23:20 [TURN] target=0.00 hdg=351.3 init_diff=8.7
+14:23:20 finished turning
+14:23:20 checkpoint coordinates
+14:23:20 20
+14:23:20 20
+14:23:20 0
+14:23:20 paralleling
+14:23:20 reading walls
+14:23:20 0
+14:23:20 1
+14:23:20 0
+14:23:20 0
+14:23:20 pause
+14:23:21 [TURN] target=0.00 hdg=351.3 init_diff=8.7
+14:23:21 finished turning
+14:23:21 checkpoint coordinates
+14:23:21 20
+14:23:21 20
+14:23:21 0
+14:23:21 paralleling
+14:23:21 reading walls
+14:23:21 0
+14:23:21 1
+14:23:21 0
+14:23:21 0
+14:23:21 pause
+14:23:23 [TURN] target=0.00 hdg=351.3 init_diff=8.7
+14:23:23 finished turning
+14:23:23 checkpoint coordinates
+14:23:23 20
+14:23:23 20
+14:23:23 0
+14:23:23 paralleling
+14:23:23 reading walls
+14:23:23 0
+14:23:23 1
+14:23:23 0
+14:23:23 0
+14:23:23 pause
+14:23:25 [TURN] target=0.00 hdg=351.4 init_diff=8.6
+14:23:25 finished turning
+14:23:25 checkpoint coordinates
+14:23:25 20
+14:23:25 20
+14:23:25 0
+14:23:25 paralleling
+14:23:25 reading walls
+14:23:25 0
+14:23:25 1
+14:23:25 0
+14:23:25 0
+14:23:26 pause
+14:23:27 [TURN] target=0.00 hdg=351.9 init_diff=8.1
+14:23:27 finished turning
+14:23:27 checkpoint coordinates
+14:23:27 20
+14:23:27 20
+14:23:27 0
+14:23:27 paralleling
+14:23:27 reading walls
+14:23:27 0
+14:23:27 1
+14:23:27 0
+14:23:27 0
+14:23:27 updating tile
+14:23:27 victim detect
+14:23:27 plan next
+14:23:27 0
+14:23:28 paralleling
+14:23:28 turn target=0.00, actual=348.56, err=11.44
+14:23:28 forwarding
+14:23:28 init_yaw
+14:23:28 0
+14:23:28 [FWD] entry hdg=348.4 init_yaw=0 offset=348.4
+14:23:28 distance travelled: 0.60
+14:23:28 612 837 1029 c=2468 ratio=19.28
+14:23:28 color
+14:23:28 0
+14:23:28 distance travelled: 0.77
+14:23:28 distance travelled: 3.69
+14:23:28 [FWD] exit=normal
+14:23:28 [FWD] steering limited 2 times
+14:23:28 stop- end of fwd
+14:23:28 [TURN] target=0.00 hdg=348.3 init_diff=11.7
+14:23:29 finished turning
+14:23:29 checkpoint coordinates
+14:23:29 20
+14:23:29 20
+14:23:29 0
+14:23:29 paralleling
+14:23:29 paralleled
+14:23:29 parallel: ended off the grid, turning back
+14:23:29 [TURN] target=355.81 hdg=343.4 init_diff=11.9
+14:23:29 finished turning
+14:23:29 reading walls
+14:23:29 0
+14:23:29 1
+14:23:29 0
+14:23:29 0
+14:23:30 updating tile
+14:23:30 victim detect
+14:23:30 plan next
+14:23:30 0
+14:23:30 paralleling
+14:23:30 turn target=0.00, actual=347.25, err=12.75
+14:23:30 forwarding
+14:23:30 init_yaw
+14:23:30 0
+14:23:30 [FWD] entry hdg=347.2 init_yaw=0 offset=347.2
+14:23:30 distance travelled: 0.86
+14:23:30 612 838 1030 c=2470 ratio=19.30
+14:23:30 color
+14:23:30 0
+14:23:30 distance travelled: 0.86
+14:23:30 distance travelled: 3.87
+14:23:30 distance travelled: 10.14
+14:23:30 distance travelled: 17.44
+14:23:30 [CENTER] m2(front)=9 m3(back)=26 err=76.0 adj=-13.6
+14:23:30 distance travelled: 32.31
+14:23:30 distance travelled: 42.70
+14:23:30 distance travelled: 51.73
+14:23:30 distance travelled: 61.18
+14:23:30 distance travelled: 69.77
+14:23:30 [CENTER] m2(front)=0 m3(back)=26 err=69.0 adj=-11.8
+14:23:30 distance travelled: 85.24
+14:23:30 589 810 986 c=2377 ratio=18.57
+14:23:30 color
+14:23:30 0
+14:23:30 distance travelled: 97.70
+14:23:30 distance travelled: 105.43
+14:23:30 distance travelled: 114.02
+14:23:31 distance travelled: 121.75
+14:23:31 [CENTER] m2(front)=32 m3(back)=22 err=51.0 adj=102.0
+14:23:31 distance travelled: 133.61
+14:23:31 distance travelled: 141.60
+14:23:31 distance travelled: 148.13
+14:23:31 distance travelled: 155.52
+14:23:31 distance travelled: 163.08
+14:23:31 [CENTER] m2(front)=2 m3(back)=17 err=89.0 adj=-15.3
+14:23:31 distance travelled: 178.46
+14:23:31 631 859 1045 c=2524 ratio=19.72
+14:23:31 color
+14:23:31 0
+14:23:31 distance travelled: 190.41
+14:23:31 distance travelled: 198.66
+14:23:31 distance travelled: 207.94
+14:23:31 distance travelled: 216.10
+14:23:31 [CENTER] m2(front)=28 m3(back)=18 err=41.0 adj=-13.5
+14:23:31 distance travelled: 232.51
+14:23:31 distance travelled: 243.77
+14:23:31 distance travelled: 252.27
+14:23:31 distance travelled: 260.09
+14:23:31 distance travelled: 266.11
+14:23:31 [CENTER] m2(front)=26 m3(back)=14 err=48.0 adj=-12.2
+14:23:31 distance travelled: 275.47
+14:23:31 635 872 1070 c=2566 ratio=20.05
+14:23:31 color
+14:23:31 0
+14:23:31 distance travelled: 281.74
+14:23:31 distance travelled: 284.32
+14:23:31 distance travelled: 286.13
+14:23:31 distance travelled: 287.93
+14:23:31 [CENTER] m2(front)=26 m3(back)=21 err=55.0 adj=-10.8
+14:23:31 [FWD] exit=normal
+14:23:31 [FWD] steering limited 32 times
+14:23:31 stop- end of fwd
+14:23:31 610 837 1027 c=2463 ratio=19.24
+14:23:32 paralleling
+14:23:32 paralleled
+14:23:32 paralleling
+14:23:32 paralleled
+14:23:32 centring along: 34 mm off (back wall)
+14:23:32 reading walls
+14:23:32 0
+14:23:32 1
+14:23:32 0
+14:23:32 0
+14:23:32 pause
+14:23:45 [TURN] target=0.00 hdg=347.1 init_diff=12.9
+14:23:45 finished turning
+14:23:45 checkpoint coordinates
+14:23:45 20
+14:23:45 20
+14:23:45 0
+14:23:45 paralleling
+14:23:45 centring along: 17 mm off (back wall)
+14:23:45 reading walls
+14:23:45 0
+14:23:45 1
+14:23:45 0
+14:23:45 0
+14:23:45 pause
+14:23:47 [TURN] target=0.00 hdg=347.2 init_diff=12.8
+14:23:47 finished turning
+14:23:47 checkpoint coordinates
+14:23:47 20
+14:23:47 20
+14:23:47 0
+14:23:47 paralleling
+14:23:47 centring along: 29 mm off (back wall)
+14:23:47 reading walls
+14:23:47 0
+14:23:47 1
+14:23:47 0
+14:23:47 0
+14:23:47 pause
+14:23:47 [TURN] target=0.00 hdg=341.7 init_diff=17.8
+14:23:48 finished turning
+14:23:48 checkpoint coordinates
+14:23:48 20
+14:23:48 20
+14:23:48 0
+14:23:48 paralleling
+14:23:48 centring along: -55 mm off (back wall)
+14:23:48 reading walls
+14:23:48 0
+14:23:48 0
+14:23:48 0
+14:23:48 0
+14:23:48 pause
+14:23:48 [TURN] target=0.00 hdg=339.6 init_diff=20.4
+14:23:48 finished turning
+14:23:48 checkpoint coordinates
+14:23:48 20
+14:23:48 20
+14:23:48 0
+14:23:48 paralleling
+14:23:48 centring along: -20 mm off (back wall)
+14:23:48 reading walls
+14:23:48 0
+14:23:48 1
+14:23:48 0
+14:23:48 0
+14:23:49 pause
+--- 14:23:51 disconnected (SerialException)
+--- 14:23:53 robot not plugged in
+--- 14:24:53 robot not plugged in
+--- 14:25:53 robot not plugged in
+--- connected on COM3 at 14:26:37
+14:26:40 [CAL] sensor 2  meanRaw=5125.6mm  true=80mm  valid=100/100  -> SENSOR_OFFSET_MM[2] = 5046
+14:26:40 Port 0: 0x28 0x30 0x60 0x70
+14:26:40 Port 1: 0x28 0x30 0x60 0x70
+14:26:40 Port 2: 0x28 0x30 0x60 0x70
+14:26:40 Port 3: 0x28 0x30 0x60 0x70
+14:26:40 Port 4: 0x28 0x30 0x60 0x70
+14:26:41 Port 5: 0x28 0x30 0x60 0x70
+14:26:41 Port 6: 0x28 0x30 0x60 0x70
+14:26:41 Port 7: 0x28 0x29 0x60 0x70
+14:26:41 Found tcs34725 sensor
+14:26:41 clear value
+14:26:41 107.00
+14:26:41 motor shield found
+14:26:41 gyro found
+14:26:41 paralleling
+14:26:41 centring along: -15 mm off (front wall)
+14:26:41 reading walls
+14:26:42 1
+14:26:42 0
+14:26:42 0
+14:26:42 1
+14:26:42 pause
+--- connected on COM3 at 14:28:34
+14:30:45 [TURN] target=0.00 hdg=76.8 init_diff=76.8
+14:30:46 finished turning
+14:30:46 checkpoint coordinates
+14:30:46 20
+14:30:46 20
+14:30:46 0
+14:30:46 paralleling
+14:30:46 paralleled
+14:30:46 centring along: -55 mm off (front wall)
+14:30:46 reading walls
+14:30:46 1
+14:30:46 0
+14:30:46 0
+14:30:46 1
+14:30:46 pause
+--- connected on COM3 at 14:36:05
+14:36:52 [TURN] target=0.00 hdg=278.3 init_diff=81.7
+14:36:53 finished turning
+14:36:53 checkpoint coordinates
+14:36:53 20
+14:36:53 20
+14:36:53 0
+14:36:53 paralleling
+14:36:53 reading walls
+14:36:53 1
+14:36:53 0
+14:36:53 0
+14:36:53 0
+14:36:54 updating tile
+14:36:54 victim detect
+14:36:54 plan next
+14:36:54 90
+14:36:54 [TURN] target=90.00 hdg=357.7 init_diff=92.3
+14:36:56 finished turning
+14:36:56 paralleling
+14:36:56 paralleled
+14:36:56 turn target=90.00, actual=90.00, err=0.00
+14:36:56 forwarding
+14:36:56 init_yaw
+14:36:56 90
+14:36:56 [FWD] entry hdg=90.0 init_yaw=90 offset=0.0
+14:36:56 distance travelled: 0.00
+14:36:56 625 994 1278 c=2884 ratio=1.02
+14:36:56 color
+14:36:56 0
+14:36:56 distance travelled: 0.00
+14:36:56 distance travelled: 1.89
+14:36:56 distance travelled: 5.07
+14:36:56 distance travelled: 9.97
+14:36:56 [CENTER] m2(front)=715 m3(back)=755 err=-18.0 adj=-36.0
+14:36:56 distance travelled: 18.04
+14:36:56 distance travelled: 26.81
+14:36:56 distance travelled: 33.77
+14:36:56 distance travelled: 44.08
+14:36:56 distance travelled: 54.56
+14:36:56 [CENTER] m2(front)=715 m3(back)=752 err=12.0 adj=24.0
+14:36:56 distance travelled: 71.49
+14:36:56 617 985 1262 c=2852 ratio=1.01
+14:36:56 color
+14:36:56 0
+14:36:56 distance travelled: 85.92
+14:36:56 distance travelled: 95.12
+14:36:56 distance travelled: 103.37
+14:36:56 distance travelled: 112.82
+14:36:57 [CENTER] m2(front)=579 m3(back)=261 err=3.0 adj=6.0
+14:36:57 distance travelled: 131.38
+14:36:57 distance travelled: 145.21
+14:36:57 distance travelled: 156.30
+14:36:57 distance travelled: 167.55
+14:36:57 distance travelled: 178.89
+14:36:57 [CENTER] m2(front)=394 m3(back)=592 err=-3.0 adj=-6.0
+14:36:57 distance travelled: 196.51
+14:36:57 42 70 87 c=199 ratio=0.07
+14:36:57 color
+14:36:57 -1
+14:36:57 black
+14:36:57 [FWD] exit=black
+14:36:57 stop- end of fwd
+14:36:58 paralleling
+14:36:58 paralleled
+14:36:58 plan next
+14:36:58 180
+14:36:58 [TURN] target=180.00 hdg=90.0 init_diff=90.0
+14:37:00 finished turning
+14:37:00 paralleling
+14:37:00 turn target=180.00, actual=176.81, err=3.19
+14:37:00 forwarding
+14:37:00 init_yaw
+14:37:00 180
+14:37:00 [FWD] entry hdg=176.8 init_yaw=180 offset=-3.2
+14:37:00 distance travelled: 0.09
+14:37:00 59 44 29 c=132 ratio=0.05
+14:37:00 color
+14:37:00 -1
+14:37:00 black
+14:37:00 [FWD] exit=black
+14:37:00 stop- end of fwd
+14:37:00 paralleling
+14:37:33 [TURN] target=0.00 hdg=279.8 init_diff=80.2
+14:37:35 finished turning
+14:37:35 checkpoint coordinates
+14:37:35 20
+14:37:35 20
+14:37:35 0
+14:37:35 paralleling
+14:37:35 reading walls
+14:37:35 0
+14:37:35 1
+14:37:35 0
+14:37:35 0
+14:37:35 pause
+14:37:40 [TURN] target=0.00 hdg=281.8 init_diff=78.2
+14:37:42 finished turning
+14:37:42 checkpoint coordinates
+14:37:42 20
+14:37:42 20
+14:37:42 0
+14:37:42 paralleling
+14:37:42 reading walls
+14:37:42 1
+14:37:42 0
+14:37:42 0
+14:37:42 0
+14:37:42 pause
+--- 14:37:51 disconnected (SerialException)
+--- 14:37:53 robot not plugged in
+--- 14:38:53 robot not plugged in
+--- 14:39:54 robot not plugged in
+--- connected on COM3 at 14:40:30
+--- 14:40:30 disconnected (SerialException)
+--- 14:40:32 disconnected (SerialException)
+--- 14:40:34 disconnected (SerialException)
+--- 14:40:36 disconnected (SerialException)
+--- 14:40:38 disconnected (SerialException)
+--- 14:40:40 disconnected (SerialException)
+--- 14:40:42 disconnected (SerialException)
+--- 14:40:44 disconnected (SerialException)
+--- 14:40:46 disconnected (SerialException)
+--- 14:40:48 disconnected (SerialException)
+--- 14:40:50 disconnected (SerialException)
+--- 14:40:52 disconnected (SerialException)
+--- 14:40:54 disconnected (SerialException)
+--- 14:40:56 disconnected (SerialException)
+--- 14:40:58 disconnected (SerialException)
+--- 14:41:00 disconnected (SerialException)
