@@ -24,6 +24,7 @@ EVENTS = [
     (False, "tile mismatch detected", "walls didn't match the map"),
     (False, "position corrected", "position corrected (relocalize)"),
     (False, "[FWD] short move", "short move (backed up to the start tile)"),
+    (False, "[FWD] no progress", "no-progress check: stuck, backed up"),
     (False, "botched turn detected", "turn missed by more than 20 deg"),
     (False, "parallel: timeout", "squaring up on a wall timed out"),
     (True, "black", "black tile seen"),
@@ -45,10 +46,16 @@ def summarize(path):
     lines = [re.sub(r"^\d\d:\d\d:\d\d ", "", l.strip()) for l in open(path, encoding="utf-8", errors="replace")
              if not l.startswith("--- ")]
     c = collections.Counter()
-    turn_err, entry_off, tilts, center_err, bench = [], [], [], [], []
+    turn_err, entry_off, tilts, center_err, bench, along = [], [], [], [], [], []
     for i, s in enumerate(lines):
         if s == "forwarding":
             c["moves"] += 1
+        elif s.startswith("centring along:"):
+            # printed by centreAlong() when a move stopped more than 10 mm from the middle of the tile:
+            # + = past the middle (overshoot), - = short of it
+            m = re.match(r"centring along: (-?[\d.]+) mm off", s)
+            if m:
+                along.append(float(m.group(1)))
         elif s.startswith("[FWD] exit="):
             c["move ended: " + s[len("[FWD] exit="):]] += 1
         elif s.startswith("[FWD] entry hdg="):
@@ -78,6 +85,13 @@ def summarize(path):
     if turn_err:
         big = sum(1 for e in turn_err if e > 5)
         print(f"  turns: {len(turn_err)} checked, median error {statistics.median(turn_err):.1f} deg, {big} more than 5 deg off")
+    if c["moves"]:
+        # Where moves stopped along the tile. centreAlong() is silent when it was within 10 mm (or when there was
+        # no wall ahead or behind to measure from), so moves without a line count as "within 10 mm or unmeasured".
+        short = sum(1 for a in along if a < -30); over = sum(1 for a in along if a > 30)
+        print(f"  stops along the tile: {c['moves'] - len(along)} of {c['moves']} moves within 10 mm (or no wall to measure), "
+              f"{len(along)} needed centring" + (f": median {statistics.median(along):+.0f} mm (+ = past the middle), "
+              f"{short} more than 30 mm short, {over} more than 30 mm past" if along else ""))
     if entry_off:
         big = sum(1 for e in entry_off if abs(e) > 3)
         print(f"  moves started {statistics.median([abs(e) for e in entry_off]):.1f} deg off the tile direction (median), {big} of {len(entry_off)} more than 3 deg")
