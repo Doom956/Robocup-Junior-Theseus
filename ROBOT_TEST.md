@@ -21,7 +21,7 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
 | 2026-10-07: 4 s wait | the camera thread, not navigation: it stops for any camera byte (`!= -1`) and `detectCam` waits 4 s for a letter. Gone with the cameras off. Victim code: not changed (team decision) |
 | 2026-10-07: stops at the back of tiles | seen on the robot; fixed on this branch in 2f, to test |
 | 2026-10-07: weaves left and right | seen on the robot (main); steering gain halved on this branch in 2g, to test |
-| 2026-10-07: `can't find gyro` at one start-up | heading then stuck at 0.00, turns never finish. Check the gyro cable, connector and power |
+| 2026-10-07: `can't find gyro` at one start-up | heading then stuck at 0.00, turns never finish. Cause: the gyro cable had come unplugged. Check it is seated before each session |
 | 1. Obstacles, 2. relocalize, full runs | not yet |
 
 **Suggested order for a test session**
@@ -39,6 +39,18 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
 3. **Ramp up and down** (section 3): the floor change.
 4. **Obstacles** (section 1, tests a-e), then **relocalize** (section 2).
 5. A few full runs on a practice field with an obstacle or two; save the Serial logs.
+
+**Tile accuracy check (over/undershoot), every session.** Cameras off, record with `python tools/serial_log.py
+log.txt`, let it explore a few minutes, then `python tools/robot_log.py log.txt`. Look at three lines:
+
+| Line | Good | If not |
+|---|---|---|
+| `stops along the tile` | most moves within 10 mm; under 1 in 10 more than 30 mm short or past | mostly **short** (negative median): raise the 55 in `fwd()` (2f) to 60-65. Mostly **past** (positive): lower it to 50, or check the battery (a full pack drives further) |
+| `turns: ... median error` | under 2 deg, none over 5 | overshoots: turn gain 8 -> 6 (2h); stops short: `TURN_MIN_PWM` 45 -> 50 |
+| `moves started ... deg off` | median under 2 deg | squaring up (`parallel()`) isn't working: check the side sensors |
+
+The sim's own run of this branch gives about: 55 of 96 moves within 10 mm, the rest median -12 mm, 3 short and 8
+past by more than 30 mm; turns median 0.7 deg. A real robot close to that is behaving like the sim says.
 
 ## 1. Obstacle ahead: treat it like a wall first (strategy change)
 
