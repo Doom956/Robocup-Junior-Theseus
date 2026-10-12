@@ -325,6 +325,12 @@ a. **Blocked.** Put a heavy box (or tape one down) in the middle of the next til
    the distance sensors`, the robot back near the middle of its tile, and `obstacle ahead: blocking edge`.
 b. **No false alarms.** A few normal runs with nothing in the way: `no progress` must not appear while the
    robot is moving freely. If it does, note the readings in the log line and the place.
+c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 mm of encoder travel and while the
+   robot points within 6 deg of the tile direction (in `fwd()`, add `&& avgEncoder() <= pulsesForDistanceMm(250)
+   && fabs(yawNow) <= 6.0` to the `if(!climbtoggle && !noProgressOff ...` line). In the sim the false alarms all
+   came near the end of moves with the robot turned (8 in 150 runs -> 0), at the cost of catching fewer real
+   jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
+   what the real robot does.
 
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
