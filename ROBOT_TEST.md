@@ -32,8 +32,10 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
    in USB and flip the switch to print every result. Copy the `[BENCH]` lines; they tell us how far the
    simulator is from this robot. Set `BENCH_MODE` back to 0. New test 11 (at the end, one switch flip per
    sensor): a flat wall exactly 100 mm in front of each distance sensor (a printed 100 mm spacer); its last
-   line is `SENSOR_OFFSET_MM` for `Main/Distance.cpp`, ready to paste (the sensors read long, the right ones
-   about 20 mm more than the left: probably why it hugs right-hand walls). Tests 1-10 can be skipped by
+   line is `SENSOR_OFFSET_MM` for `Main/Distance.cpp`, ready to paste. It leaves the side sensors at 0 on
+   purpose: the one-wall steering is tuned to side sensors that read ~10 mm long, as these do, and correcting
+   them lost points in the simulator (-10). Bench test 1 doesn't show the right sensors reading more than the
+   left (right minus left was 24, -2 and 30 mm in 3 runs: where the robot was placed by hand). Tests 1-10 can be skipped by
    flipping through them if they were done already.
 2. **Steering** (last section, 2e and 2f): a few tiles along a corridor; no weaving, no big turns off a wall, each move ends in the middle of the tile.
 3. **Ramp up and down** (section 3): the floor change.
