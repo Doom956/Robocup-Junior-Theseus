@@ -27,7 +27,8 @@
 //   11 (one switch flip per sensor, 1 to 7) a flat wall exactly 100 mm in front of that sensor, measured from the
 //     front of its board (hold a 100 mm spacer block between the sensor and the wall, then take it away, or
 //     stand the robot on a line 100 mm from the wall), square to it: raw average of 100 readings, and the
-//     offset it needs. The last line is SENSOR_OFFSET_MM (Main/Distance.cpp) with all seven, ready to paste.
+//     offset it needs. The last line is SENSOR_OFFSET_MM (Main/Distance.cpp) ready to paste, with the four
+//     side sensors left at 0 on purpose (correcting them loses points: see benchSensorOffsets()).
 //     -> SENSOR_OFFSET_MM, tofOffsetMeanMm / tofOffsetSigma
 #include "Globals.h"
 #include "Movement.h"
@@ -287,8 +288,12 @@ static void benchSensorOffsets(){
     endLine();
     offset[s] = off;
   }
-  add("11 paste into Main/Distance.cpp: const int SENSOR_OFFSET_MM[8] = {0");
-  for(int s = 1; s <= 7; s++){ add(", "); addInt(offset[s]); }
+  // Side sensors (2, 3, 5, 6) stay 0: the one-wall steering target (TARGET_SIDE_GAP_MM) was tuned with side
+  // sensors that read ~10 mm long, as this robot's do. In the simulator, side readings 4-20 mm long all score
+  // the same, but correcting them to exact (0) loses points: robot-test -10.0 +-6.1, main -4.5 +-7.2 on 200 comp
+  // fields, more time lost (it holds further from a lone wall and jams corners turning). Front and back: no change.
+  add("11 paste into Main/Distance.cpp (side sensors left at 0 on purpose, see bench.cpp): const int SENSOR_OFFSET_MM[8] = {0");
+  for(int s = 1; s <= 7; s++){ add(", "); addInt((s == 2 || s == 3 || s == 5 || s == 6) ? 0 : offset[s]); }
   add("};");
   endLine();
 }

@@ -8,7 +8,8 @@
 Both versions run on the same seeds (same fields, same noise), so the difference per field is
 the code's doing. The +- is a 95% interval on the mean difference (score, and percentage points of
 time lost and of runs back home): a change is only clearly better when the whole interval is on the
-good side of zero. Judge changes on `comp` (competition-size) fields, 600 of them for a final decision.
+good side of zero. The second line shows the bad runs (worst 10%, runs under 120, runs that got lost or
+restarted): consistency matters as much as the average. Judge changes on `comp` (competition-size) fields, 600 of them for a final decision.
 """
 import argparse, concurrent.futures, io, os, subprocess, sys, tarfile, tempfile
 
@@ -56,6 +57,21 @@ def summary(X, Y):
             f"  crashed {sum(1 for r in Y if 'score' not in r)}")
 
 
+def consistency(X, Y):
+    """Second line: how the bad runs changed, so a change can't raise the average while making the worst
+    runs worse. Worst 10% = mean score of the lowest tenth of fields; under 120 = runs that went badly;
+    ever lost = runs that spent any time lost; restarted = runs with at least one restart."""
+    def stats(R):
+        s = sorted(float(r.get("score", 0)) for r in R)
+        k = max(1, len(s) // 10)
+        n = len(R)
+        return (sum(s[:k]) / k, sum(1 for v in s if v < 120) / n,
+                sum(1 for r in R if r.get("lost_fraction", 0) > 0) / n, sum(1 for r in R if r.get("lops", 0) > 0) / n)
+    (wa, ua, la, ra), (wb, ub, lb, rb) = stats(X), stats(Y)
+    return (f"worst 10% {wa:6.1f} -> {wb:6.1f}  under 120 {ua:4.0%} -> {ub:4.0%}"
+            f"  ever lost {la:4.0%} -> {lb:4.0%}  restarted {ra:4.0%} -> {rb:4.0%}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("a"); ap.add_argument("b")
@@ -77,6 +93,7 @@ def main():
         keys = [(t, s) for t in (types if sc == "ALL" else [sc]) for s in seeds]
         X = [res[(args.a,) + k] for k in keys]; Y = [res[(args.b,) + k] for k in keys]
         print(f"  {sc:8s} " + summary(X, Y))
+        print(f"  {'':8s} " + consistency(X, Y))
     for e in exes.values():
         os.remove(e)
 
