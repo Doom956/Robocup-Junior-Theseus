@@ -41,8 +41,10 @@ void syncActiveFloor();
 Grid& floorGrid(int floor);
 void lcdPrint(const char* msg);
 void runBench(); // bench.cpp
+void runMoveTests(); // bench.cpp
 
-// 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 0 for competition.
+// 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 2 = move tests: the
+// turns and one-tile moves on an open floor, no maze needed (bench.cpp, runMoveTests()). 0 for competition.
 #define BENCH_MODE 0
 
 // movement constants
@@ -52,12 +54,12 @@ void runBench(); // bench.cpp
 #define ROBOT_LENGTH_MM 170                                      // mm, robot front-to-back length
 #define TARGET_GAP_MM (((double)TILE_MM - ROBOT_LENGTH_MM) / 2.0) // mm, ideal front/back clearance when centered (52.5)
 #define CENTER_TOL_MM 10                                          // mm, front-back centering tolerance
-#define MAX_CENTER_CORRECTION_MM 300.0                            // mm, one tile — offset this large means an unreliable reading or the robot isn't really in-tile; skip/abort centering
+#define MAX_CENTER_CORRECTION_MM 300.0                            // mm, one tile â€” offset this large means an unreliable reading or the robot isn't really in-tile; skip/abort centering
 #define ROBOT_WIDTH_MM 140                                          // mm, robot left-right width
 #define TARGET_SIDE_GAP_MM (((double)TILE_MM - ROBOT_WIDTH_MM) / 2.0) // mm, ideal side-wall clearance when centered (80)
 #define SIDE_WALL_MAX_MM 200                                        // mm; a side reading beyond this is the next tile through a gap, not this tile's wall
 #define LATERAL_TOL_MM 15                                            // mm, lateral correction tolerance (looser than CENTER_TOL_MM)
-#define MAX_LATERAL_OFFSET_MM 90.0                                   // mm, sanity cap — offset this large means an unreliable reading; skip
+#define MAX_LATERAL_OFFSET_MM 90.0                                   // mm, sanity cap â€” offset this large means an unreliable reading; skip
 #define LATERAL_CORRECTION_GAIN 1                                // multiplier on the computed turn angle; bench-tune upward since fwd() partially fights the pre-turn (pulls back toward cardinal)
 #define BLACK_THRESHOLD 0.1f // color clear-channel threshold ratio for black
 #define SILVER_THRESHOLD 800 // use red value
@@ -542,7 +544,9 @@ void setup(){
   state = SENSE_TILE;
   // start lcd
   lcd.begin(16, 2);
-#if BENCH_MODE
+#if BENCH_MODE == 2
+  runMoveTests(); // never returns
+#elif BENCH_MODE
   runBench(); // never returns
 #endif
   // start RTOS threads: camera victim detection + pause-switch watcher.
@@ -866,6 +870,9 @@ void loop(){
       delay(200);
       if(digitalRead(logicswitch)==LOW){
         Pausemaze = false;
+        // the run starts: the robot stands on the start tile (white). Later restarts are on a checkpoint (silver).
+        static bool whiteTaken = false;
+        if(!whiteTaken){ takeWhiteReference(); whiteTaken = true; }
         // Restore the checkpoint's FLOOR as well as its tile. Save the grid we were
         // working on back into its floor slot, then load the checkpoint floor's grid
         // -> so victim flags / walls are looked up on the correct floor.

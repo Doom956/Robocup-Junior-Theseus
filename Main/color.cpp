@@ -27,6 +27,19 @@ void init_color(){
     myMux.setPort(TCS_PORT);
     tcs.getRawData(&r, &g, &b, &c);
   }
+  // The first non-zero reading is still too dark (2026-10-17: 66-145 on white, against ~2700 once running; then
+  // black and blue tiles never read as black or blue, ratio ~28 on white). Let the sensor settle and average
+  // 5 readings of the start tile.
+  delay(200);
+  long sum = 0;
+  int n = 0;
+  for (int i = 0; i < 5; i++) {
+    delay(60);                 // > one integration period, so each read is a new measurement
+    myMux.setPort(TCS_PORT);
+    tcs.getRawData(&r, &g, &b, &c);
+    if (c > 0) { sum += c; n++; }
+  }
+  if (n > 0) c = sum / n;
   clear = (c > 0) ? c : 1;     // never store 0 -> never divide by zero
   Serial.println("clear value");
   Serial.println(clear);
@@ -84,4 +97,29 @@ int read_color(){
 
   return 0;
 
+}
+
+// White reference for read_color()'s black / white ratio, from the start tile when the run starts (first time out of
+// PAUSE). The reading in init_color() at power-on is far too dark on this robot (2026-10-17: 66-145, also after a
+// settling delay, against ~3100 on the same white tile once the run is going), so black and blue were never seen.
+// Same calls as read_color(), so it is the light level the run will see.
+void takeWhiteReference(){
+  long sum = 0;
+  int n = 0;
+  for (int i = 0; i < 5; i++) {
+    uint16_t r, g, b, c;
+    i2cMutex.lock();
+    myMux.setPort(TCS_PORT);
+    tcs.setInterrupt(true);
+    tcs.getRawData(&r, &g, &b, &c);
+    i2cMutex.unlock();
+    if (c > 0) { sum += c; n++; }
+    delay(60);
+  }
+  Serial.print("white reference: power-on ");
+  Serial.print(clear, 0);
+  if (n == 0) { Serial.println(", no reading now, kept"); return; }
+  clear = (float)sum / n;
+  Serial.print(", start tile now ");
+  Serial.println(clear, 0);
 }

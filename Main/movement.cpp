@@ -213,8 +213,13 @@ void fwd(double dist){ // in mm
   // sensor) should come nearer / move away as fast as the encoders say; if none does, the robot is blocked.
   const int prog0R = measure(1), prog0L = measure(7), prog0B = measure(4);
   const bool frontRef = prog0R >= 150 && prog0R <= 400 && prog0L >= 150 && prog0L <= 400 && abs(prog0R - prog0L) <= 30;
-  const bool backRef = prog0B >= 20 && prog0B <= 400;
+  // Back: only a wall at the back of this tile (a centred robot reads ~37 mm). On the real robot (2026-10-16/17) the
+  // back sensor often read 17-42 cm with nothing close behind it (the floor, or people and things in the room), and
+  // a reading that doesn't grow as the robot drives away looked like no progress: 4 false stops in move tests. From
+  // under 100 mm, anything it sees after 160 mm of travel is far enough away to count as progress.
+  const bool backRef = prog0B >= 20 && prog0B <= 100;
   int noProgressLoops = 0;
+  double winEncMm = -1, winProg = 0; // start of the current 80 mm window of the no-progress check
   bool noProgress = false, noProgressOff = false; // off for the rest of the move once it tilts (ramp, bump)
   while((climbtoggle==true||(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3<=pulses)&&black!=true){
     Serial.print("distance travelled: ");
@@ -332,6 +337,16 @@ void fwd(double dist){ // in mm
       }
       if(backRef && bNow > 0 && bNow <= 1100){ refs++; best = max(best, (double)(bNow - prog0B)); }
       if(refs > 0 && best < 0.35 * encMm) noProgressLoops++; else noProgressLoops = 0;
+      // Also over the last 80 mm of encoder travel alone: a robot that drives freely and then hits something
+      // the front sensors can't see keeps most of its progress from before (2026-10-17: 170 of 300 mm, never
+      // under 35% of the whole move), so the check above never fires.
+      if(refs > 0){
+        if(winEncMm < 0){ winEncMm = encMm; winProg = best; }
+        else if(encMm - winEncMm >= 80){
+          if(best - winProg < 0.35 * (encMm - winEncMm)) noProgressLoops = 3;
+          winEncMm = encMm; winProg = best;
+        }
+      }
       if(noProgressLoops >= 3){
         Serial.print("[FWD] no progress: encoders ");
         Serial.print(encMm, 0);

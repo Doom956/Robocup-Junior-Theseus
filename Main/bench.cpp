@@ -36,6 +36,7 @@
 
 void lcdPrint(const char* msg); // uart_camera_comms.cpp
 extern int LEDPIN;              // main.cpp
+extern bool obstacleAhead;      // movement.cpp: fwd() saw an obstacle (or was blocked) and backed up
 
 static const int BENCH_SWITCH_PIN = 22; // the pause (logic) switch, logicswitch in main.cpp
 
@@ -298,6 +299,232 @@ static void benchSensorOffsets(){
   endLine();
 }
 
+// ---- move tests (BENCH_MODE 2): the firmware's own absoluteturn() and fwd() on an open floor, no maze ----
+// Same LED and switch flips as bench mode. Switch the robot on standing on the floor it will drive on (the
+// colour sensor's white reference is read at power-on; a darker floor could read as a black tile).
+// Each test first takes whatever way the robot points as square (heading snapped to the nearest 90 deg), so
+// place it pointing along the line it should drive.
+//   M0 prints all distance sensors for 10 s (what does the back sensor see with nothing behind?)
+//   M1 open floor, room to turn: 4 right 90s, 4 left 90s, two 180s: time and how far off each ends
+//   M2 same place: small turns (5-15 deg) there and back: does each one move the robot?
+//   M3 open floor, 1.2 m free ahead, a wall or box behind: 3 moves of one tile; the back sensor measures each (300 mm)
+//   M4 a straight wall on one side, robot 4-5 cm from it: 4 moves; it should settle at the one-wall gap, no weaving
+//   M5 a wall 34 cm ahead (like the far end of the next tile): one move + centreAlong(), no false "no progress"
+//   M6 as M5 plus a heavy box (8-10 cm wide) in the middle, 10 cm ahead: expect "[FWD] no progress" and a back-up
+
+static double norm360(double a){
+  while(a >= 360.0) a -= 360.0;
+  while(a < 0.0) a += 360.0;
+  return a;
+}
+
+static double squareHere(){ // returns the snapped heading the test works from
+  myGyro.resyncToNearestCardinal(45.0);
+  return norm360(90.0 * round(myGyro.heading() / 90.0));
+}
+
+// one absoluteturn() to target: how long, how far off it stopped, and how far off once it has coasted
+static void timedTurn(const char *label, double target){
+  double h0 = myGyro.heading();
+  unsigned long t0 = millis();
+  absoluteturn(target);
+  unsigned long ms = millis() - t0;
+  double errEnd = wrap180(myGyro.heading() - target);
+  delay(500);
+  double h1 = myGyro.heading();
+  add(label); add(": "); addNum(ms / 1000.0, 2); add(" s, stopped "); addNum(errEnd, 1); add(" deg off, after 0.5 s ");
+  addNum(wrap180(h1 - target), 1); add(" (turned "); addNum(wrap180(h1 - h0), 1); add(")");
+  endLine();
+}
+
+static void addSides(){ // side readings: right front/back (2/3), left front/back (6/5)
+  add("right "); addInt(measure(2)); add("/"); addInt(measure(3)); add(", left "); addInt(measure(6)); add("/"); addInt(measure(5));
+}
+
+static void addFrontAndResult(){
+  add("front "); addInt(measure(7)); add("/"); addInt(measure(1)); add(" (CAD 42 in the middle of a tile)");
+  if(obstacleAhead) add(", treated as an obstacle (edge would be blocked)");
+  else if(fwdShort) add(", short move (backed up)");
+}
+
+static void moveTurns(){
+  waitForSwitch("M1 turns", "M1) open floor, room to turn: 4 right 90s, 4 left 90s, then 180 and back");
+  add("M1 (robot-test: 90 in about 1-1.5 s, 180 in 2-2.5 s, within 2-3 deg; exactly 2.00 / 4.00 s = waited out its time limit)");
+  endLine();
+  double base = squareHere();
+  char label[24];
+  for(int i = 1; i <= 4; i++){ snprintf(label, sizeof(label), "M1 right 90 #%d", i); timedTurn(label, norm360(base + 90.0 * i)); }
+  for(int i = 1; i <= 4; i++){ snprintf(label, sizeof(label), "M1 left 90 #%d", i); timedTurn(label, norm360(base - 90.0 * i)); }
+  timedTurn("M1 180 #1", norm360(base + 180.0));
+  timedTurn("M1 180 #2", base);
+}
+
+static void moveSmallTurns(){
+  waitForSwitch("M2 small turns", "M2) same place: small turns of 5-15 deg, each followed by a turn back");
+  add("M2 (each should turn the robot and stop within 2 deg; 'turned' about 0 = it didn't move)");
+  endLine();
+  double base = squareHere();
+  const double steps[8] = {5, 0, -5, 0, 10, 0, -15, 0};
+  char label[24];
+  for(int i = 0; i < 8; i++){
+    snprintf(label, sizeof(label), "M2 to %+d deg", (int)steps[i]);
+    timedTurn(label, norm360(base + steps[i]));
+  }
+}
+
+static int backAvg(){ // back sensor, average of 5 valid readings (-1 if none)
+  long sum = 0;
+  int n = 0;
+  for(int i = 0; i < 10 && n < 5; i++){
+    int v = measure(4);
+    if(v > 0 && v < 1500){ sum += v; n++; }
+  }
+  return n > 0 ? (int)(sum / n) : -1;
+}
+
+static void moveOpenFloor(){
+  waitForSwitch("M3 3 tiles", "M3) open floor, 1.2 m free ahead, 30 cm free each side, a wall or big box right behind the robot (the back sensor measures each move). 3 moves");
+  double base = squareHere();
+  int b0 = backAvg(), prev = b0;
+  add("M3 start: back sensor "); addInt(b0); add(" mm");
+  endLine();
+  for(int i = 1; i <= 3; i++){
+    unsigned long t0 = millis();
+    fwd(TILE_MM);
+    unsigned long ms = millis() - t0;
+    delay(300);
+    int b = backAvg();
+    add("M3 move "); addInt(i); add(": "); addNum(ms / 1000.0, 2); add(" s, back sensor "); addInt(b);
+    if(b > 0 && prev > 0){ add(", moved "); addInt(b - prev); add(" mm (should be 300)"); }
+    add(", heading "); addNum(wrap180(myGyro.heading() - base), 1); add(" deg off");
+    if(fwdShort) add(", short move (backed up)");
+    endLine();
+    prev = b;
+    delay(2000);
+  }
+  add("M3 each move should be about 300 mm. Short: raise the 55 in fwd() to 60-65; past: lower it to 50");
+  endLine();
+}
+
+static void moveAlongWall(){
+  waitForSwitch("M4 along wall", "M4) straight wall on one side, 1.5 m long; robot parallel to it, its side 4-5 cm from the wall. 4 moves");
+  double base = squareHere();
+  add("M4 start: "); addSides(); add(" (the one-wall target is 80 on the wall side)");
+  endLine();
+  for(int i = 1; i <= 4; i++){
+    fwd(TILE_MM);
+    add("M4 move "); addInt(i); add(": "); addSides(); add(", heading "); addNum(wrap180(myGyro.heading() - base), 1); add(" deg off");
+    endLine();
+    delay(1000);
+  }
+  add("M4 the wall side should go toward 80 and stay there, no visible swing left and right ([CENTER] err shrinking)");
+  endLine();
+}
+
+static void moveSensorWatch(){
+  waitForSwitch("M0 sensors", "M0) all 7 distance sensors, twice a second for 10 s: open floor, nothing within 1 m behind it");
+  int bMin = 9999, bMax = -1;
+  unsigned long t0 = millis();
+  while(millis() - t0 < 10000){
+    int v[8];
+    for(int s = 1; s <= 7; s++) v[s] = measure(s);
+    if(v[4] > 0 && v[4] < 8000){ bMin = min(bMin, v[4]); bMax = max(bMax, v[4]); }
+    Serial.print("[BENCH] M0 "); Serial.print((millis() - t0) / 1000.0, 1);
+    Serial.print(" s: front "); Serial.print(v[7]); Serial.print("/"); Serial.print(v[1]);
+    Serial.print(" right "); Serial.print(v[2]); Serial.print("/"); Serial.print(v[3]);
+    Serial.print(" back "); Serial.print(v[4]);
+    Serial.print(" left "); Serial.print(v[6]); Serial.print("/"); Serial.println(v[5]);
+    delay(500);
+  }
+  add("M0 back sensor over 10 s: "); if(bMax < 0) add("never a reading under 8000"); else { addInt(bMin); add(" to "); addInt(bMax); add(" mm"); }
+  add(" (nothing behind it should read 8190 or -1; a steady reading under 400 = it sees the floor or the cable)");
+  endLine();
+}
+
+// Before M5/M6: the LED is on while both front sensors read 250-400 mm and agree within 30 mm (a wall at the far
+// end of the next tile, both sensors seeing it, not the box) and off otherwise: move the robot until it comes on, then flip the switch
+// on and off. (A blink here looked steady: each loop's sensor reads take about as long as a blink.)
+static void waitForFrontWall(const char *lcdText, const char *howToPlace){
+  drivetrain.fullstop();
+  Serial.print("[BENCH] next: ");
+  Serial.println(howToPlace);
+  Serial.println("[BENCH] move the robot until the LED comes on (both front sensors 250-400 mm), then flip the pause switch on and off");
+  lcdPrint(lcdText);
+  unsigned long lastPrint = 0;
+  for(int phase = 0; phase < 2; phase++){
+    while(digitalRead(BENCH_SWITCH_PIN) == (phase == 0 ? LOW : HIGH)){
+      int l = measure(7), r = measure(1);
+      led(l >= 250 && l <= 400 && r >= 250 && r <= 400 && abs(l - r) <= 30);
+      if(millis() - lastPrint > 1000){ lastPrint = millis(); Serial.print("[BENCH] front "); Serial.print(l); Serial.print("/"); Serial.println(r); }
+      delay(20);
+    }
+  }
+  led(true);
+  delay(1000);
+}
+
+static void moveTowardWall(){
+  waitForFrontWall("M5 wall ahead", "M5) a wall straight ahead, 30-40 cm from the front of the robot, nothing else in the way");
+  squareHere();
+  add("M5 start: front "); addInt(measure(7)); add("/"); addInt(measure(1)); add(" (about 340 = the far end of the next tile; the move should take 300 off it), back ");
+  addInt(measure(4));
+  endLine();
+  fwd(TILE_MM);
+  add("M5 after the move: "); addFrontAndResult(); add(", back "); addInt(measure(4));
+  endLine();
+  centreAlong(); // what SENSE_TILE does next in a run
+  add("M5 after centreAlong(): "); addFrontAndResult(); add(". No 'no progress' line should appear in this test");
+  endLine();
+}
+
+static void moveBlocked(){
+  waitForFrontWall("M6 blocked", "M6) as M5, plus a heavy box 8-10 cm wide (taped down) in the middle, 10 cm ahead of the robot");
+  squareHere();
+  add("M6 start: front "); addInt(measure(7)); add("/"); addInt(measure(1)); add(" (both should still see the wall, not the box), back "); addInt(measure(4));
+  endLine();
+  fwd(TILE_MM);
+  add("M6 after the move: "); addFrontAndResult(); add(", back "); addInt(measure(4)); add(". Expected: '[FWD] no progress' and the robot back near where it started");
+  endLine();
+}
+
+static void printAllForever(const char *lcdText){
+  drivetrain.fullstop();
+  Serial.println("[BENCH] done. Flip the pause switch on and off to print every result again.");
+  lcdPrint(lcdText);
+  while(true){ // fast blink; each switch flip prints all results again (plug in USB first)
+    while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(250); delay(20); }
+    while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(250); delay(20); }
+    Serial.println("[BENCH] ---- all results ----");
+    for(int i = 0; i < resultCount; i++){
+      Serial.print("[BENCH] ");
+      Serial.println(results[i]);
+    }
+    Serial.println("[BENCH] ---- end ----");
+  }
+}
+
+// Which move tests run, in this order (0 = M0 sensor watch, 1-6 = M1-M6); shorten it to repeat a few.
+static const int MOVE_TESTS[] = {0, 1, 2, 3, 4, 5, 6};
+
+void runMoveTests(){
+  pinMode(LEDPIN, OUTPUT);
+  Serial.println("[BENCH] move tests: absoluteturn() and fwd() on an open floor (BENCH_MODE 2 in main.cpp)");
+  add("M heading at power-on: "); addNum(myGyro.heading(), 1); add(" deg (about 0; stuck at exactly 0.0 in M1 = gyro not found)");
+  endLine();
+  for(unsigned i = 0; i < sizeof(MOVE_TESTS) / sizeof(MOVE_TESTS[0]); i++){
+    switch(MOVE_TESTS[i]){
+      case 0: moveSensorWatch(); break;
+      case 1: moveTurns(); break;
+      case 2: moveSmallTurns(); break;
+      case 3: moveOpenFloor(); break;
+      case 4: moveAlongWall(); break;
+      case 5: moveTowardWall(); break;
+      case 6: moveBlocked(); break;
+    }
+  }
+  printAllForever("move tests done");
+}
+
 void runBench(){
   pinMode(LEDPIN, OUTPUT);
   Serial.println("[BENCH] bench mode: measurements for the simulator (BENCH_MODE in main.cpp)");
@@ -311,17 +538,6 @@ void runBench(){
   benchGyroDrift();
   benchFloorColours();
   benchSensorOffsets();
-  drivetrain.fullstop();
-  Serial.println("[BENCH] done. Flip the pause switch on and off to print every result again.");
-  lcdPrint("bench done");
-  while(true){ // fast blink; each switch flip prints all results again (plug in USB first)
-    while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(250); delay(20); }
-    while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(250); delay(20); }
-    Serial.println("[BENCH] ---- all results ----");
-    for(int i = 0; i < resultCount; i++){
-      Serial.print("[BENCH] ");
-      Serial.println(results[i]);
-    }
-    Serial.println("[BENCH] ---- end ----");
-  }
+  printAllForever("bench done");
 }
+
