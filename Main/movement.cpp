@@ -268,6 +268,7 @@ void fwd(double dist){ // in mm
       drivetrain.fullstop();
       delay(100);
       Serial.println("black");
+      lcdEvent("BLACK");
       int nx = x_pos; int ny = y_pos;
       stepForward(currentDir,nx,ny);
       if(inBounds(nx, ny)) mapGrid[nx][ny].setType(BLACK);
@@ -331,6 +332,7 @@ void fwd(double dist){ // in mm
        ((front_left_current<=OBSTACLE_DIST&&front_left_current!=-1&&front_right_current>=MIN_DIST&&front_right_current!=-1) ||
         (front_right_current<=OBSTACLE_DIST&&front_right_current!=-1&&front_left_current>=MIN_DIST&&front_left_current!=-1))){
       Serial.println("obstacle ahead during the move");
+      lcdEvent("OBSTACLE (move)");
       drivetrain.fullstop();
       fwdExit = "obstacle-mid";
       obstacleAhead = true;
@@ -365,6 +367,7 @@ void fwd(double dist){ // in mm
         }
       }
       if(noProgressLoops >= 3){
+        lcdEvent("NO PROGRESS");
         Serial.print("[FWD] no progress: encoders ");
         Serial.print(encMm, 0);
         Serial.print(" mm, distance sensors at most ");
@@ -527,6 +530,7 @@ void fwd(double dist){ // in mm
       stepForward(currentDir, nx, ny);
       if(!inBounds(nx, ny)) { Serial.println("ramp would leave the map, stopping the count"); break; }
       Serial.println("adding ramp to map");
+      lcdEvent(upwards ? "RAMP UP" : "RAMP DOWN");
       markEdgeBothWays(x_pos, y_pos, currentDir);
       stepForward(currentDir, x_pos, y_pos);
       writeWallsToCurrentTile(0, 1, 0, 1);

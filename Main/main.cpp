@@ -40,6 +40,9 @@ bool planExploreDir(Direction &outDir);
 void syncActiveFloor();
 Grid& floorGrid(int floor);
 void lcdPrint(const char* msg);
+void lcdStatus();               // display.cpp
+void lcdEvent(const char *msg); // display.cpp
+extern bool gyroMissing;        // gyro.cpp
 void runBench(); // bench.cpp
 void runMoveTests(); // bench.cpp
 
@@ -384,6 +387,7 @@ bool relocateOnMismatch(bool wallF, bool wallR, bool wallB, bool wallL){
   Serial.print("walls don't match this tile but match the neighbour ");
   Serial.print(pick);
   Serial.println(": position corrected");
+  lcdEvent("POS CORRECTED");
   x_pos = cx[pick]; y_pos = cy[pick];
   return true;
 }
@@ -443,6 +447,7 @@ static bool repeatedFailure(){
   }
   if(fails >= 4){
     Serial.println("failed 4 times here: wall written to the map");
+    lcdEvent("WALL WRITTEN");
     mapGrid[x_pos][y_pos].setWall(currentDir, true);
     int nx = x_pos, ny = y_pos;
     stepForward(currentDir, nx, ny);
@@ -457,6 +462,7 @@ void handleShortMove(){
   if(repeatedFailure()){ obstacleAhead = false; shortMoveCount = 0; return; }
   if(obstacleAhead){
     Serial.println("obstacle ahead: blocking edge");
+    lcdEvent("OBSTACLE");
     obstacleAhead = false;
     rememberObstacleAhead();
     blockEdge(x_pos, y_pos, currentDir);
@@ -498,12 +504,14 @@ void finishTileMove(){
     x_checkpoint = x_pos; y_checkpoint = y_pos;
     floor_checkpoint = currentFloor;
     Serial.println("checkpoint recorded");
+    lcdEvent("CHECKPOINT");
   }
   // RCJ: stop 5 s on a blue tile every time it is entered (the map flag covers a
   // missed colour read on later visits, e.g. on the way home)
   if(color == 1 || mapGrid[x_pos][y_pos].getType() == BLUE){
     mapGrid[x_pos][y_pos].setType(BLUE);
     drivetrain.fullstop();
+    lcdEvent("BLUE 5s");
     delay(5000);
   }
   if(obstacle == true){
@@ -570,6 +578,7 @@ void setup(){
   state = SENSE_TILE;
   // start lcd
   lcd.begin(16, 2);
+  lcdEvent(gyroMissing ? "NO GYRO! check" : "ready");
 #if BENCH_MODE == 2
   runMoveTests(); // never returns
 #elif BENCH_MODE
@@ -618,6 +627,7 @@ void loop(){
       centreAlong();
       Serial.print("[POS] "); Serial.print(x_pos); Serial.print(","); Serial.print(y_pos);
       Serial.print(" floor "); Serial.print(currentFloor); Serial.print(" facing "); Serial.println((int)currentDir);
+      lcdStatus();
       // Read for walls
       Serial.println("reading walls");
       readWallsRel(wallF, wallR, wallB, wallL);
@@ -630,6 +640,7 @@ void loop(){
       
       if(Pausemaze == true){
         Serial.println("pause");
+        lcdEvent("PAUSED");
         state=PAUSE;
         break;
       }
@@ -688,7 +699,7 @@ void loop(){
       }
       if(found == false){
         Serial.println("maze fully explored");
-        lcdPrint("maze explored");
+        lcdEvent("EXPLORED");
         state = RETURN;
         break;
       }
@@ -831,7 +842,7 @@ void loop(){
         // the wrong tile, a lack-of-progress restart puts it back on the last checkpoint and it
         // heads home again from there. (This was a while(true) that ignored the switch, so only
         // a power cycle -- which loses the map -- could get it going again.)
-        lcdPrint("back to start");
+        lcdEvent("HOME");
         while(Pausemaze == false){
           drivetrain.fullstop();
           digitalWrite(LEDPIN, (millis() / 1000) % 2 ? HIGH : LOW);
@@ -846,7 +857,7 @@ void loop(){
         // No route home in the map (usually the position is off and a black tile or a blocked
         // edge cut the planned route). Stop, but keep watching the pause switch as above, so a
         // lack-of-progress restart can recover the run instead of it ending here.
-        lcdPrint("no path found");
+        lcdEvent("NO PATH HOME");
         while(Pausemaze == false){
           drivetrain.fullstop();
           delay(20);
@@ -904,7 +915,8 @@ void loop(){
         Pausemaze = false;
         // the run starts: the robot stands on the start tile (white). Later restarts are on a checkpoint (silver).
         static bool whiteTaken = false;
-        if(!whiteTaken){ takeWhiteReference(); whiteTaken = true; }
+        if(!whiteTaken){ takeWhiteReference(); whiteTaken = true; lcdEvent(clear < 1000 ? "WHITE REF LOW!" : "RUNNING"); }
+        else lcdEvent("RESTART");
         // Restore the checkpoint's FLOOR as well as its tile. Save the grid we were
         // working on back into its floor slot, then load the checkpoint floor's grid
         // -> so victim flags / walls are looked up on the correct floor.

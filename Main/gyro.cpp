@@ -10,6 +10,7 @@ extern rtos::Mutex i2cMutex;
 gyro::gyro(){
   
 }
+bool gyroMissing = false; // bno.begin() failed at start-up (shown on the LCD)
 void gyro::init_Gyro(){
   i2cMutex.lock();
   // IMUPLUS (gyro + accelerometer): heading 0 = the direction the robot faced at power-on, which is what
@@ -17,6 +18,7 @@ void gyro::init_Gyro(){
   // 3.3.3.5): once the magnetometer calibrates, the heading can switch to magnetic north mid-run.
   bool found = bno.begin(OPERATION_MODE_IMUPLUS);
   i2cMutex.unlock();
+  gyroMissing = !found;
   if(!found) Serial.println("can't find gyro");
   else        Serial.println("gyro found");
 }
