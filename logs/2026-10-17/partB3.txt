@@ -1,0 +1,1382 @@
+--- connected on COM3 at 13:51:51
+13:54:14 white reference: power-on 3004, start tile now 3070
+13:54:14 [TURN] target=0.00 hdg=176.9 init_diff=176.9
+13:54:16 finished turning
+13:54:16 checkpoint coordinates
+13:54:16 20
+13:54:16 20
+13:54:16 0
+13:54:16 paralleling
+13:54:16 paralleled
+13:54:16 reading walls
+13:54:16 1
+13:54:16 0
+13:54:16 0
+13:54:16 1
+13:54:16 updating tile
+13:54:16 victim detect
+13:54:16 plan next
+13:54:16 90
+13:54:16 [TURN] target=90.00 hdg=358.8 init_diff=91.2
+13:54:17 finished turning
+13:54:17 paralleling
+13:54:17 paralleled
+13:54:17 turn target=90.00, actual=90.19, err=0.19
+13:54:17 forwarding
+13:54:17 init_yaw
+13:54:17 90
+13:54:17 [FWD] entry hdg=90.1 init_yaw=90 offset=0.1
+13:54:17 distance travelled: 0.00
+13:54:17 654 1006 1273 c=2918 ratio=0.95
+13:54:17 color
+13:54:17 0
+13:54:17 distance travelled: 0.17
+13:54:17 distance travelled: 2.41
+13:54:17 distance travelled: 8.76
+13:54:17 distance travelled: 16.33
+13:54:17 [CENTER] m2(front)=8190 m3(back)=528 err=-10.0 adj=-10.0
+13:54:17 distance travelled: 29.64
+13:54:17 distance travelled: 41.93
+13:54:17 distance travelled: 52.67
+13:54:17 distance travelled: 62.98
+13:54:17 distance travelled: 74.15
+13:54:17 [CENTER] m2(front)=8190 m3(back)=813 err=-4.0 adj=-4.0
+13:54:17 distance travelled: 93.49
+13:54:17 625 953 1200 c=2764 ratio=0.90
+13:54:17 color
+13:54:17 0
+13:54:17 distance travelled: 107.66
+13:54:17 distance travelled: 117.63
+13:54:17 distance travelled: 128.28
+13:54:17 distance travelled: 139.71
+13:54:17 [CENTER] m2(front)=390 m3(back)=-1 err=11.0 adj=11.0
+13:54:17 distance travelled: 159.39
+13:54:18 distance travelled: 174.00
+13:54:18 distance travelled: 185.60
+13:54:18 distance travelled: 196.42
+13:54:18 distance travelled: 207.68
+13:54:18 [CENTER] m2(front)=563 m3(back)=8190 err=8.0 adj=8.0
+13:54:18 distance travelled: 227.27
+13:54:18 645 974 1228 c=2831 ratio=0.92
+13:54:18 color
+13:54:18 0
+13:54:18 distance travelled: 243.16
+13:54:18 distance travelled: 253.82
+13:54:18 distance travelled: 264.39
+13:54:18 distance travelled: 272.98
+13:54:18 [CENTER] m2(front)=581 m3(back)=36 err=4.0 adj=4.0
+13:54:18 distance travelled: 286.90
+13:54:18 distance travelled: 296.35
+13:54:18 [FWD] exit=normal
+13:54:18 stop- end of fwd
+13:54:18 676 1029 1302 c=2992 ratio=0.97
+13:54:18 paralleling
+13:54:18 paralleled
+13:54:18 reading walls
+13:54:18 0
+13:54:18 0
+13:54:18 0
+13:54:18 1
+13:54:18 updating tile
+13:54:18 victim detect
+13:54:18 plan next
+13:54:18 90
+13:54:18 paralleling
+13:54:18 paralleled
+13:54:18 turn target=90.00, actual=90.12, err=0.13
+13:54:18 forwarding
+13:54:18 init_yaw
+13:54:18 90
+13:54:18 [FWD] entry hdg=90.1 init_yaw=90 offset=0.1
+13:54:18 distance travelled: -0.09
+13:54:18 676 1033 1313 c=3007 ratio=0.98
+13:54:18 color
+13:54:18 0
+13:54:18 distance travelled: -0.09
+13:54:18 distance travelled: 2.15
+13:54:18 distance travelled: 9.28
+13:54:19 distance travelled: 17.79
+13:54:19 [CENTER] m2(front)=572 m3(back)=540 err=-3.0 adj=-3.0
+13:54:19 distance travelled: 35.40
+13:54:19 distance travelled: 48.80
+13:54:19 distance travelled: 59.89
+13:54:19 distance travelled: 70.46
+13:54:19 distance travelled: 81.80
+13:54:19 [CENTER] m2(front)=542 m3(back)=583 err=-2.0 adj=-2.0
+13:54:19 distance travelled: 101.22
+13:54:19 650 990 1250 c=2875 ratio=0.94
+13:54:19 color
+13:54:19 0
+13:54:19 distance travelled: 114.97
+13:54:19 distance travelled: 124.93
+13:54:19 distance travelled: 135.59
+13:54:19 distance travelled: 147.62
+13:54:19 [CENTER] m2(front)=587 m3(back)=556 err=-3.0 adj=-3.0
+13:54:19 distance travelled: 167.81
+13:54:19 distance travelled: 183.19
+13:54:19 distance travelled: 194.96
+13:54:19 distance travelled: 206.22
+13:54:19 distance travelled: 217.13
+13:54:19 [CENTER] m2(front)=700 m3(back)=559 err=6.0 adj=6.0
+13:54:19 distance travelled: 234.92
+13:54:19 55 185 345 c=579 ratio=0.19
+13:54:19 color
+13:54:19 1
+13:54:19 distance travelled: 251.07
+13:54:19 distance travelled: 261.38
+13:54:19 distance travelled: 269.29
+13:54:19 distance travelled: 277.45
+13:54:19 [CENTER] m2(front)=706 m3(back)=520 err=1.0 adj=1.0
+13:54:19 distance travelled: 287.85
+13:54:19 distance travelled: 295.75
+13:54:19 [FWD] exit=normal
+13:54:19 stop- end of fwd
+13:54:19 56 190 354 c=594 ratio=0.19
+13:54:25 paralleling
+13:54:25 paralleled
+13:54:25 centring along: -80 mm off (front wall)
+13:54:25 reading walls
+13:54:25 1
+13:54:25 0
+13:54:25 0
+13:54:25 1
+13:54:25 updating tile
+13:54:25 victim detect
+13:54:25 plan next
+13:54:25 180
+13:54:25 [TURN] target=180.00 hdg=90.7 init_diff=89.3
+13:54:26 finished turning
+13:54:26 paralleling
+13:54:26 paralleled
+13:54:26 turn target=180.00, actual=180.12, err=0.13
+13:54:26 forwarding
+13:54:26 init_yaw
+13:54:26 180
+13:54:26 [FWD] entry hdg=180.1 init_yaw=180 offset=0.1
+13:54:27 distance travelled: 0.00
+13:54:27 55 190 358 c=598 ratio=0.19
+13:54:27 color
+13:54:27 1
+13:54:27 distance travelled: 0.00
+13:54:27 distance travelled: 2.32
+13:54:27 distance travelled: 8.94
+13:54:27 distance travelled: 16.84
+13:54:27 [CENTER] m2(front)=602 m3(back)=690 err=-5.0 adj=-5.0
+13:54:27 distance travelled: 32.39
+13:54:27 distance travelled: 44.94
+13:54:27 distance travelled: 56.19
+13:54:27 distance travelled: 67.02
+13:54:27 distance travelled: 77.76
+13:54:27 [CENTER] m2(front)=409 m3(back)=693 err=0.0 adj=0.0
+13:54:27 distance travelled: 97.52
+13:54:27 663 1015 1283 c=2944 ratio=0.96
+13:54:27 color
+13:54:27 0
+13:54:27 distance travelled: 114.19
+13:54:27 distance travelled: 123.04
+13:54:27 distance travelled: 133.61
+13:54:27 distance travelled: 145.98
+13:54:27 [CENTER] m2(front)=374 m3(back)=718 err=7.0 adj=7.0
+13:54:27 distance travelled: 165.32
+13:54:27 distance travelled: 179.92
+13:54:27 distance travelled: 190.67
+13:54:27 distance travelled: 202.01
+13:54:27 distance travelled: 212.40
+13:54:27 [CENTER] m2(front)=374 m3(back)=490 err=6.0 adj=6.0
+13:54:27 distance travelled: 231.99
+13:54:27 660 1004 1267 c=2916 ratio=0.95
+13:54:27 color
+13:54:27 0
+13:54:27 distance travelled: 246.60
+13:54:27 distance travelled: 256.48
+13:54:27 distance travelled: 267.40
+13:54:27 distance travelled: 276.16
+13:54:27 [CENTER] m2(front)=368 m3(back)=374 err=8.0 adj=8.0
+13:54:27 distance travelled: 289.91
+13:54:28 distance travelled: 296.61
+13:54:28 [FWD] exit=normal
+13:54:28 stop- end of fwd
+13:54:28 665 1011 1281 c=2941 ratio=0.96
+13:54:28 paralleling
+13:54:28 paralleled
+13:54:28 centring along: 21 mm off (back wall)
+13:54:28 reading walls
+13:54:28 0
+13:54:28 0
+13:54:28 0
+13:54:28 1
+13:54:28 updating tile
+13:54:28 victim detect
+13:54:28 plan next
+13:54:28 180
+13:54:28 paralleling
+13:54:28 paralleled
+13:54:28 turn target=180.00, actual=179.94, err=0.06
+13:54:28 forwarding
+13:54:28 init_yaw
+13:54:28 180
+13:54:28 [FWD] entry hdg=179.9 init_yaw=180 offset=-0.1
+13:54:28 distance travelled: 0.00
+13:54:28 677 1031 1309 c=3002 ratio=0.98
+13:54:28 color
+13:54:28 0
+13:54:28 distance travelled: 0.17
+13:54:28 distance travelled: 4.81
+13:54:28 distance travelled: 12.46
+13:54:28 distance travelled: 21.05
+13:54:28 [CENTER] m2(front)=377 m3(back)=371 err=-1.0 adj=-1.0
+13:54:28 distance travelled: 39.61
+13:54:28 distance travelled: 53.62
+13:54:28 distance travelled: 65.22
+13:54:28 distance travelled: 77.42
+13:54:28 distance travelled: 88.33
+13:54:29 [CENTER] m2(front)=381 m3(back)=375 err=0.0 adj=0.0
+13:54:29 distance travelled: 108.35
+13:54:29 662 1012 1277 c=2936 ratio=0.96
+13:54:29 color
+13:54:29 0
+13:54:29 distance travelled: 123.04
+13:54:29 distance travelled: 132.07
+13:54:29 distance travelled: 143.32
+13:54:29 distance travelled: 154.06
+13:54:29 [CENTER] m2(front)=37 m3(back)=368 err=-3.0 adj=-3.0
+13:54:29 distance travelled: 172.28
+13:54:29 distance travelled: 187.23
+13:54:29 distance travelled: 198.05
+13:54:29 distance travelled: 208.37
+13:54:29 distance travelled: 219.11
+13:54:29 [CENTER] m2(front)=38 m3(back)=379 err=-5.0 adj=-5.0
+13:54:29 distance travelled: 237.49
+13:54:29 657 995 1255 c=2890 ratio=0.94
+13:54:29 color
+13:54:29 0
+13:54:29 distance travelled: 252.10
+13:54:29 distance travelled: 261.98
+13:54:29 distance travelled: 271.26
+13:54:29 distance travelled: 278.99
+13:54:29 [CENTER] m2(front)=35 m3(back)=377 err=1.0 adj=1.0
+13:54:29 distance travelled: 290.34
+13:54:29 distance travelled: 298.07
+13:54:29 [FWD] exit=normal
+13:54:29 stop- end of fwd
+13:54:29 660 1011 1265 c=2926 ratio=0.95
+13:54:29 paralleling
+13:54:29 paralleled
+13:54:29 centring along: -77 mm off (front wall)
+13:54:30 reading walls
+13:54:30 1
+13:54:30 1
+13:54:30 0
+13:54:30 1
+13:54:30 updating tile
+13:54:30 victim detect
+13:54:30 plan next
+13:54:30 0
+13:54:30 [TURN] target=0.00 hdg=180.9 init_diff=179.1
+13:54:32 finished turning
+13:54:32 paralleling
+13:54:32 paralleled
+13:54:32 turn target=0.00, actual=358.25, err=1.75
+13:54:32 forwarding
+13:54:32 init_yaw
+13:54:32 0
+13:54:32 [FWD] entry hdg=357.8 init_yaw=0 offset=357.8
+13:54:32 distance travelled: 1.37
+13:54:32 648 987 1251 c=2871 ratio=0.94
+13:54:32 color
+13:54:32 0
+13:54:32 distance travelled: 1.37
+13:54:32 distance travelled: 3.95
+13:54:32 distance travelled: 9.45
+13:54:32 distance travelled: 16.50
+13:54:32 [CENTER] m2(front)=77 m3(back)=75 err=-20.0 adj=-20.0
+13:54:32 distance travelled: 31.53
+13:54:33 distance travelled: 43.05
+13:54:33 distance travelled: 52.84
+13:54:33 distance travelled: 62.38
+13:54:33 distance travelled: 73.21
+13:54:33 [CENTER] m2(front)=73 m3(back)=78 err=10.0 adj=10.0
+13:54:33 distance travelled: 91.77
+13:54:33 711 1090 1376 c=3161 ratio=1.03
+13:54:33 color
+13:54:33 0
+13:54:33 distance travelled: 105.17
+13:54:33 distance travelled: 115.91
+13:54:33 distance travelled: 126.48
+13:54:33 distance travelled: 137.13
+13:54:33 [CENTER] m2(front)=77 m3(back)=78 err=5.0 adj=5.0
+13:54:33 distance travelled: 156.30
+13:54:33 distance travelled: 170.64
+13:54:33 distance travelled: 181.47
+13:54:33 distance travelled: 192.13
+13:54:33 distance travelled: 202.09
+13:54:33 [CENTER] m2(front)=79 m3(back)=79 err=1.0 adj=1.0
+13:54:33 distance travelled: 219.62
+13:54:33 667 1017 1287 c=2955 ratio=0.96
+13:54:33 color
+13:54:33 0
+13:54:33 distance travelled: 234.57
+13:54:33 distance travelled: 246.00
+13:54:33 distance travelled: 257.08
+13:54:33 distance travelled: 266.88
+13:54:33 [CENTER] m2(front)=82 m3(back)=77 err=-12.0 adj=-12.0
+13:54:33 distance travelled: 281.49
+13:54:33 distance travelled: 289.56
+13:54:33 distance travelled: 294.46
+13:54:33 distance travelled: 298.93
+13:54:33 [FWD] exit=normal
+13:54:33 stop- end of fwd
+13:54:33 687 1052 1338 c=3061 ratio=1.00
+13:54:34 paralleling
+13:54:34 paralleled
+13:54:34 centring along: 28 mm off (back wall)
+13:54:34 reading walls
+13:54:34 0
+13:54:34 1
+13:54:34 0
+13:54:34 0
+13:54:34 updating tile
+13:54:34 victim detect
+13:54:34 plan next
+13:54:34 270
+13:54:34 [TURN] target=270.00 hdg=359.9 init_diff=89.9
+13:54:35 finished turning
+13:54:35 paralleling
+13:54:35 turn target=270.00, actual=269.87, err=0.13
+13:54:35 forwarding
+13:54:35 init_yaw
+13:54:35 270
+13:54:35 [FWD] entry hdg=269.9 init_yaw=270 offset=-0.1
+13:54:35 distance travelled: 0.60
+13:54:35 677 1031 1315 c=3007 ratio=0.98
+13:54:35 color
+13:54:35 0
+13:54:35 distance travelled: 0.60
+13:54:35 distance travelled: 2.49
+13:54:35 distance travelled: 7.22
+13:54:35 distance travelled: 13.15
+13:54:35 [CENTER] m2(front)=428 m3(back)=436 err=-38.0 adj=-38.0
+13:54:35 distance travelled: 24.40
+13:54:35 distance travelled: 32.91
+13:54:35 distance travelled: 40.56
+13:54:35 distance travelled: 48.80
+13:54:35 distance travelled: 56.97
+13:54:35 [CENTER] m2(front)=427 m3(back)=441 err=-46.0 adj=-46.0
+13:54:35 distance travelled: 71.49
+13:54:35 644 985 1249 c=2863 ratio=0.93
+13:54:35 color
+13:54:35 0
+13:54:35 distance travelled: 81.20
+13:54:35 distance travelled: 87.73
+13:54:35 distance travelled: 96.58
+13:54:35 distance travelled: 106.37
+13:54:35 [CENTER] m2(front)=424 m3(back)=451 err=12.1 adj=12.1
+13:54:35 distance travelled: 124.93
+13:54:36 distance travelled: 137.99
+13:54:36 distance travelled: 148.30
+13:54:36 distance travelled: 158.96
+13:54:36 distance travelled: 170.04
+13:54:36 [CENTER] m2(front)=410 m3(back)=433 err=-16.0 adj=10.9
+13:54:36 distance travelled: 187.66
+13:54:36 674 1031 1308 c=2996 ratio=0.98
+13:54:36 color
+13:54:36 0
+13:54:36 distance travelled: 201.66
+13:54:36 distance travelled: 210.51
+13:54:36 distance travelled: 220.14
+13:54:36 distance travelled: 230.02
+13:54:36 [CENTER] m2(front)=405 m3(back)=429 err=-17.0 adj=-17.0
+13:54:36 distance travelled: 246.86
+13:54:36 distance travelled: 259.83
+13:54:36 distance travelled: 269.03
+13:54:36 distance travelled: 276.33
+13:54:36 distance travelled: 283.21
+13:54:36 [CENTER] m2(front)=403 m3(back)=422 err=-43.0 adj=12.0
+13:54:36 distance travelled: 292.83
+13:54:36 687 1048 1333 c=3052 ratio=0.99
+13:54:36 color
+13:54:36 0
+13:54:36 distance travelled: 298.41
+13:54:36 [FWD] exit=normal
+13:54:36 [FWD] steering limited 7 times
+13:54:36 stop- end of fwd
+13:54:36 678 1014 1289 c=3007 ratio=0.98
+13:54:36 paralleling
+13:54:36 centring along: -18 mm off (front wall)
+13:54:37 reading walls
+13:54:37 1
+13:54:37 0
+13:54:37 0
+13:54:37 0
+13:54:37 updating tile
+13:54:37 victim detect
+13:54:37 plan next
+13:54:37 180
+13:54:37 [TURN] target=180.00 hdg=280.8 init_diff=100.8
+13:54:37 finished turning
+13:54:38 paralleling
+13:54:38 paralleled
+13:54:38 turn target=180.00, actual=182.00, err=2.00
+13:54:38 forwarding
+13:54:38 init_yaw
+13:54:38 180
+13:54:38 [FWD] entry hdg=182.0 init_yaw=180 offset=2.0
+13:54:38 distance travelled: -0.17
+13:54:38 658 1003 1274 c=2921 ratio=0.95
+13:54:38 color
+13:54:38 0
+13:54:38 distance travelled: -0.17
+13:54:38 distance travelled: 2.75
+13:54:38 distance travelled: 9.88
+13:54:38 distance travelled: 17.96
+13:54:38 [CENTER] m2(front)=43 m3(back)=38 err=29.0 adj=29.0
+13:54:38 distance travelled: 30.25
+13:54:38 distance travelled: 41.76
+13:54:38 distance travelled: 52.24
+13:54:38 distance travelled: 61.61
+13:54:38 distance travelled: 71.66
+13:54:38 [CENTER] m2(front)=62 m3(back)=46 err=18.0 adj=18.0
+13:54:38 distance travelled: 88.50
+13:54:38 650 1000 1269 c=2904 ratio=0.95
+13:54:38 color
+13:54:38 0
+13:54:38 distance travelled: 102.51
+13:54:38 distance travelled: 112.47
+13:54:38 distance travelled: 122.70
+13:54:38 distance travelled: 132.92
+13:54:38 [CENTER] m2(front)=80 m3(back)=53 err=-12.0 adj=-12.0
+13:54:38 distance travelled: 149.85
+13:54:38 distance travelled: 163.08
+13:54:38 distance travelled: 172.36
+13:54:38 distance travelled: 182.59
+13:54:38 distance travelled: 191.95
+13:54:38 climbing
+13:54:38 14
+13:54:38 climbing
+13:54:38 -13.00
+13:54:39 climbing
+13:54:39 -11.00
+13:54:39 climbing
+13:54:39 -13.00
+13:54:39 climbing
+13:54:39 -14.00
+13:54:39 climbing
+13:54:39 -9.00
+13:54:39 climbing
+13:54:39 -10.00
+13:54:39 climbing
+13:54:39 -5.00
+13:54:39 climbing
+13:54:39 -16.00
+13:54:39 climbing
+13:54:39 -10.00
+13:54:39 climbing
+13:54:39 -12.00
+13:54:39 climbing
+13:54:39 -12.00
+13:54:39 climbing
+13:54:39 -14.00
+13:54:39 climbing
+13:54:39 -12.00
+13:54:39 climbing
+13:54:39 -14.00
+13:54:39 climbing
+13:54:39 -16.00
+13:54:39 climbing
+13:54:39 -25.00
+13:54:39 climbing
+13:54:39 -25.00
+13:54:39 climbing
+13:54:39 -27.00
+13:54:39 climbing
+13:54:39 -21.00
+13:54:39 climbing
+13:54:39 -19.00
+13:54:39 climbing
+13:54:39 -18.00
+13:54:39 climbing
+13:54:39 -10.00
+13:54:39 climbing
+13:54:39 -14.00
+13:54:39 climbing
+13:54:39 -6.00
+13:54:39 climbing
+13:54:39 -3.00
+13:54:39 climbing
+13:54:39 -5.00
+13:54:39 climbing
+13:54:39 -2.00
+13:54:39 climbing
+13:54:39 0.00
+13:54:39 climbing
+13:54:39 0.00
+13:54:39 1 section of the ramp climbed
+13:54:39 climbing
+13:54:39 0.00
+13:54:39 climbing
+13:54:39 27.00
+13:54:39 climbing
+13:54:39 14.00
+13:54:39 climbing
+13:54:40 40.00
+13:54:40 climbing
+13:54:40 38.00
+13:54:40 climbing
+13:54:40 37.00
+13:54:40 climbing
+13:54:40 38.00
+13:54:40 [CENTER] m2(front)=50 m3(back)=67 err=-14.0 adj=-14.0
+13:54:40 distance travelled: 210.43
+13:54:40 483 714 964 c=2082 ratio=0.68
+13:54:40 color
+13:54:40 1
+13:54:40 distance travelled: 226.15
+13:54:40 distance travelled: 234.92
+13:54:40 distance travelled: 245.05
+13:54:40 distance travelled: 253.73
+13:54:40 [CENTER] m2(front)=55 m3(back)=60 err=34.0 adj=34.0
+13:54:40 distance travelled: 269.54
+13:54:40 distance travelled: 280.89
+13:54:40 distance travelled: 288.79
+13:54:40 distance travelled: 295.32
+13:54:40 distance travelled: 299.62
+13:54:40 [CENTER] m2(front)=69 m3(back)=56 err=3.0 adj=3.0
+13:54:40 [FWD] exit=normal
+13:54:40 stop- end of fwd
+13:54:40 adding ramp to map
+13:54:40 compensating
+13:54:41 [TURN] target=180.00 hdg=180.0 init_diff=0.0
+13:54:41 finished turning
+13:54:41 715 1108 1421 c=3228 ratio=1.05
+13:54:41 paralleling
+13:54:41 paralleled
+13:54:41 centring along: 30 mm off (front wall)
+13:54:41 reading walls
+13:54:41 1
+13:54:41 1
+13:54:41 0
+13:54:41 0
+13:54:41 updating tile
+13:54:41 victim detect
+13:54:41 plan next
+13:54:41 90
+13:54:41 [TURN] target=90.00 hdg=182.4 init_diff=92.4
+13:54:42 finished turning
+13:54:42 paralleling
+13:54:42 paralleled
+13:54:42 turn target=90.00, actual=90.00, err=0.00
+13:54:42 forwarding
+13:54:42 init_yaw
+13:54:42 90
+13:54:42 [FWD] entry hdg=90.0 init_yaw=90 offset=0.0
+13:54:42 distance travelled: 0.00
+13:54:42 692 1062 1355 c=3093 ratio=1.01
+13:54:42 color
+13:54:42 0
+13:54:42 distance travelled: 0.00
+13:54:42 distance travelled: 2.66
+13:54:42 distance travelled: 9.02
+13:54:42 distance travelled: 16.58
+13:54:42 [CENTER] m2(front)=50 m3(back)=45 err=32.0 adj=32.0
+13:54:42 distance travelled: 28.10
+13:54:42 distance travelled: 40.13
+13:54:42 distance travelled: 50.70
+13:54:42 distance travelled: 60.32
+13:54:42 distance travelled: 70.29
+13:54:42 [CENTER] m2(front)=1080 m3(back)=46 err=-6.3 adj=-6.3
+13:54:42 distance travelled: 87.73
+13:54:42 683 1051 1337 c=3055 ratio=1.00
+13:54:42 color
+13:54:42 0
+13:54:42 distance travelled: 101.65
+13:54:42 distance travelled: 111.62
+13:54:42 distance travelled: 122.36
+13:54:42 distance travelled: 133.35
+13:54:43 [CENTER] m2(front)=1069 m3(back)=61 err=-5.8 adj=-5.9
+13:54:43 distance travelled: 152.51
+13:54:43 distance travelled: 166.95
+13:54:43 distance travelled: 178.89
+13:54:43 distance travelled: 189.81
+13:54:43 distance travelled: 201.23
+13:54:43 [CENTER] m2(front)=1046 m3(back)=68 err=-4.8 adj=-4.9
+13:54:43 distance travelled: 220.48
+13:54:43 703 1088 1387 c=3161 ratio=1.03
+13:54:43 color
+13:54:43 0
+13:54:43 distance travelled: 235.78
+13:54:43 distance travelled: 246.60
+13:54:43 distance travelled: 257.77
+13:54:43 distance travelled: 268.00
+13:54:43 [CENTER] m2(front)=817 m3(back)=-1 err=-53.0 adj=-53.0
+13:54:43 distance travelled: 280.80
+13:54:43 distance travelled: 288.79
+13:54:43 distance travelled: 293.69
+13:54:43 distance travelled: 297.98
+13:54:43 [FWD] exit=normal
+13:54:43 stop- end of fwd
+13:54:43 683 1052 1344 c=3061 ratio=1.00
+13:54:43 paralleling
+13:54:43 paralleled
+13:54:43 centring along: -13 mm off (front wall)
+13:54:43 reading walls
+13:54:43 1
+13:54:43 0
+13:54:43 0
+13:54:43 1
+13:54:43 updating tile
+13:54:43 victim detect
+13:54:43 plan next
+13:54:43 180
+13:54:43 [TURN] target=180.00 hdg=89.7 init_diff=90.2
+13:54:44 finished turning
+13:54:44 paralleling
+13:54:44 paralleled
+13:54:44 turn target=180.00, actual=177.87, err=2.12
+13:54:44 forwarding
+13:54:44 init_yaw
+13:54:44 180
+13:54:44 [FWD] entry hdg=177.3 init_yaw=180 offset=-2.7
+13:54:45 distance travelled: 1.46
+13:54:45 709 1094 1399 c=3185 ratio=1.04
+13:54:45 color
+13:54:45 0
+13:54:45 distance travelled: 1.46
+13:54:45 distance travelled: 4.47
+13:54:45 distance travelled: 10.14
+13:54:45 distance travelled: 16.93
+13:54:45 [CENTER] m2(front)=406 m3(back)=398 err=-28.0 adj=-28.0
+13:54:45 distance travelled: 30.50
+13:54:45 distance travelled: 41.67
+13:54:45 distance travelled: 50.87
+13:54:45 distance travelled: 59.46
+13:54:45 distance travelled: 68.91
+13:54:45 [CENTER] m2(front)=278 m3(back)=401 err=-5.0 adj=-5.0
+13:54:45 distance travelled: 86.53
+13:54:45 675 1005 1264 c=2924 ratio=0.95
+13:54:45 color
+13:54:45 0
+13:54:45 distance travelled: 100.10
+13:54:45 distance travelled: 109.72
+13:54:45 distance travelled: 120.12
+13:54:45 distance travelled: 131.81
+13:54:45 [CENTER] m2(front)=49 m3(back)=405 err=6.0 adj=6.0
+13:54:45 distance travelled: 150.62
+13:54:45 distance travelled: 165.49
+13:54:45 distance travelled: 176.23
+13:54:45 climbing
+13:54:45 -14
+13:54:45 climbing
+13:54:45 5.00
+13:54:45 climbing
+13:54:45 5.00
+13:54:45 climbing
+13:54:45 6.00
+13:54:45 climbing
+13:54:45 22.00
+13:54:45 climbing
+13:54:45 24.00
+13:54:45 climbing
+13:54:45 22.00
+13:54:45 climbing
+13:54:45 23.00
+13:54:45 climbing
+13:54:45 22.00
+13:54:45 climbing
+13:54:45 23.00
+13:54:45 climbing
+13:54:45 24.00
+13:54:46 climbing
+13:54:46 18.00
+13:54:46 climbing
+13:54:46 13.00
+13:54:46 climbing
+13:54:46 14.00
+13:54:46 climbing
+13:54:46 10.00
+13:54:46 climbing
+13:54:46 8.00
+13:54:46 climbing
+13:54:46 4.00
+13:54:46 climbing
+13:54:46 6.00
+13:54:46 climbing
+13:54:46 4.00
+13:54:46 climbing
+13:54:46 5.00
+13:54:46 climbing
+13:54:46 20.00
+13:54:46 climbing
+13:54:46 -18.63
+13:54:46 climbing
+13:54:46 -18.88
+13:54:46 climbing
+13:54:46 -19.50
+13:54:46 climbing
+13:54:46 -23.00
+13:54:46 climbing
+13:54:46 -25.00
+13:54:46 climbing
+13:54:46 -27.00
+13:54:46 climbing
+13:54:46 -29.00
+13:54:46 climbing
+13:54:46 -28.00
+13:54:46 climbing
+13:54:46 -22.00
+13:54:46 climbing
+13:54:46 -21.00
+13:54:46 climbing
+13:54:46 -23.00
+13:54:46 climbing
+13:54:46 -25.00
+13:54:46 climbing
+13:54:46 -25.00
+13:54:46 climbing
+13:54:46 -16.00
+13:54:46 1 section of the ramp climbed
+13:54:46 climbing
+13:54:46 -15.00
+13:54:46 climbing
+13:54:46 -18.00
+13:54:46 distance travelled: 188.35
+13:54:46 distance travelled: 198.14
+13:54:46 [CENTER] m2(front)=746 m3(back)=62 err=-9.0 adj=-9.0
+13:54:46 distance travelled: 214.98
+13:54:46 818 1261 1600 c=3661 ratio=1.19
+13:54:46 color
+13:54:46 3
+13:54:46 distance travelled: 228.99
+13:54:46 distance travelled: 238.10
+13:54:47 distance travelled: 248.32
+13:54:47 distance travelled: 258.63
+13:54:47 [CENTER] m2(front)=734 m3(back)=65 err=0.0 adj=0.0
+13:54:47 distance travelled: 276.42
+13:54:47 distance travelled: 285.44
+13:54:47 distance travelled: 291.37
+13:54:47 distance travelled: 296.09
+13:54:47 [FWD] exit=normal
+13:54:47 stop- end of fwd
+13:54:47 adding ramp to map
+13:54:47 compensating
+13:54:47 [TURN] target=180.00 hdg=181.3 init_diff=1.3
+13:54:47 finished turning
+13:54:47 661 1019 1301 c=2967 ratio=0.97
+13:54:47 checkpoint recorded
+13:54:47 paralleling
+13:54:47 paralleled
+13:54:47 reading walls
+13:54:47 0
+13:54:47 0
+13:54:47 0
+13:54:47 1
+13:54:47 updating tile
+13:54:47 victim detect
+13:54:47 plan next
+13:54:47 180
+13:54:48 paralleling
+13:54:48 paralleled
+13:54:48 turn target=180.00, actual=180.00, err=0.00
+13:54:48 forwarding
+13:54:48 init_yaw
+13:54:48 180
+13:54:48 [FWD] entry hdg=179.9 init_yaw=180 offset=-0.1
+13:54:48 distance travelled: 0.00
+13:54:48 691 1063 1356 c=3097 ratio=1.01
+13:54:48 color
+13:54:48 0
+13:54:48 distance travelled: 0.00
+13:54:48 distance travelled: 2.66
+13:54:48 distance travelled: 9.19
+13:54:48 distance travelled: 17.27
+13:54:48 [CENTER] m2(front)=213 m3(back)=698 err=11.0 adj=11.0
+13:54:48 distance travelled: 31.96
+13:54:48 distance travelled: 44.25
+13:54:48 distance travelled: 55.08
+13:54:48 distance travelled: 66.33
+13:54:48 distance travelled: 76.56
+13:54:48 [CENTER] m2(front)=930 m3(back)=698 err=12.0 adj=12.0
+13:54:48 distance travelled: 94.86
+13:54:48 681 1033 1309 c=3005 ratio=0.98
+13:54:48 color
+13:54:48 0
+13:54:48 distance travelled: 108.87
+13:54:48 distance travelled: 120.12
+13:54:48 distance travelled: 130.69
+13:54:48 distance travelled: 141.77
+13:54:48 [CENTER] m2(front)=1003 m3(back)=538 err=5.0 adj=5.0
+13:54:48 distance travelled: 160.16
+13:54:48 distance travelled: 173.91
+13:54:48 distance travelled: 184.48
+13:54:48 distance travelled: 195.39
+13:54:48 distance travelled: 206.48
+13:54:48 [CENTER] m2(front)=976 m3(back)=901 err=2.0 adj=2.0
+13:54:48 distance travelled: 225.12
+13:54:48 685 1040 1319 c=3026 ratio=0.99
+13:54:48 color
+13:54:48 0
+13:54:48 distance travelled: 241.02
+13:54:48 distance travelled: 251.67
+13:54:49 stopping
+13:54:49 [FWD] emergency-stop fl=41 fr=39
+13:54:49 [FWD] exit=emergency-front
+13:54:49 stop- end of fwd
+13:54:49 713 1089 1391 c=3176 ratio=1.03
+13:54:49 paralleling
+13:54:49 paralleled
+13:54:49 centring along: 34 mm off (front wall)
+13:54:49 reading walls
+13:54:49 1
+13:54:49 0
+13:54:49 0
+13:54:49 1
+13:54:49 updating tile
+13:54:49 victim detect
+13:54:49 plan next
+13:54:49 270
+13:54:49 [TURN] target=270.00 hdg=176.4 init_diff=93.6
+13:54:50 finished turning
+13:54:50 paralleling
+13:54:50 paralleled
+13:54:50 turn target=270.00, actual=269.94, err=0.06
+13:54:50 forwarding
+13:54:50 init_yaw
+13:54:50 270
+13:54:50 [FWD] entry hdg=270.1 init_yaw=270 offset=0.1
+13:54:50 distance travelled: 0.00
+13:54:50 711 1088 1388 c=3170 ratio=1.03
+13:54:50 color
+13:54:50 0
+13:54:50 distance travelled: -0.17
+13:54:50 distance travelled: 1.89
+13:54:50 distance travelled: 7.99
+13:54:50 distance travelled: 14.78
+13:54:50 [CENTER] m2(front)=590 m3(back)=550 err=-18.0 adj=-18.0
+13:54:50 distance travelled: 27.50
+13:54:50 distance travelled: 39.01
+13:54:50 distance travelled: 48.12
+13:54:50 distance travelled: 57.74
+13:54:50 distance travelled: 68.22
+13:54:51 [CENTER] m2(front)=33 m3(back)=587 err=12.0 adj=12.0
+13:54:51 distance travelled: 87.90
+13:54:51 662 1013 1286 c=2947 ratio=0.96
+13:54:51 color
+13:54:51 0
+13:54:51 distance travelled: 101.73
+13:54:51 distance travelled: 111.62
+13:54:51 distance travelled: 122.27
+13:54:51 distance travelled: 133.35
+13:54:51 [CENTER] m2(front)=26 m3(back)=596 err=19.0 adj=19.0
+13:54:51 distance travelled: 151.40
+13:54:51 distance travelled: 165.23
+13:54:51 distance travelled: 175.28
+13:54:51 distance travelled: 186.11
+13:54:51 distance travelled: 196.85
+13:54:51 [CENTER] m2(front)=19 m3(back)=569 err=9.0 adj=9.0
+13:54:51 distance travelled: 213.95
+13:54:51 686 1044 1325 c=3039 ratio=0.99
+13:54:51 color
+13:54:51 0
+13:54:51 distance travelled: 227.87
+13:54:51 distance travelled: 238.61
+13:54:51 distance travelled: 249.35
+13:54:51 distance travelled: 258.89
+13:54:51 [CENTER] m2(front)=17 m3(back)=20 err=39.0 adj=39.0
+13:54:51 distance travelled: 274.44
+13:54:51 distance travelled: 285.27
+13:54:51 distance travelled: 291.88
+13:54:51 distance travelled: 296.70
+13:54:51 [FWD] exit=normal
+13:54:51 stop- end of fwd
+13:54:51 673 1021 1300 c=2979 ratio=0.97
+13:54:51 paralleling
+13:54:52 paralleled
+13:54:52 centring along: 21 mm off (back wall)
+13:54:52 reading walls
+13:54:52 0
+13:54:52 1
+13:54:52 0
+13:54:52 1
+13:54:52 updating tile
+13:54:52 victim detect
+13:54:52 plan next
+13:54:52 270
+13:54:52 paralleling
+13:54:52 paralleled
+13:54:52 turn target=270.00, actual=269.87, err=0.13
+13:54:52 forwarding
+13:54:52 init_yaw
+13:54:52 270
+13:54:52 [FWD] entry hdg=270.0 init_yaw=270 offset=0.0
+13:54:52 distance travelled: 0.00
+13:54:52 694 1061 1355 c=3096 ratio=1.01
+13:54:52 color
+13:54:52 0
+13:54:52 distance travelled: 0.00
+13:54:52 distance travelled: 3.78
+13:54:52 distance travelled: 11.17
+13:54:52 distance travelled: 19.33
+13:54:52 [CENTER] m2(front)=19 m3(back)=20 err=33.0 adj=33.0
+13:54:52 distance travelled: 34.89
+13:54:52 distance travelled: 46.14
+13:54:52 distance travelled: 55.76
+13:54:52 distance travelled: 65.47
+13:54:52 distance travelled: 75.18
+13:54:52 [CENTER] m2(front)=31 m3(back)=24 err=16.0 adj=16.0
+13:54:52 distance travelled: 91.08
+13:54:52 666 1013 1288 c=2951 ratio=0.96
+13:54:52 color
+13:54:52 0
+13:54:52 distance travelled: 105.60
+13:54:53 distance travelled: 115.40
+13:54:53 distance travelled: 125.79
+13:54:53 distance travelled: 136.36
+13:54:53 [CENTER] m2(front)=44 m3(back)=30 err=3.0 adj=3.0
+13:54:53 distance travelled: 154.75
+13:54:53 distance travelled: 168.84
+13:54:53 distance travelled: 179.75
+13:54:53 distance travelled: 189.38
+13:54:53 distance travelled: 200.55
+13:54:53 [CENTER] m2(front)=46 m3(back)=35 err=0.0 adj=0.0
+13:54:53 distance travelled: 219.11
+13:54:53 683 1049 1335 c=3051 ratio=0.99
+13:54:53 color
+13:54:53 0
+13:54:53 distance travelled: 233.97
+13:54:53 distance travelled: 243.51
+13:54:53 distance travelled: 255.02
+13:54:53 distance travelled: 264.90
+13:54:53 [CENTER] m2(front)=48 m3(back)=36 err=0.0 adj=0.0
+13:54:53 distance travelled: 275.30
+13:54:53 distance travelled: 283.38
+13:54:53 distance travelled: 288.10
+13:54:53 distance travelled: 293.86
+13:54:53 distance travelled: 299.10
+13:54:53 [CENTER] m2(front)=45 m3(back)=47 err=13.0 adj=13.0
+13:54:53 [FWD] exit=normal
+13:54:53 stop- end of fwd
+13:54:53 698 1070 1368 c=3121 ratio=1.02
+13:54:53 paralleling
+13:54:53 paralleled
+13:54:53 reading walls
+13:54:53 0
+13:54:53 1
+13:54:53 0
+13:54:53 1
+13:54:53 updating tile
+13:54:53 victim detect
+13:54:53 plan next
+13:54:53 270
+13:54:53 paralleling
+13:54:54 paralleled
+13:54:54 turn target=270.00, actual=270.25, err=0.25
+13:54:54 forwarding
+13:54:54 init_yaw
+13:54:54 270
+13:54:54 [FWD] entry hdg=270.2 init_yaw=270 offset=0.2
+13:54:54 distance travelled: 0.00
+13:54:54 693 1061 1357 c=3094 ratio=1.01
+13:54:54 color
+13:54:54 0
+13:54:54 distance travelled: 0.00
+13:54:54 distance travelled: 3.69
+13:54:54 distance travelled: 11.86
+13:54:54 distance travelled: 21.74
+13:54:54 [CENTER] m2(front)=41 m3(back)=40 err=5.0 adj=5.0
+13:54:54 distance travelled: 39.01
+13:54:54 distance travelled: 52.33
+13:54:54 distance travelled: 62.98
+13:54:54 distance travelled: 74.41
+13:54:54 distance travelled: 84.29
+13:54:54 [CENTER] m2(front)=54 m3(back)=46 err=-2.0 adj=-2.0
+13:54:54 distance travelled: 104.23
+13:54:54 703 1077 1368 c=3131 ratio=1.02
+13:54:54 color
+13:54:54 0
+13:54:54 distance travelled: 117.97
+13:54:54 distance travelled: 128.28
+13:54:54 distance travelled: 139.02
+13:54:54 distance travelled: 150.37
+13:54:54 [CENTER] m2(front)=153 m3(back)=50 err=-8.0 adj=-8.0
+13:54:54 distance travelled: 169.44
+13:54:54 distance travelled: 183.45
+13:54:54 distance travelled: 194.27
+13:54:54 distance travelled: 203.98
+13:54:54 distance travelled: 212.40
+13:54:54 [CENTER] m2(front)=933 m3(back)=59 err=-25.0 adj=-25.0
+13:54:54 distance travelled: 227.70
+13:54:54 671 1021 1297 c=2973 ratio=0.97
+13:54:54 color
+13:54:54 0
+13:54:54 distance travelled: 238.78
+13:54:54 distance travelled: 246.69
+13:54:54 distance travelled: 256.14
+13:54:55 distance travelled: 265.76
+13:54:55 [CENTER] m2(front)=929 m3(back)=60 err=-21.0 adj=-21.0
+13:54:55 distance travelled: 278.82
+13:54:55 distance travelled: 288.10
+13:54:55 distance travelled: 293.00
+13:54:55 distance travelled: 297.81
+13:54:55 [FWD] exit=normal
+13:54:55 stop- end of fwd
+13:54:55 714 1093 1397 c=3188 ratio=1.04
+13:54:55 paralleling
+13:54:55 paralleled
+13:54:55 centring along: -97 mm off (front wall)
+13:54:56 reading walls
+13:54:56 1
+13:54:56 0
+13:54:56 0
+13:54:56 1
+13:54:56 updating tile
+13:54:56 victim detect
+13:54:56 plan next
+13:54:56 0
+13:54:56 [TURN] target=0.00 hdg=267.0 init_diff=93.0
+13:54:57 finished turning
+13:54:57 paralleling
+13:54:57 paralleled
+13:54:57 turn target=0.00, actual=359.94, err=0.06
+13:54:57 forwarding
+13:54:57 init_yaw
+13:54:57 0
+13:54:57 [FWD] entry hdg=359.9 init_yaw=0 offset=359.9
+13:54:57 distance travelled: 0.00
+13:54:57 677 1044 1331 c=3038 ratio=0.99
+13:54:57 color
+13:54:57 0
+13:54:57 distance travelled: 0.00
+13:54:57 distance travelled: 2.58
+13:54:57 distance travelled: 8.33
+13:54:57 distance travelled: 15.55
+13:54:57 [CENTER] m2(front)=985 m3(back)=796 err=-19.0 adj=-19.0
+13:54:57 distance travelled: 25.95
+13:54:57 distance travelled: 36.69
+13:54:57 distance travelled: 46.31
+13:54:57 distance travelled: 55.94
+13:54:57 distance travelled: 66.33
+13:54:58 [CENTER] m2(front)=8190 m3(back)=928 err=-4.0 adj=-4.0
+13:54:58 distance travelled: 83.95
+13:54:58 647 983 1243 c=2858 ratio=0.93
+13:54:58 color
+13:54:58 0
+13:54:58 distance travelled: 97.70
+13:54:58 distance travelled: 107.23
+13:54:58 distance travelled: 118.32
+13:54:58 distance travelled: 129.40
+13:54:58 [CENTER] m2(front)=42 m3(back)=1001 err=11.0 adj=11.0
+13:54:58 distance travelled: 149.16
+13:54:58 distance travelled: 163.26
+13:54:58 distance travelled: 174.17
+13:54:58 distance travelled: 185.34
+13:54:58 distance travelled: 195.99
+13:54:58 [CENTER] m2(front)=40 m3(back)=976 err=14.0 adj=14.0
+13:54:58 distance travelled: 212.23
+13:54:58 700 1063 1347 c=3094 ratio=1.01
+13:54:58 color
+13:54:58 0
+13:54:58 distance travelled: 225.89
+13:54:58 distance travelled: 235.00
+13:54:58 distance travelled: 244.88
+13:54:58 distance travelled: 255.45
+13:54:58 [CENTER] m2(front)=40 m3(back)=40 err=26.0 adj=26.0
+13:54:58 distance travelled: 272.29
+13:54:58 distance travelled: 284.58
+13:54:58 distance travelled: 292.57
+13:54:58 distance travelled: 298.67
+13:54:58 [FWD] exit=normal
+13:54:58 stop- end of fwd
+13:54:58 700 1065 1354 c=3168 ratio=1.03
+13:54:58 paralleling
+13:54:58 paralleled
+13:54:59 centring along: 12 mm off (back wall)
+13:54:59 reading walls
+13:54:59 0
+13:54:59 1
+13:54:59 0
+13:54:59 1
+13:54:59 updating tile
+13:54:59 victim detect
+13:54:59 plan next
+13:54:59 0
+13:54:59 paralleling
+13:54:59 paralleled
+13:54:59 turn target=0.00, actual=359.94, err=0.06
+13:54:59 forwarding
+13:54:59 init_yaw
+13:54:59 0
+13:54:59 [FWD] entry hdg=359.9 init_yaw=0 offset=359.9
+13:54:59 distance travelled: 0.00
+13:54:59 712 1086 1383 c=3166 ratio=1.03
+13:54:59 color
+13:54:59 0
+13:54:59 distance travelled: 0.00
+13:54:59 distance travelled: 4.81
+13:54:59 distance travelled: 12.54
+13:54:59 distance travelled: 20.79
+13:54:59 [CENTER] m2(front)=34 m3(back)=35 err=28.0 adj=28.0
+13:54:59 distance travelled: 32.57
+13:54:59 distance travelled: 44.59
+13:54:59 distance travelled: 54.56
+13:54:59 distance travelled: 64.96
+13:54:59 distance travelled: 74.84
+13:54:59 [CENTER] m2(front)=42 m3(back)=33 err=14.0 adj=14.0
+13:54:59 distance travelled: 91.68
+13:54:59 682 1034 1309 c=3009 ratio=0.98
+13:54:59 color
+13:54:59 0
+13:54:59 distance travelled: 105.60
+13:54:59 distance travelled: 116.68
+13:54:59 distance travelled: 127.77
+13:54:59 distance travelled: 137.91
+13:54:59 [CENTER] m2(front)=51 m3(back)=38 err=-1.0 adj=-1.0
+13:54:59 distance travelled: 154.75
+13:54:59 distance travelled: 168.75
+13:55:00 distance travelled: 180.10
+13:55:00 distance travelled: 191.35
+13:55:00 distance travelled: 202.78
+13:55:00 [CENTER] m2(front)=53 m3(back)=44 err=-3.0 adj=-3.0
+13:55:00 distance travelled: 222.29
+13:55:00 687 1039 1317 c=3027 ratio=0.99
+13:55:00 color
+13:55:00 0
+13:55:00 distance travelled: 237.49
+13:55:00 distance travelled: 248.49
+13:55:00 distance travelled: 259.49
+13:55:00 distance travelled: 268.68
+13:55:00 [CENTER] m2(front)=60 m3(back)=46 err=-9.0 adj=-9.0
+13:55:00 distance travelled: 281.74
+13:55:00 distance travelled: 290.17
+13:55:00 distance travelled: 295.41
+13:55:00 distance travelled: 299.79
+13:55:00 [FWD] exit=normal
+13:55:00 stop- end of fwd
+13:55:00 682 1035 1315 c=3017 ratio=0.98
+13:55:00 paralleling
+13:55:00 paralleled
+13:55:00 reading walls
+13:55:00 0
+13:55:00 1
+13:55:00 0
+13:55:00 1
+13:55:00 updating tile
+13:55:00 victim detect
+13:55:00 plan next
+13:55:00 0
+13:55:00 paralleling
+13:55:01 paralleled
+13:55:01 turn target=0.00, actual=357.19, err=2.81
+13:55:01 forwarding
+13:55:01 init_yaw
+13:55:01 0
+13:55:01 [FWD] entry hdg=356.6 init_yaw=0 offset=356.6
+13:55:01 distance travelled: 1.46
+13:55:01 672 1016 1291 c=2965 ratio=0.97
+13:55:01 color
+13:55:01 0
+13:55:01 distance travelled: 1.46
+13:55:01 distance travelled: 4.73
+13:55:01 distance travelled: 12.37
+13:55:01 distance travelled: 21.82
+13:55:01 [CENTER] m2(front)=58 m3(back)=53 err=-8.0 adj=-8.0
+13:55:01 distance travelled: 39.18
+13:55:01 distance travelled: 52.24
+13:55:01 distance travelled: 61.87
+13:55:01 distance travelled: 72.61
+13:55:01 distance travelled: 82.74
+13:55:01 [CENTER] m2(front)=57 m3(back)=48 err=-7.0 adj=-7.0
+13:55:01 distance travelled: 100.27
+13:55:01 639 974 1231 c=2830 ratio=0.92
+13:55:01 color
+13:55:01 0
+13:55:01 distance travelled: 113.76
+13:55:01 distance travelled: 123.39
+13:55:01 distance travelled: 134.30
+13:55:01 distance travelled: 145.56
+13:55:01 [CENTER] m2(front)=54 m3(back)=64 err=0.0 adj=0.0
+13:55:01 distance travelled: 164.80
+13:55:01 distance travelled: 178.81
+13:55:01 distance travelled: 189.20
+13:55:01 distance travelled: 200.03
+13:55:01 distance travelled: 209.48
+13:55:01 [CENTER] m2(front)=398 m3(back)=64 err=-29.0 adj=-29.0
+13:55:01 distance travelled: 223.92
+13:55:01 38 50 60 c=145 ratio=0.05
+13:55:01 color
+13:55:01 -1
+13:55:02 black
+13:55:02 [FWD] exit=black
+13:55:02 stop- end of fwd
+13:55:02 paralleling
+13:55:02 paralleled
+13:55:02 plan next
+13:55:02 180
+13:55:02 [TURN] target=180.00 hdg=358.4 init_diff=178.4
+13:55:04 finished turning
+13:55:04 paralleling
+13:55:04 paralleled
+13:55:04 turn target=180.00, actual=181.87, err=1.87
+13:55:04 forwarding
+13:55:04 init_yaw
+13:55:04 180
+13:55:04 [FWD] entry hdg=182.4 init_yaw=180 offset=2.4
+13:55:04 distance travelled: -0.17
+13:55:04 655 989 1259 c=2888 ratio=0.94
+13:55:04 color
+13:55:04 0
+13:55:04 distance travelled: -0.17
+13:55:04 distance travelled: 4.38
+13:55:04 distance travelled: 11.43
+13:55:04 distance travelled: 19.33
+13:55:04 [CENTER] m2(front)=37 m3(back)=36 err=22.0 adj=22.0
+13:55:04 distance travelled: 32.31
+13:55:04 distance travelled: 45.20
+13:55:04 distance travelled: 55.42
+13:55:04 distance travelled: 66.51
+13:55:04 distance travelled: 76.30
+13:55:05 [CENTER] m2(front)=42 m3(back)=33 err=15.0 adj=15.0
+13:55:05 distance travelled: 93.66
+13:55:05 712 1080 1372 c=3148 ratio=1.03
+13:55:05 color
+13:55:05 0
+13:55:05 distance travelled: 107.15
+13:55:05 distance travelled: 117.46
+13:55:05 distance travelled: 127.43
+13:55:05 distance travelled: 137.39
+13:55:05 [CENTER] m2(front)=47 m3(back)=39 err=1.0 adj=1.0
+13:55:05 distance travelled: 157.33
+13:55:05 distance travelled: 170.99
+13:55:05 distance travelled: 181.73
+13:55:05 distance travelled: 193.07
+13:55:05 distance travelled: 204.67
+13:55:05 [CENTER] m2(front)=57 m3(back)=48 err=-4.0 adj=-4.0
+13:55:05 distance travelled: 223.66
+13:55:05 687 1038 1320 c=3029 ratio=0.99
+13:55:05 color
+13:55:05 0
+13:55:05 distance travelled: 238.78
+13:55:05 distance travelled: 249.61
+13:55:05 distance travelled: 259.83
+13:55:05 distance travelled: 268.43
+13:55:05 [CENTER] m2(front)=61 m3(back)=51 err=-8.0 adj=-8.0
+13:55:05 distance travelled: 281.49
+13:55:05 distance travelled: 289.82
+13:55:05 distance travelled: 294.12
+13:55:05 distance travelled: 298.76
+13:55:05 [FWD] exit=normal
+13:55:05 stop- end of fwd
+13:55:05 704 1068 1360 c=3116 ratio=1.01
+13:55:05 paralleling
+13:55:05 paralleled
+13:55:05 reading walls
+13:55:06 0
+13:55:06 1
+13:55:06 0
+13:55:06 1
+13:55:06 updating tile
+13:55:06 victim detect
+13:55:06 plan next
+13:55:06 180
+13:55:06 paralleling
+13:55:06 paralleled
+13:55:06 turn target=180.00, actual=180.06, err=0.06
+13:55:06 forwarding
+13:55:06 init_yaw
+13:55:06 180
+13:55:06 [FWD] entry hdg=180.1 init_yaw=180 offset=0.1
+13:55:06 distance travelled: 0.00
+13:55:06 690 1045 1333 c=3052 ratio=0.99
+13:55:06 color
+13:55:06 0
+13:55:06 distance travelled: 0.00
+13:55:06 distance travelled: 4.90
+13:55:06 distance travelled: 13.58
+13:55:06 distance travelled: 22.51
+13:55:06 [CENTER] m2(front)=51 m3(back)=54 err=7.0 adj=7.0
+13:55:06 distance travelled: 37.98
+13:55:06 distance travelled: 52.07
+13:55:06 distance travelled: 62.55
+13:55:06 distance travelled: 73.38
+13:55:06 distance travelled: 82.06
+13:55:06 [CENTER] m2(front)=47 m3(back)=45 err=43.0 adj=43.0
+13:55:06 distance travelled: 98.64
+13:55:06 680 1031 1307 c=3003 ratio=0.98
+13:55:06 color
+13:55:06 0
+13:55:06 distance travelled: 109.21
+13:55:06 distance travelled: 118.15
+13:55:06 distance travelled: 127.08
+13:55:06 distance travelled: 136.62
+13:55:06 [CENTER] m2(front)=66 m3(back)=52 err=9.0 adj=9.0
+13:55:06 distance travelled: 153.12
+13:55:06 distance travelled: 165.15
+13:55:06 distance travelled: 175.11
+13:55:06 distance travelled: 186.11
+13:55:06 distance travelled: 197.11
+13:55:06 [CENTER] m2(front)=78 m3(back)=51 err=-9.0 adj=-9.0
+13:55:06 distance travelled: 214.12
+13:55:07 677 1028 1310 c=2998 ratio=0.98
+13:55:07 color
+13:55:07 0
+13:55:07 distance travelled: 228.64
+13:55:07 distance travelled: 238.35
+13:55:07 distance travelled: 248.92
+13:55:07 distance travelled: 259.15
+13:55:07 [CENTER] m2(front)=77 m3(back)=63 err=-11.0 adj=-11.0
+13:55:07 distance travelled: 274.27
+13:55:07 distance travelled: 284.24
+13:55:07 distance travelled: 290.94
+13:55:07 distance travelled: 295.75
+13:55:07 distance travelled: 299.96
+13:55:07 [CENTER] m2(front)=80 m3(back)=64 err=-5.0 adj=-5.0
+13:55:07 [FWD] exit=normal
+13:55:07 stop- end of fwd
+13:55:07 726 1108 1414 c=3231 ratio=1.05
+13:55:07 paralleling
+13:55:07 paralleled
+13:55:07 reading walls
+13:55:07 1
+13:55:07 1
+13:55:07 0
+13:55:07 0
+13:55:07 pause
+--- 14:06:02 disconnected (SerialException)
+--- 14:06:04 robot not plugged in
+--- 14:07:05 robot not plugged in
+--- 14:08:06 robot not plugged in
+--- 14:09:07 robot not plugged in
+--- 14:10:08 robot not plugged in
+--- 14:11:09 robot not plugged in
+--- 14:12:10 robot not plugged in
+--- 14:13:11 robot not plugged in
+--- 14:14:12 robot not plugged in
+--- 14:15:12 robot not plugged in
+--- 14:16:13 robot not plugged in
+--- 14:17:14 robot not plugged in
+--- 14:18:15 robot not plugged in
+--- 14:19:16 robot not plugged in
+--- 14:20:16 robot not plugged in
+--- 14:21:17 robot not plugged in
+--- 14:22:18 robot not plugged in
+--- connected on COM3 at 14:23:02
+14:23:05 [CAL] sensor 2  meanRaw=277.5mm  true=80mm  valid=88/100  -> SENSOR_OFFSET_MM[2] = 198
+14:23:05 Port 0: 0x28 0x30 0x60 0x70
+14:23:05 Port 1: 0x28 0x30 0x60 0x70
+14:23:05 Port 2: 0x28 0x30 0x60 0x70
+14:23:05 Port 3: 0x28 0x30 0x60 0x70
+14:23:05 Port 4: 0x28 0x30 0x60 0x70
+14:23:05 Port 5: 0x28 0x30 0x60 0x70
+14:23:05 Port 6: 0x28 0x30 0x60 0x70
+14:23:05 Port 7: 0x28 0x29 0x60 0x70
+14:23:05 Found tcs34725 sensor
+14:23:06 clear value
+14:23:06 3313.00
+14:23:06 motor shield found
+14:23:07 gyro found
+14:23:07 paralleling
+14:23:07 centring along: 35 mm off (back wall)
+14:23:07 reading walls
+14:23:07 0
+14:23:07 1
+14:23:07 0
+14:23:07 1
+14:23:07 pause
