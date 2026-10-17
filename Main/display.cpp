@@ -28,6 +28,8 @@ void lcdStatus(){
 }
 
 void lcdEvent(const char *msg){
+  // A missing gyro stays on the screen: "PAUSED" used to replace it within a second of power-on.
+  if(gyroMissing) msg = "NO GYRO! check";
   snprintf(eventLine, sizeof(eventLine), "%s", msg);
   lcdMutex.lock();
   writeLine(1, eventLine);
