@@ -154,8 +154,8 @@ All of them are in `Params` at the top of `physics.cpp` and can be changed per r
 | `driverOhms` | 0.5 ohm | **datasheet**: TB6612FNG output ON resistance, upper + lower, typical (the motor itself is 12 V / 1.6 A = 7.5 ohm, so stall torque is about 6% lower than the motor alone) | - |
 | encoder counts | 5 per motor turn | **datasheet**: Pololu #3499 encoder, 20 counts per motor turn counting both edges of both channels; the code counts rising edges of one channel = 5 | - |
 | `batteryVoltage` | 11.76 V | **measured** (multimeter, 2026-10-06), 3S LiPo | multimeter on the pack before a run |
-| `robotMassKg` | 1.15 | **estimate**: parts from their datasheets + printed parts, see "Robot mass" below | weigh it |
-| `wheelMu` | 0.2 | **fitted to bench test 2** (2026-10-06): lowest `turnright(pwm)` that turns it 5 deg in 1 s was 25, 30, 25 on the robot; 25 in the sim (was 0.8, assumed, giving 45) | bench test 2 |
+| `robotMassKg` | 1.955 | **weighed** (2026-10-16); the parts list below estimated 1.15 | — |
+| `wheelMu` | 0.17 | **fitted to bench test 2** (2026-10-06): lowest `turnright(pwm)` that turns it 5 deg in 1 s was 25, 30, 25 on the robot; 30 in the sim (was 0.8, assumed, giving 45; 0.2 with the 1.15 kg estimate) | bench test 2 |
 | `skidFactor`, `trackWidth` | 1.1, 156 mm | **fitted to bench test 3** (2026-10-06): `turnright(150)` for 1 s turned 97, 92, 95 deg on the robot; 95 in the sim (was 1.3, assumed, giving 70); track from the CAD | bench test 3 |
 | `wallNudgeMm` | 0.3 mm per ms | **assumed**: what a wall does to a corner that hits it mid-turn (the CAD leaves ~7 mm each side when turning on the spot). 0.3 = the wall shoves the robot sideways and the turn carries on; 0 = the turn jams | turn on the spot 5 mm off the middle of a tile, close to one wall: does it scrape round, or stall? |
 | `motorGainSigma` | 0.03 | **assumed** (Pololu gives no motor-to-motor spread) | how far `fw(150)` drifts sideways over 1 m with no walls |
@@ -193,7 +193,7 @@ From the parts in the BOM and the CAD (`V2.step`):
 | 3D-printed chassis, plates, spacers, chutes, camera mount, suspension | | | ~350 g (250-450) | estimate (depends on infill) |
 | **Total** | | | **~1.15 kg (1.0-1.3)** | |
 
-`--set robotMassKg=1.0` and `=1.3` bracket it; weigh the robot to replace the estimate.
+Weighed on 2026-10-16: **1.955 kg**, so the printed parts and wiring are much heavier than estimated. The sim uses the weighed value (and `wheelMu` refitted with it).
 
 ### Bench mode on the real robot
 
