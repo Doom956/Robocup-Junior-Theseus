@@ -372,11 +372,24 @@ All found on the real robot (logs/2026-10-16 and logs/2026-10-17). Simulator: 60
 - **Wall written after the same edge is blocked twice** (handleShortMove): ~40 tries at one wall at the top of a ramp
   otherwise (the way home falls back to blocked edges).
 - **Black found during obstacle avoidance is marked in the map** (it went round the same detour onto it 4 times).
+- **Repeated failures at one edge** (replaces the "wall after two blocks" guard): the 2nd no-progress stop at the same
+  edge turns the check off for the next try there; the 4th failure of any kind writes a wall (~15 no-progress stops
+  on one move home otherwise, 2026-10-17).
 - Logging: `[POS] x,y floor f facing d` every tile, `[RET] ...` every step home.
 - Move tests: `BENCH_MODE 2` in main.cpp (bench.cpp, `MOVE_TESTS`): M0 all sensors, M1/M2 turns, M3 one-tile moves,
   M4 along a wall, M5 wall ahead, M6 blocked by an obstacle.
 
-**Next tests:** B1 from other start corners; obstacles (1a, 1b, 1d); relocalize (2a); pause/restart; cameras on.
+Later (2026-10-17): B1 from a second start corner: home in 2:28. Obstacle runs (1b/1c): it blocks the edge the first
+time, but "map looks finished early" cleared the block within seconds (only 4 tiles explored, position off), so it
+drove around it; an obstacle against a corridor wall passed outside both front sensors and the robot scraped past
+on its right corner (right-front side sensor 18 mm), knocked 15-35 deg off. Blue tiles entered 5 times in one run
+(2 blue tiles; one in a dead end).
+
+**To do (simulator, then real robot):** don't clear a block made in the last minute / early in the run; treat a side-front
+reading under ~30 mm with no wall there as an obstacle; blue revisits on through-routes; sim checks for the 2k fixes not
+yet run (ramp centring, repeated-failure guard, black during avoidance), then the logic bugs to main.
+
+**Next tests:** relocalize (2a); pause/restart; cameras on; 1a/1d false obstacle counts.
 
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
