@@ -596,6 +596,11 @@ static bool blackDuringAvoidance(){
   if(read_color() != -1) return false;
   Serial.println("black during obstacle avoidance, backing off");
   drivetrain.fullstop();
+  // Mark it, as fwd() does: unmarked, the planner sent the robot round the same detour onto the same black tile
+  // again and again (2026-10-17, 4 times until the edge was walled off).
+  int nx = x_pos, ny = y_pos;
+  stepForward(currentDir, nx, ny);
+  if(inBounds(nx, ny)) mapGrid[nx][ny].setType(BLACK);
   delay(100);
   drivetrain.backward(150);
   delay(400);
