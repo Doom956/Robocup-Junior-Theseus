@@ -1,3 +1,4 @@
+#include <algorithm>
 // Bench mode: measures the things the physics simulator can only guess (tools/sim/physics/README.md,
 // "Where the numbers come from"), so the simulator can be set to match this robot.
 //
@@ -541,3 +542,24 @@ void runBench(){
   printAllForever("bench done");
 }
 
+
+// LCD test (BENCH_MODE 3): writes two lines and a counter with the LiquidCrystal library on main.cpp's pins.
+// (2026-10-17, new LCD: one row of boxes / stray characters were a loose GND, D5 bridged on the perfboard and a shaky
+// contact; with those fixed the library works.)
+void runLcdTest(){
+  pinMode(LEDPIN, OUTPUT);
+  Serial.println("[BENCH] LCD LiquidCrystal test");
+  delay(500);
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("HELLO LIBRARY   ");
+  for(unsigned long n = 0; ; n++){
+    char b[17];
+    snprintf(b, sizeof(b), "lib count %-6lu", n);
+    lcd.setCursor(0, 1);
+    lcd.print(b);
+    Serial.print("[BENCH] LCD count "); Serial.println(n);
+    led(n % 2);
+    delay(1000);
+  }
+}

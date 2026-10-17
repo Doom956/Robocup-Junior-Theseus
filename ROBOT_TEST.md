@@ -375,6 +375,12 @@ All found on the real robot (logs/2026-10-16 and logs/2026-10-17). Simulator: 60
 - **Repeated failures at one edge** (replaces the "wall after two blocks" guard): the 2nd no-progress stop at the same
   edge turns the check off for the next try there; the 4th failure of any kind writes a wall (~15 no-progress stops
   on one move home otherwise, 2026-10-17).
+- **LCD status display** (display.cpp): line 1 tile from the start, floor, facing, run time (`2,3 F1 N   85s`); line 2
+  the last event (OBSTACLE, NO PROGRESS, BLACK, BLUE 5s, RAMP UP/DOWN, CHECKPOINT, POS CORRECTED, WALL WRITTEN,
+  EXPLORED, back to start, PAUSED, RESTART, `NO GYRO! check` at power-on, `WHITE REF LOW!` at the start). No waiting
+  (the old lcdPrint messages for explored/home/no path paused 1 s each). The simulator ends runs on "back to start" /
+  "no path found", so those keep their text. LCD test: BENCH_MODE 3. The new LCD's garbage was a loose GND, D5 bridged
+  on the perfboard and a shaky contact, not the code.
 - Logging: `[POS] x,y floor f facing d` every tile, `[RET] ...` every step home.
 - Move tests: `BENCH_MODE 2` in main.cpp (bench.cpp, `MOVE_TESTS`): M0 all sensors, M1/M2 turns, M3 one-tile moves,
   M4 along a wall, M5 wall ahead, M6 blocked by an obstacle.

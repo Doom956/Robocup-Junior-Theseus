@@ -45,9 +45,10 @@ void lcdEvent(const char *msg); // display.cpp
 extern bool gyroMissing;        // gyro.cpp
 void runBench(); // bench.cpp
 void runMoveTests(); // bench.cpp
+void runLcdTest(); // bench.cpp
 
 // 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 2 = move tests: the
-// turns and one-tile moves on an open floor, no maze needed (bench.cpp, runMoveTests()). 0 for competition.
+// turns and one-tile moves on an open floor, no maze needed (bench.cpp, runMoveTests()). 3 = LCD test. 0 for competition.
 #define BENCH_MODE 0
 
 // movement constants
@@ -579,7 +580,9 @@ void setup(){
   // start lcd
   lcd.begin(16, 2);
   lcdEvent(gyroMissing ? "NO GYRO! check" : "ready");
-#if BENCH_MODE == 2
+#if BENCH_MODE == 3
+  runLcdTest(); // never returns
+#elif BENCH_MODE == 2
   runMoveTests(); // never returns
 #elif BENCH_MODE
   runBench(); // never returns
@@ -842,7 +845,7 @@ void loop(){
         // the wrong tile, a lack-of-progress restart puts it back on the last checkpoint and it
         // heads home again from there. (This was a while(true) that ignored the switch, so only
         // a power cycle -- which loses the map -- could get it going again.)
-        lcdEvent("HOME");
+        lcdEvent("back to start"); // the simulator ends a run on this text
         while(Pausemaze == false){
           drivetrain.fullstop();
           digitalWrite(LEDPIN, (millis() / 1000) % 2 ? HIGH : LOW);
@@ -857,7 +860,7 @@ void loop(){
         // No route home in the map (usually the position is off and a black tile or a blocked
         // edge cut the planned route). Stop, but keep watching the pause switch as above, so a
         // lack-of-progress restart can recover the run instead of it ending here.
-        lcdEvent("NO PATH HOME");
+        lcdEvent("no path found"); // the simulator watches for this text
         while(Pausemaze == false){
           drivetrain.fullstop();
           delay(20);
