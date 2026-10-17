@@ -1,4 +1,57 @@
-# Next steps (written 2026-10-06)
+# Next steps (updated 2026-10-17)
+
+## 0. Start here (2026-10-17): pull on the other PC
+
+```
+cd Robocup-Junior-Theseus
+git checkout main
+git pull
+git fetch
+```
+
+Then check you have today's work:
+- `git log --oneline -1` shows `f7d5d71 2026-10-17 afternoon logs (obstacle runs)` (or newer)
+- `git log --oneline -1 origin/robot-test` shows `324ccf9 WIP 2k: repeated-failure guard ...` (or newer)
+
+**The robot runs robot-test.** To flash it: `git checkout robot-test`, `git pull`, check `#define BENCH_MODE 0` in
+`Main/main.cpp`, then `pio run -t upload` (robot plugged in, battery on). `git checkout main` to go back.
+Everything done today is in `ROBOT_TEST.md` section 2k (on robot-test) and in `CLAUDE.md` ("Real robot 2026-10-17").
+Raw logs: `logs/2026-10-16`, `logs/2026-10-17` (on main).
+
+### Simulator jobs for this PC (each A/B is 600 comp fields, run both seed sets)
+
+The three robot-test fixes from 2026-10-17 not yet checked in the simulator. Each one is a single commit on robot-test,
+so compare the commit with the one before it:
+
+```
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600               (no centring on the slope after a ramp)
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600 --start 601
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600               (black found during avoidance marked)
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600 --start 601
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600               (repeated-failure guard)
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600 --start 601
+```
+
+Then, if none is clearly worse (score interval not below zero): move the **logic bugs** to main (white reference at
+the run start, blue only if b > 2.5 r, black during avoidance marked, repeated-failure guard), with a main-vs-main+fix
+A/B and `pio run` as the rules say. Ask Claude to do it: "move the 2026-10-17 logic bugs to main".
+
+Open problems to work on next (in ROBOT_TEST.md 2k "To do"):
+1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
+   too soon.
+2. Obstacles against a wall pass outside both front sensors; the robot scrapes past on its corner (side-front sensor
+   reads ~18 mm). Idea: a side-front reading under ~30 mm with no wall there = obstacle.
+3. Blue tiles re-entered up to 5 times a run.
+4. The start-of-match check (white reference, gyro present, all sensors reading; "NO GYRO" on the LCD): needs your yes.
+
+### Robot tests still to do
+Relocalize (carry it back one tile), pause and restart from a checkpoint, cameras on (2 full runs with victims), false
+obstacle count in a run with no obstacles. Hardware: secure the gyro cable (came loose twice); always run with the
+battery on.
+
+---
+
+# Notes from 2026-10-06
 
 What was done on 2026-10-06, how to set up another PC, and the software checks that are left. The robot
 tests that need the robot in person are in `ROBOT_TEST.md` on the `robot-test` branch.
@@ -18,7 +71,7 @@ Needs, once per PC:
 - Python 3
 
 Check it works: `python tools/sim/physics/run_physics.py --selftest` builds the simulator and prints its
-`BENCH` lines (should show 25, about 95 deg and 19).
+`BENCH` lines (should show 30, about 92 deg and 51 since the robot was weighed on 2026-10-16).
 
 Branches: `main` (tested fixes) and `robot-test` (main + the changes waiting for real-robot tests). The
 A/B tool builds any branch straight from git, so you don't need to switch branches to compare them:
