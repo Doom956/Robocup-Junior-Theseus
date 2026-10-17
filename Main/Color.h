@@ -17,5 +17,6 @@ extern rtos::Mutex i2cMutex;
 // Function declarations
 void init_color();
 int  read_color();
+void takeWhiteReference(); // at the start of the run, on the start tile
 
 #endif

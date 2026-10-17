@@ -372,7 +372,27 @@ void blockEdge(int x, int y, Direction d){
 int shortMoveCount = 0;
 int shortX = -1, shortY = -1, shortFloor = -1;
 Direction shortDir = NORTH;
+// The same edge failing again and again (2026-10-17: ~15 failed moves at one edge on the way home, the way home
+// falling back to blocked edges). Counts every failed move at one edge; the 4th writes a wall so the planners route
+// elsewhere.
+static bool repeatedFailure(){
+  static int fx = -1, fy = -1, ff = -1, fd = -1, fails = 0;
+  if(x_pos == fx && y_pos == fy && currentFloor == ff && (int)currentDir == fd){ fails++; }
+  else { fails = 1; fx = x_pos; fy = y_pos; ff = currentFloor; fd = currentDir; }
+  if(fails >= 4){
+    Serial.println("failed 4 times here: wall written to the map");
+    mapGrid[x_pos][y_pos].setWall(currentDir, true);
+    int nx = x_pos, ny = y_pos;
+    stepForward(currentDir, nx, ny);
+    if(inBounds(nx, ny)) mapGrid[nx][ny].setWall(opposite(currentDir), true);
+    fails = 0;
+    return true;
+  }
+  return false;
+}
+
 void handleShortMove(){
+  if(repeatedFailure()){ shortMoveCount = 0; return; }
   if(x_pos == shortX && y_pos == shortY && currentFloor == shortFloor && currentDir == shortDir){
     shortMoveCount++;
   } else {
@@ -802,7 +822,10 @@ void loop(){
       delay(200);
       if(digitalRead(logicswitch)==LOW){
         Pausemaze = false;
-        lcdEvent("RUNNING");
+        // the run starts: the robot stands on the start tile (white). Later restarts are on a checkpoint (silver).
+        static bool whiteTaken = false;
+        if(!whiteTaken){ takeWhiteReference(); whiteTaken = true; lcdEvent(clear < 1000 ? "WHITE REF LOW!" : "RUNNING"); }
+        else lcdEvent("RESTART");
         // Restore the checkpoint's FLOOR as well as its tile. Save the grid we were
         // working on back into its floor slot, then load the checkpoint floor's grid
         // -> so victim flags / walls are looked up on the correct floor.
