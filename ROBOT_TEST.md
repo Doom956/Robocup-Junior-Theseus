@@ -22,7 +22,9 @@ simulator fitted to the bench results (main at d0d87ee): +25.8 +-4.5, time lost 
 | 2026-10-07: stops at the back of tiles | seen on the robot; fixed on this branch in 2f, to test |
 | 2026-10-07: weaves left and right | seen on the robot (main); steering gain halved on this branch in 2g, to test |
 | 2026-10-07: `can't find gyro` at one start-up | heading then stuck at 0.00, turns never finish. Cause: the gyro cable had come unplugged. Check it is seated before each session |
-| 1. Obstacles, 2. relocalize, full runs | not yet |
+| 2026-10-16/17: move tests (BENCH_MODE 2) | turns 90 deg in 0.75-1.06 s, 180 in 1.4-1.8 s, all within 2 deg; 5-15 deg turns all move (2h passes). One-tile moves 297-326 mm by the back sensor. Wall following holds 80 mm +-8. Blocked by an obstacle between the front sensors after a free start: not caught (fixed in 2k) |
+| 2026-10-17: maze runs (B1, logs/2026-10-17) | first runs lost (white reference wrong, walls missed when 8+ cm out of place, ramp misread, loops). After the fixes in 2k: home in 3 of the last 4 runs, the last 2 clean (2:28 each, both ramps up and down, black stop, no false alarms) |
+| 1. Obstacles, 2. relocalize | not yet |
 
 **Suggested order for a test session**
 
@@ -345,6 +347,36 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
    came near the end of moves with the robot turned (8 in 150 runs -> 0), at the cost of catching fewer real
    jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
    what the real robot does.
+
+## 2k. Fixes from the maze runs of 2026-10-17 (real robot; the last 3 not yet checked in the simulator)
+
+All found on the real robot (logs/2026-10-16 and logs/2026-10-17). Simulator: 600 comp fields, two seed sets, where noted.
+
+- **White reference at the start of the run** (`takeWhiteReference()`, Color.cpp, first time out of PAUSE). The
+  reading at power-on was sometimes 66-145 instead of ~3000 on white, and then black and blue were never seen (the
+  robot drove over the black tile). Also: init_color() waits and averages 5 readings. Check: `white reference: ...
+  start tile now ~3000` in the log.
+- **Blue only if blue > 2.5 x red** (read_color). White and grey are bluish too; a dim white spot (ramp, 0.75) and
+  the grey tile counted as blue. Blue tile b/r 5.5-6, white/grey under 2.
+- **Walls of this tile seen up to 190 mm on all four sides** (detectWall, was 120), centreAlong() corrects up to
+  150 mm (was 100). A robot 8+ cm short of the middle no longer misses the wall ahead and rams it. Sim +4.2 +-2.1 /
+  +3.6 +-1.8, home +2 / +4 pts, runs ever lost 24% -> 18% / 23% -> 18%.
+- **No-progress check (2j):** back sensor only counts as a reference for a wall under 100 mm behind (it read the
+  floor or people at 17-42 cm with nothing behind: 4 false stops; sim -0.9 +-1.5 / +0.5 +-1.4); also checked over
+  each 80 mm of travel (an obstacle hit after a free start: sim -0.1 +-1.0 / -0.1 +-1.0, ever lost 28% -> 24% / 23%);
+  a reference that moves 40 mm the wrong way is dropped (facing a ramp the front sensors read its slope at ~370 mm,
+  then ~800 once tipped: false stop at the ramp; sim 0.0, it never happens there).
+- **Left-back sensor offset 30 mm** (SENSOR_OFFSET_MM[5]): the replacement sensor read 26-30 mm more than left-front
+  between two walls. Re-measure if the sensor is changed again.
+- **After a ramp, no centring on the wall behind** (it is the slope: "-107 mm (back wall)" moved the robot ~10 cm).
+- **Wall written after the same edge is blocked twice** (handleShortMove): ~40 tries at one wall at the top of a ramp
+  otherwise (the way home falls back to blocked edges).
+- **Black found during obstacle avoidance is marked in the map** (it went round the same detour onto it 4 times).
+- Logging: `[POS] x,y floor f facing d` every tile, `[RET] ...` every step home.
+- Move tests: `BENCH_MODE 2` in main.cpp (bench.cpp, `MOVE_TESTS`): M0 all sensors, M1/M2 turns, M3 one-tile moves,
+  M4 along a wall, M5 wall ahead, M6 blocked by an obstacle.
+
+**Next tests:** B1 from other start corners; obstacles (1a, 1b, 1d); relocalize (2a); pause/restart; cameras on.
 
 ## 2d. Gyro in IMUPLUS mode (no magnetometer)
 
