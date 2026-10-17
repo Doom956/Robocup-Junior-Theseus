@@ -28,6 +28,9 @@ bool avoidingObstacle = false;
 bool obstacleAhead = false;
 // the last fwd() went over a ramp: the slope is now behind the robot, so centreAlong() mustn't take it for a wall
 bool justClimbedRamp = false;
+// set by fwd() when it stopped for the no-progress check; noProgressSkip turns the check off for the next move
+bool lastMoveNoProgress = false;
+bool noProgressSkip = false;
 bool obstacleSeenAhead(); // main.cpp: an obstacle was seen at this edge before
 
 static int avgEncoder(){
@@ -95,6 +98,9 @@ void fwd(double dist){ // in mm
   PID Scale_PID(0.0045,0,0.0008); // pid for encoder 
   Serial.println("forwarding");
   justClimbedRamp = false;
+  lastMoveNoProgress = false;
+  const bool skipNoProgress = noProgressSkip; // one move only
+  noProgressSkip = false;
   // allow the camera RTOS thread to flag victims for this move
   fwdActive = true;
   isVictim = false;
@@ -224,7 +230,7 @@ void fwd(double dist){ // in mm
   int noProgressLoops = 0;
   bool frontLost = false, backLost = false; // reference readings that stopped making sense this move
   double winEncMm = -1, winProg = 0; // start of the current 80 mm window of the no-progress check
-  bool noProgress = false, noProgressOff = false; // off for the rest of the move once it tilts (ramp, bump)
+  bool noProgress = false, noProgressOff = skipNoProgress; // off for the rest of the move once it tilts (ramp, bump)
   while((climbtoggle==true||(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3<=pulses)&&black!=true){
     Serial.print("distance travelled: ");
     Serial.println((((double)(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3)/5)/195*wheel_diameter*M_PI);
@@ -367,6 +373,7 @@ void fwd(double dist){ // in mm
         drivetrain.fullstop();
         fwdExit = "no-progress";
         noProgress = true;
+        lastMoveNoProgress = true;
         break;
       }
     }

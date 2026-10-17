@@ -428,7 +428,33 @@ extern bool obstacleAhead; // movement.cpp
 int shortMoveCount = 0;
 int shortX = -1, shortY = -1, shortFloor = -1;
 Direction shortDir = NORTH;
+extern bool lastMoveNoProgress, noProgressSkip; // movement.cpp
+// The same edge failing again and again (2026-10-17: ~15 "no progress" stops on one move home, the way home falling
+// back to blocked edges). Counts every failed move at one edge: the 2nd no-progress stop there turns the check off for
+// the next try (two in a row at one spot are more likely the check than a real block); the 4th failure writes a wall
+// so the planners route elsewhere.
+static bool repeatedFailure(){
+  static int fx = -1, fy = -1, ff = -1, fd = -1, fails = 0, noProg = 0;
+  if(x_pos == fx && y_pos == fy && currentFloor == ff && (int)currentDir == fd){ fails++; }
+  else { fails = 1; noProg = 0; fx = x_pos; fy = y_pos; ff = currentFloor; fd = currentDir; }
+  if(lastMoveNoProgress && ++noProg == 2){
+    Serial.println("no progress twice here: next try without the check");
+    noProgressSkip = true;
+  }
+  if(fails >= 4){
+    Serial.println("failed 4 times here: wall written to the map");
+    mapGrid[x_pos][y_pos].setWall(currentDir, true);
+    int nx = x_pos, ny = y_pos;
+    stepForward(currentDir, nx, ny);
+    if(inBounds(nx, ny)) mapGrid[nx][ny].setWall(opposite(currentDir), true);
+    fails = 0; noProg = 0;
+    return true;
+  }
+  return false;
+}
+
 void handleShortMove(){
+  if(repeatedFailure()){ obstacleAhead = false; shortMoveCount = 0; return; }
   if(obstacleAhead){
     Serial.println("obstacle ahead: blocking edge");
     obstacleAhead = false;
@@ -449,20 +475,6 @@ void handleShortMove(){
     Serial.println("blocking edge ahead");
     blockEdge(x_pos, y_pos, currentDir);
     shortMoveCount = 0;
-    // The same edge blocked again (the block was cleared, or the way home falls back to blocked edges): the
-    // robot keeps driving into something solid there. Put a wall in the map so no planner routes through it
-    // (2026-10-17: ~40 tries at one wall at the top of a ramp, the only way home in the map, until stopped).
-    static int wallX = -1, wallY = -1, wallFloor = -1, wallDir = -1, wallBlocks = 0;
-    if(x_pos == wallX && y_pos == wallY && currentFloor == wallFloor && (int)currentDir == wallDir) wallBlocks++;
-    else { wallBlocks = 1; wallX = x_pos; wallY = y_pos; wallFloor = currentFloor; wallDir = currentDir; }
-    if(wallBlocks >= 2){
-      Serial.println("blocked here twice: wall written to the map");
-      mapGrid[x_pos][y_pos].setWall(currentDir, true);
-      int nx = x_pos, ny = y_pos;
-      stepForward(currentDir, nx, ny);
-      if(inBounds(nx, ny)) mapGrid[nx][ny].setWall(opposite(currentDir), true);
-      wallBlocks = 0;
-    }
   }
 }
 
