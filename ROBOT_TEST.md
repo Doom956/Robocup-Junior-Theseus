@@ -380,7 +380,9 @@ All found on the real robot (logs/2026-10-16 and logs/2026-10-17). Simulator: 60
   EXPLORED, back to start, PAUSED, RESTART, `NO GYRO! check` at power-on, `WHITE REF LOW!` at the start). No waiting
   (the old lcdPrint messages for explored/home/no path paused 1 s each). The simulator ends runs on "back to start" /
   "no path found", so those keep their text. LCD test: BENCH_MODE 3. The new LCD's garbage was a loose GND, D5 bridged
-  on the perfboard and a shaky contact, not the code.
+  on the perfboard and a shaky contact, not the code. **Power-on check:** line 2 shows `READY`, or `!` and everything not
+  answering (`!GYRO COLR LB FR`: gyro, colour sensor, distance sensors by short name FR RF RB B LB LF FL); it stays until
+  power-off. Tested on the robot 2026-10-17 (gyro and sensors unplugged).
 - Logging: `[POS] x,y floor f facing d` every tile, `[RET] ...` every step home.
 - Move tests: `BENCH_MODE 2` in main.cpp (bench.cpp, `MOVE_TESTS`): M0 all sensors, M1/M2 turns, M3 one-tile moves,
   M4 along a wall, M5 wall ahead, M6 blocked by an obstacle.
