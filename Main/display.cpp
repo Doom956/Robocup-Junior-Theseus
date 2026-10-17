@@ -8,6 +8,7 @@
 extern timer mazeTime; // main.cpp
 
 static char eventLine[17] = "";
+static char problemLine[17] = ""; // a start-up problem: shown instead of events until the next power-on
 
 static void writeLine(int row, const char *text){
   char buf[17];
@@ -28,10 +29,25 @@ void lcdStatus(){
 }
 
 void lcdEvent(const char *msg){
-  // A missing gyro stays on the screen: "PAUSED" used to replace it within a second of power-on.
-  if(gyroMissing) msg = "NO GYRO! check";
+  // A start-up problem stays on the screen: "PAUSED" used to replace it within a second of power-on.
+  // The end of the run still shows (and the simulator ends runs on this text).
+  if(problemLine[0] && strcmp(msg, "back to start") != 0 && strcmp(msg, "no path found") != 0) msg = problemLine;
   snprintf(eventLine, sizeof(eventLine), "%s", msg);
   lcdMutex.lock();
   writeLine(1, eventLine);
   lcdMutex.unlock();
+}
+
+int checkDistanceSensors(char *out, int outLen); // Distance.cpp
+extern bool colourMissing;                       // Color.cpp
+
+// Power-on check: gyro, colour sensor, the 7 distance sensors. The first problem stays on line 2.
+void lcdStartupCheck(){
+  char dead[24];
+  int n = checkDistanceSensors(dead, sizeof(dead));
+  if(gyroMissing) snprintf(problemLine, sizeof(problemLine), "NO GYRO! check");
+  else if(n > 0) snprintf(problemLine, sizeof(problemLine), "TOF DEAD:%s", dead);
+  else if(colourMissing) snprintf(problemLine, sizeof(problemLine), "NO COLOUR SENSR");
+  else problemLine[0] = 0;
+  lcdEvent(problemLine[0] ? problemLine : "ready");
 }

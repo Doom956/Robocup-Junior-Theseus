@@ -44,6 +44,7 @@ void runBench(); // bench.cpp
 void runLcdTest(); // bench.cpp
 void lcdStatus();               // display.cpp
 void lcdEvent(const char *msg); // display.cpp
+void lcdStartupCheck();         // display.cpp
 extern bool gyroMissing;        // gyro.cpp
 
 // 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 0 for competition.
@@ -481,7 +482,7 @@ void setup(){
   state = SENSE_TILE;
   // start lcd
   lcd.begin(16, 2);
-  lcdEvent(gyroMissing ? "NO GYRO! check" : "ready");
+  lcdStartupCheck(); // gyro, colour sensor, distance sensors: a problem stays on line 2
 #if BENCH_MODE == 3
   runLcdTest(); // never returns
 #elif BENCH_MODE
