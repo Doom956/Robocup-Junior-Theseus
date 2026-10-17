@@ -68,6 +68,9 @@ extern Stepper myStepper;
 // ============================================================
 extern rtos::Mutex i2cMutex;
 extern rtos::Mutex lcdMutex;
+void lcdStatus();               // display.cpp: position line
+void lcdEvent(const char *msg); // display.cpp: last-event line
+extern bool gyroMissing;        // gyro.cpp: bno.begin() failed at start-up
 extern volatile bool Pausemaze;
 extern volatile bool moveInterrupted;
 extern volatile bool fwdActive;

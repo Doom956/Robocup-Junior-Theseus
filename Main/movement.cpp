@@ -205,6 +205,7 @@ void fwd(double dist){ // in mm
       drivetrain.fullstop();
       delay(100);
       Serial.println("black");
+      lcdEvent("BLACK");
       int nx = x_pos; int ny = y_pos;
       stepForward(currentDir,nx,ny);
       if(inBounds(nx, ny)) mapGrid[nx][ny].setType(BLACK);
@@ -370,6 +371,7 @@ void fwd(double dist){ // in mm
       stepForward(currentDir, nx, ny);
       if(!inBounds(nx, ny)) { Serial.println("ramp would leave the map, stopping the count"); break; }
       Serial.println("adding ramp to map");
+      lcdEvent(upwards ? "RAMP UP" : "RAMP DOWN");
       markEdgeBothWays(x_pos, y_pos, currentDir);
       stepForward(currentDir, x_pos, y_pos);
       writeWallsToCurrentTile(0, 1, 0, 1);

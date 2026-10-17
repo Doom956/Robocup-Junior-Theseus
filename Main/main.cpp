@@ -41,6 +41,10 @@ void syncActiveFloor();
 Grid& floorGrid(int floor);
 void lcdPrint(const char* msg);
 void runBench(); // bench.cpp
+void runLcdTest(); // bench.cpp
+void lcdStatus();               // display.cpp
+void lcdEvent(const char *msg); // display.cpp
+extern bool gyroMissing;        // gyro.cpp
 
 // 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 0 for competition.
 #define BENCH_MODE 0
@@ -403,12 +407,14 @@ void finishTileMove(){
     x_checkpoint = x_pos; y_checkpoint = y_pos;
     floor_checkpoint = currentFloor;
     Serial.println("checkpoint recorded");
+    lcdEvent("CHECKPOINT");
   }
   // RCJ: stop 5 s on a blue tile every time it is entered (the map flag covers a
   // missed colour read on later visits, e.g. on the way home)
   if(color == 1 || mapGrid[x_pos][y_pos].getType() == BLUE){
     mapGrid[x_pos][y_pos].setType(BLUE);
     drivetrain.fullstop();
+    lcdEvent("BLUE 5s");
     delay(5000);
   }
   if(obstacle == true){
@@ -475,7 +481,10 @@ void setup(){
   state = SENSE_TILE;
   // start lcd
   lcd.begin(16, 2);
-#if BENCH_MODE
+  lcdEvent(gyroMissing ? "NO GYRO! check" : "ready");
+#if BENCH_MODE == 3
+  runLcdTest(); // never returns
+#elif BENCH_MODE
   runBench(); // never returns
 #endif
   // start RTOS threads: camera victim detection + pause-switch watcher.
@@ -519,6 +528,7 @@ void loop(){
       // Stop where it should have: centred along the way it faces (from a wall ahead or behind),
       // so the walls below are read from the middle of the tile.
       centreAlong();
+      lcdStatus();
       // Read for walls
       Serial.println("reading walls");
       readWallsRel(wallF, wallR, wallB, wallL);
@@ -531,6 +541,7 @@ void loop(){
       
       if(Pausemaze == true){
         Serial.println("pause");
+        lcdEvent("PAUSED");
         state=PAUSE;
         break;
       }
@@ -589,7 +600,7 @@ void loop(){
       }
       if(found == false){
         Serial.println("maze fully explored");
-        lcdPrint("maze explored");
+        lcdEvent("EXPLORED");
         state = RETURN;
         break;
       }
@@ -723,7 +734,7 @@ void loop(){
         // the wrong tile, a lack-of-progress restart puts it back on the last checkpoint and it
         // heads home again from there. (This was a while(true) that ignored the switch, so only
         // a power cycle -- which loses the map -- could get it going again.)
-        lcdPrint("back to start");
+        lcdEvent("back to start"); // the simulator ends a run on this text
         while(Pausemaze == false){
           drivetrain.fullstop();
           digitalWrite(LEDPIN, (millis() / 1000) % 2 ? HIGH : LOW);
@@ -738,7 +749,7 @@ void loop(){
         // No route home in the map (usually the position is off and a black tile or a blocked
         // edge cut the planned route). Stop, but keep watching the pause switch as above, so a
         // lack-of-progress restart can recover the run instead of it ending here.
-        lcdPrint("no path found");
+        lcdEvent("no path found"); // the simulator watches for this text
         while(Pausemaze == false){
           drivetrain.fullstop();
           delay(20);
@@ -790,6 +801,7 @@ void loop(){
       delay(200);
       if(digitalRead(logicswitch)==LOW){
         Pausemaze = false;
+        lcdEvent("RUNNING");
         // Restore the checkpoint's FLOOR as well as its tile. Save the grid we were
         // working on back into its floor slot, then load the checkpoint floor's grid
         // -> so victim flags / walls are looked up on the correct floor.

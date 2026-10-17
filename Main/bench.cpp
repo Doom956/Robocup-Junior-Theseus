@@ -325,3 +325,22 @@ void runBench(){
     Serial.println("[BENCH] ---- end ----");
   }
 }
+
+// LCD test (BENCH_MODE 3 in main.cpp): writes two lines and a counter with the LiquidCrystal library on main.cpp's pins.
+void runLcdTest(){
+  pinMode(LEDPIN, OUTPUT);
+  Serial.println("[BENCH] LCD LiquidCrystal test");
+  delay(500);
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("HELLO LIBRARY   ");
+  for(unsigned long n = 0; ; n++){
+    char b[17];
+    snprintf(b, sizeof(b), "lib count %-6lu", n);
+    lcd.setCursor(0, 1);
+    lcd.print(b);
+    Serial.print("[BENCH] LCD count "); Serial.println(n);
+    led(n % 2);
+    delay(1000);
+  }
+}

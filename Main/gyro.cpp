@@ -10,10 +10,12 @@ extern rtos::Mutex i2cMutex;
 gyro::gyro(){
   
 }
+bool gyroMissing = false; // bno.begin() failed at start-up (shown on the LCD)
 void gyro::init_Gyro(){
   i2cMutex.lock();
   bool found = bno.begin();
   i2cMutex.unlock();
+  gyroMissing = !found;
   if(!found) Serial.println("can't find gyro");
   else        Serial.println("gyro found");
 }
