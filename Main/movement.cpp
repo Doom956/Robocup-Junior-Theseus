@@ -219,6 +219,7 @@ void fwd(double dist){ // in mm
   // under 100 mm, anything it sees after 160 mm of travel is far enough away to count as progress.
   const bool backRef = prog0B >= 20 && prog0B <= 100;
   int noProgressLoops = 0;
+  bool frontLost = false, backLost = false; // reference readings that stopped making sense this move
   double winEncMm = -1, winProg = 0; // start of the current 80 mm window of the no-progress check
   bool noProgress = false, noProgressOff = false; // off for the rest of the move once it tilts (ramp, bump)
   while((climbtoggle==true||(drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3<=pulses)&&black!=true){
@@ -332,10 +333,17 @@ void fwd(double dist){ // in mm
       int refs = 0;
       double best = -1e9; // the most progress any usable reading shows, mm
       // a wall square ahead, at most at the end of the next tile (both front sensors agree), or a wall behind
-      if(frontRef && front_right_current > 0 && front_left_current > 0 && abs(front_right_current - front_left_current) <= 40){
-        refs++; best = max(best, (prog0R + prog0L) / 2.0 - (front_right_current + front_left_current) / 2.0);
+      // A reference that moves more than 40 mm the wrong way is no longer the wall it was (2026-10-17: facing a ramp
+      // the front sensors read its slope at ~370 mm like a wall, then ~800 once the robot tips onto it): drop it for
+      // this move. A stuck robot's readings stay put; they don't jump away.
+      if(frontRef && !frontLost && front_right_current > 0 && front_left_current > 0 && abs(front_right_current - front_left_current) <= 40){
+        double p = (prog0R + prog0L) / 2.0 - (front_right_current + front_left_current) / 2.0;
+        if(p < -40) frontLost = true; else { refs++; best = max(best, p); }
       }
-      if(backRef && bNow > 0 && bNow <= 1100){ refs++; best = max(best, (double)(bNow - prog0B)); }
+      if(backRef && !backLost && bNow > 0 && bNow <= 1100){
+        double p = (double)(bNow - prog0B);
+        if(p < -40) backLost = true; else { refs++; best = max(best, p); }
+      }
       if(refs > 0 && best < 0.35 * encMm) noProgressLoops++; else noProgressLoops = 0;
       // Also over the last 80 mm of encoder travel alone: a robot that drives freely and then hits something
       // the front sensors can't see keeps most of its progress from before (2026-10-17: 170 of 300 mm, never

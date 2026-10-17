@@ -827,6 +827,10 @@ void loop(){
         break;
       }
       // path[0] = current tile, path[1] = next tile (may be on another floor for a ramp)
+      Serial.print("[RET] at "); Serial.print(x_pos); Serial.print(","); Serial.print(y_pos);
+      Serial.print(" floor "); Serial.print(currentFloor); Serial.print(" -> "); Serial.print(path[1].second.first);
+      Serial.print(","); Serial.print(path[1].second.second); Serial.print(" floor "); Serial.print(path[1].first);
+      Serial.print(", "); Serial.print(path.size() - 1); Serial.println(" moves to home");
       int dx = path[1].second.first  - path[0].second.first;
       int dy = path[1].second.second - path[0].second.second;
       Direction moveDir;

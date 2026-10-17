@@ -91,7 +91,10 @@ int read_color(){
   if((float)c/clear>WHITE_THRESHOLD) return 0;
 
 
-  if(b>g+10&&b>r+10) return 1; //blue
+  // blue: blue well over red. White and grey are bluish too (b largest), so "b largest" alone took a dim white spot
+  // (ramp: ratio 0.75, r 549 b 1009) or the grey tile (r 304 b 568) for blue: both b/r < 2. Blue tile b/r 5.5-6
+  // (bench 2026-10-06, maze 2026-10-17).
+  if(b > 2.5 * r && b > g + 10) return 1; //blue
 
   if(r>g+10&&r>b+10) return 2;
 
