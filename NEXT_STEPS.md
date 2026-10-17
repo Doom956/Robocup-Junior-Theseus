@@ -1,53 +1,90 @@
-# Next steps (updated 2026-10-17)
+# Next steps (updated 2026-10-17, evening)
 
-## 0. Start here (2026-10-17): pull on the other PC
+## 0. On the other PC: get today's work
 
+First time on that PC only (skip if it already has the project):
+```
+git clone https://github.com/Doom956/Robocup-Junior-Theseus.git
+cd Robocup-Junior-Theseus
+pio pkg install -g --tool platformio/toolchain-gccmingw32
+```
+(also needs PlatformIO and Python 3; see section 1 below)
+
+Every time:
 ```
 cd Robocup-Junior-Theseus
 git checkout main
 git pull
 git fetch
 ```
+Check: `git log --oneline -1` shows `972a272` (LCD one-line check) or newer, and `git log --oneline -1 origin/robot-test`
+shows `22c43c5` or newer. Then open Claude Code in that folder: it reads `CLAUDE.md` and this file.
 
-Then check you have today's work:
-- `git log --oneline -1` shows `f7d5d71 2026-10-17 afternoon logs (obstacle runs)` (or newer)
-- `git log --oneline -1 origin/robot-test` shows `324ccf9 WIP 2k: repeated-failure guard ...` (or newer)
-
-**The robot runs robot-test.** To flash it: `git checkout robot-test`, `git pull`, check `#define BENCH_MODE 0` in
-`Main/main.cpp`, then `pio run -t upload` (robot plugged in, battery on). `git checkout main` to go back.
-Everything done today is in `ROBOT_TEST.md` section 2k (on robot-test) and in `CLAUDE.md` ("Real robot 2026-10-17").
-Raw logs: `logs/2026-10-16`, `logs/2026-10-17` (on main).
-
-### Simulator jobs for this PC (each A/B is 600 comp fields, run both seed sets)
-
-The three robot-test fixes from 2026-10-17 not yet checked in the simulator. Each one is a single commit on robot-test,
-so compare the commit with the one before it:
-
+**The robot runs robot-test.** To flash it:
 ```
-python tools/sim/physics/ab.py 407753c f6e2fde --runs 600               (no centring on the slope after a ramp)
+git checkout robot-test
+git pull
+pio run -t upload
+git checkout main
+```
+(robot plugged in by USB, battery ON; check `#define BENCH_MODE 0` in `Main/main.cpp` first). At power-on the LCD should
+say `READY`; `!GYRO`, `!COLR` or sensor names (FR RF RB B LB LF FL) mean something isn't plugged in.
+
+What was done on 2026-10-17: `ROBOT_TEST.md` section 2k (on robot-test) and `CLAUDE.md` ("Real robot 2026-10-17").
+Raw logs: `logs/2026-10-16`, `logs/2026-10-17`.
+
+## 1. Simulator jobs (run on the faster PC)
+
+Each command builds both versions from git and runs 600 comp fields; do both seed sets (the second line of each pair).
+They take a while: start them and leave the PC. Or ask Claude: "run the simulator jobs in NEXT_STEPS.md".
+
+**a. The three robot-test fixes of 2026-10-17 not yet checked** (each is one commit, compared with the one before it):
+```
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600
 python tools/sim/physics/ab.py 407753c f6e2fde --runs 600 --start 601
-python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600               (black found during avoidance marked)
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600
 python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600 --start 601
-python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600               (repeated-failure guard)
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600
 python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600 --start 601
 ```
+(407753c -> f6e2fde: no centring on the slope after a ramp, wall after two blocks; f6e2fde -> bc10a83: black found during
+avoidance marked; 6353e9b -> a1f6662: repeated-failure guard.) Keep each if its score interval isn't below zero.
 
-Then, if none is clearly worse (score interval not below zero): move the **logic bugs** to main (white reference at
-the run start, blue only if b > 2.5 r, black during avoidance marked, repeated-failure guard), with a main-vs-main+fix
-A/B and `pio run` as the rules say. Ask Claude to do it: "move the 2026-10-17 logic bugs to main".
+**b. Whole robot-test vs main**, to see where both stand now:
+```
+python tools/sim/physics/ab.py main origin/robot-test --runs 600
+python tools/sim/physics/ab.py main origin/robot-test --runs 600 --start 601
+```
 
-Open problems to work on next (in ROBOT_TEST.md 2k "To do"):
+**c. Move the logic bugs to main** (they are wrong on any robot): white reference at the start of the run, blue only if
+blue > 2.5 x red, black found during avoidance marked, repeated-failure guard. Each needs a main-vs-main+fix A/B (no harm)
+and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
+
+## 2. Open problems (code, then simulator, then robot)
+
 1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
-   too soon.
-2. Obstacles against a wall pass outside both front sensors; the robot scrapes past on its corner (side-front sensor
-   reads ~18 mm). Idea: a side-front reading under ~30 mm with no wall there = obstacle.
-3. Blue tiles re-entered up to 5 times a run.
-4. The start-of-match check (white reference, gyro present, all sensors reading; "NO GYRO" on the LCD): needs your yes.
+   too soon (idea: don't clear a block made in the last minute). Strategy change: needs your yes after the sim numbers.
+2. Obstacles against a wall pass outside both front sensors; the robot scrapes past on its corner (side-front sensor read
+   ~18 mm). Idea: a side-front reading under ~30 mm with no wall there = obstacle. Needs real readings first (robot test 3b).
+3. Blue tiles entered up to 5 times a run (2 blue tiles): try routing around blue on through-routes.
+4. Camera 4 s wait after moves (victim code, team decision to leave it): ask the camera code's author about `>= 0`
+   instead of `!= -1` in cameraTask.
 
-### Robot tests still to do
-Relocalize (carry it back one tile), pause and restart from a checkpoint, cameras on (2 full runs with victims), false
-obstacle count in a run with no obstacles. Hardware: secure the gyro cable (came loose twice); always run with the
-battery on.
+## 3. Robot tests still to do
+
+No maze needed (move tests: set `#define BENCH_MODE 2` in `Main/main.cpp` and the list in `Main/bench.cpp` `MOVE_TESTS`):
+- a. M6 stuck check: box held or taped down in the middle of the path, wall 30-40 cm ahead; it should back up.
+- b. M4 + box: drive along a wall with a box against it in the path; gives the side-sensor readings for problem 2.
+
+In the maze (`BENCH_MODE 0`, cameras off, record with `python tools/serial_log.py logs/<date>/run.txt`):
+- c. Relocalize: after 3-4 tiles pause, carry it back one tile facing the same way, resume (LCD: `POS CORRECTED`).
+- d. Pause and restart from the last checkpoint.
+- e. A full run with no obstacles: count false `OBSTACLE` on the LCD / in the log.
+- f. Cameras on: 2 full runs with victims; check victims are still found and note the wait after each move.
+- g. Obstacle runs again after problem 1 is fixed.
+
+Hardware: secure the gyro cable and the LCD's loose contact (both caused problems); always run with the battery on
+(USB alone is too weak for the motors); switch on with the colour sensor over a white tile.
 
 ---
 
