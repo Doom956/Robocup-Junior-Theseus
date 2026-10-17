@@ -29,6 +29,8 @@ void disableAllCall() {
   Wire.endTransmission(true);
 }
 
+bool tofInitFailed[7] = {false, false, false, false, false, false, false}; // by mux port
+
 void init_dist() {
   
   if(!myMux.begin()){
@@ -45,6 +47,7 @@ void init_dist() {
     
     
     if(!sensors[i].init()){
+    tofInitFailed[i] = true;
     Serial.println("Sensor "+String(i)+" failed to initialize");
     }
     else{
@@ -831,5 +834,31 @@ static int obstacleavoidanceSteps(int leftright){
   }
 }
 
-
-
+// Start-up check of the 7 distance sensors (LCD warning, see display.cpp). A sensor is dead if it failed to start
+// or 5 reads in a row time out (65535: it doesn't answer). "Nothing in range" (8190/8191) is a working sensor.
+// Writes the short names of the dead ones into out ("LB FR"), returns how many. (2026-10-17: a dead left-back sensor
+// was only found by its light being off, after several bad runs.)
+int checkDistanceSensors(char *out, int outLen){
+  const int portMap[] = {-1, 1, 0, 6, 4, 5, 3, 2};
+  const char *names[8] = {"", "FR", "RF", "RB", "B", "LB", "LF", "FL"};
+  int dead = 0;
+  out[0] = 0;
+  for(int s = 1; s <= 7; s++){
+    int port = portMap[s];
+    int timeouts = 0;
+    for(int i = 0; i < 5; i++){
+      i2cMutex.lock();
+      myMux.setPort(port);
+      int v = sensors[port].readRangeContinuousMillimeters();
+      i2cMutex.unlock();
+      if(v == 65535 || v == -1) timeouts++;
+    }
+    if(tofInitFailed[port] || timeouts == 5){
+      Serial.print("distance sensor "); Serial.print(s); Serial.print(" ("); Serial.print(names[s]); Serial.println(") is not answering");
+      int len = strlen(out);
+      snprintf(out + len, outLen - len, "%s%s", len ? " " : "", names[s]);
+      dead++;
+    }
+  }
+  return dead;
+}

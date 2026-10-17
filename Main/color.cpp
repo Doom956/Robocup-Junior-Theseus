@@ -1,6 +1,8 @@
 #include "Color.h"
 #include "Globals.h"
 
+bool colourMissing = false; // tcs.begin() failed at start-up (LCD warning)
+
 void init_color(){
   //tcs.setInterrupt(true);
   myMux.setPort(TCS_PORT);
@@ -10,6 +12,7 @@ void init_color(){
     Serial.println("Found tcs34725 sensor");
     
   } else {
+    colourMissing = true;
     Serial.println("No TCS34725 found ... check your connections");
     //while (1); // halt!
   }
