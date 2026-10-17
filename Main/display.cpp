@@ -28,7 +28,11 @@ void lcdStatus(){
   lcdMutex.unlock();
 }
 
+static bool runStarted = false;
+
 void lcdEvent(const char *msg){
+  if(strcmp(msg, "RUNNING") == 0 || strcmp(msg, "WHITE REF LOW!") == 0 || strcmp(msg, "RESTART") == 0) runStarted = true;
+  if(!runStarted && strcmp(msg, "PAUSED") == 0) msg = "READY"; // the pause at power-on: all checks passed
   // A start-up problem stays on the screen: "PAUSED" used to replace it within a second of power-on.
   // The end of the run still shows (and the simulator ends runs on this text).
   if(problemLine[0] && strcmp(msg, "back to start") != 0 && strcmp(msg, "no path found") != 0) msg = problemLine;
@@ -41,13 +45,17 @@ void lcdEvent(const char *msg){
 int checkDistanceSensors(char *out, int outLen); // Distance.cpp
 extern bool colourMissing;                       // Color.cpp
 
-// Power-on check: gyro, colour sensor, the 7 distance sensors. The first problem stays on line 2.
+// Power-on check: gyro, colour sensor, the 7 distance sensors. Everything missing goes on line 2 and stays there,
+// e.g. "!GYRO COLR LB FR" (gyro, colour sensor, left-back and front-right distance sensors); the Serial log has
+// the full names. All fine: "READY" until the run starts.
 void lcdStartupCheck(){
   char dead[24];
-  int n = checkDistanceSensors(dead, sizeof(dead));
-  if(gyroMissing) snprintf(problemLine, sizeof(problemLine), "NO GYRO! check");
-  else if(n > 0) snprintf(problemLine, sizeof(problemLine), "TOF DEAD:%s", dead);
-  else if(colourMissing) snprintf(problemLine, sizeof(problemLine), "NO COLOUR SENSR");
+  checkDistanceSensors(dead, sizeof(dead));
+  char line[40] = "";
+  if(gyroMissing) strcat(line, " GYRO");
+  if(colourMissing) strcat(line, " COLR");
+  if(dead[0]){ strcat(line, " "); strcat(line, dead); }
+  if(line[0]) snprintf(problemLine, sizeof(problemLine), "!%s", line + 1);
   else problemLine[0] = 0;
-  lcdEvent(problemLine[0] ? problemLine : "ready");
+  lcdEvent(problemLine[0] ? problemLine : "READY");
 }
