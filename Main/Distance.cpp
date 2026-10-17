@@ -473,6 +473,7 @@ void centerFrontBack(){
 #define FRONT_SENSOR_FWD_MM  98.4   // CAD (tools/sim/cad/robot_geometry.json): front ToF sensors ahead of the centre
 #define BACK_SENSOR_BACK_MM  102.8  // CAD: back ToF sensor behind the centre
 #define MAX_ALONG_FIX_MM     150.0
+extern bool justClimbedRamp; // movement.cpp
 void centreAlong(){
   const int SPEED = 50;
   const unsigned long TIMEOUT_MS = 2000;
@@ -480,7 +481,9 @@ void centreAlong(){
   parallel();
   int f1 = measure(1), f7 = measure(7), b = measure(4);
   bool useFront = f1 > 0 && f7 > 0 && f1 <= 450 && f7 <= 450 && abs(f1 - f7) <= 25;
-  bool useBack = b > 0 && b <= 450;
+  // Right after a ramp the slope is behind the robot: the back sensor reads it like a wall (2026-10-17: "centring
+  // along: -107 mm (back wall)" after coming down a ramp moved the robot ~10 cm off).
+  bool useBack = b > 0 && b <= 450 && !justClimbedRamp;
   if(useFront && useBack){ if(b < (f1 + f7) / 2) useFront = false; else useBack = false; } // the nearer wall reads more accurately
   if(!useFront && !useBack) return;
   double now = useFront ? (f1 + f7) / 2.0 : b;

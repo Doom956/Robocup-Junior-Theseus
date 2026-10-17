@@ -26,6 +26,8 @@
 bool avoidingObstacle = false;
 // fwd() saw something on one side ahead (an obstacle, or a wall end) and didn't move
 bool obstacleAhead = false;
+// the last fwd() went over a ramp: the slope is now behind the robot, so centreAlong() mustn't take it for a wall
+bool justClimbedRamp = false;
 bool obstacleSeenAhead(); // main.cpp: an obstacle was seen at this edge before
 
 static int avgEncoder(){
@@ -92,6 +94,7 @@ void fwd(double dist){ // in mm
   PID gyroPID(1,0.001,0.03);
   PID Scale_PID(0.0045,0,0.0008); // pid for encoder 
   Serial.println("forwarding");
+  justClimbedRamp = false;
   // allow the camera RTOS thread to flag victims for this move
   fwdActive = true;
   isVictim = false;
@@ -509,6 +512,7 @@ void fwd(double dist){ // in mm
   Serial.println("stop- end of fwd");
   // sometimes it barely makes it over the slope
   if(climbed == true){
+    justClimbedRamp = true;
     for(int i = 0; i<cnt;i++){
       // Never step off the 40 x 40 map: writing a tile outside it corrupts memory and
       // crashes the program (it happened after a lost robot counted a long ramp).

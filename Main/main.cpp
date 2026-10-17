@@ -449,6 +449,20 @@ void handleShortMove(){
     Serial.println("blocking edge ahead");
     blockEdge(x_pos, y_pos, currentDir);
     shortMoveCount = 0;
+    // The same edge blocked again (the block was cleared, or the way home falls back to blocked edges): the
+    // robot keeps driving into something solid there. Put a wall in the map so no planner routes through it
+    // (2026-10-17: ~40 tries at one wall at the top of a ramp, the only way home in the map, until stopped).
+    static int wallX = -1, wallY = -1, wallFloor = -1, wallDir = -1, wallBlocks = 0;
+    if(x_pos == wallX && y_pos == wallY && currentFloor == wallFloor && (int)currentDir == wallDir) wallBlocks++;
+    else { wallBlocks = 1; wallX = x_pos; wallY = y_pos; wallFloor = currentFloor; wallDir = currentDir; }
+    if(wallBlocks >= 2){
+      Serial.println("blocked here twice: wall written to the map");
+      mapGrid[x_pos][y_pos].setWall(currentDir, true);
+      int nx = x_pos, ny = y_pos;
+      stepForward(currentDir, nx, ny);
+      if(inBounds(nx, ny)) mapGrid[nx][ny].setWall(opposite(currentDir), true);
+      wallBlocks = 0;
+    }
   }
 }
 
@@ -590,6 +604,8 @@ void loop(){
       // Stop where it should have: centred along the way it faces (from a wall ahead or behind),
       // so the walls below are read from the middle of the tile.
       centreAlong();
+      Serial.print("[POS] "); Serial.print(x_pos); Serial.print(","); Serial.print(y_pos);
+      Serial.print(" floor "); Serial.print(currentFloor); Serial.print(" facing "); Serial.println((int)currentDir);
       // Read for walls
       Serial.println("reading walls");
       readWallsRel(wallF, wallR, wallB, wallL);
