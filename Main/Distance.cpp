@@ -158,7 +158,9 @@ old robot settings
 // Calibrate: place a flat matte target at a known distance D (near the ~80mm working
 // range), average ~100 raw readings, set SENSOR_OFFSET_MM[n] = mean(raw) - D.
 // Positive => sensor reads long; it is subtracted from every reading in measure().
-const int SENSOR_OFFSET_MM[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+// [5] left-back: the replacement sensor (2026-10-17) read 26-30 mm more than left-front (6) with the robot square
+// between two walls (right pair within 1-4 mm), which would turn parallel() ~10 deg off on left walls.
+const int SENSOR_OFFSET_MM[8] = {0, 0, 0, 0, 0, 30, 0, 0};
 
 int measure(int sensor){
   // sensor→mux port mapping
@@ -231,11 +233,15 @@ int calibrateSensor(int sensor, int trueDistanceMm){
 }
 // detects wall in a direction( 0 is north, 1 is east, etc..) If output = 0, there is a wall.
 // realtive directions(local).
+// A wall of this tile: a centred robot reads ~42 mm ahead / ~37 behind / ~49 to the sides, the next tile's walls
+// ~300 mm more. MIN_DIST (120) only allowed for the robot being 8 cm short of the middle; halfway (190) allows
+// as much either way.
+#define WALL_SEEN_MM 190
 int detectWall(int dir){
   if(dir == 0){ // check if there is a wall at north
     int a = measure(1);
     int b = measure(7);
-    if((a<MIN_DIST&&a!=-1&&a!=8191)&&(b<MIN_DIST&&b!=-1&&b!=8191)){
+    if((a<WALL_SEEN_MM&&a!=-1&&a!=8191)&&(b<WALL_SEEN_MM&&b!=-1&&b!=8191)){
       return 0; // there is a wall.
     }
     else{
@@ -245,7 +251,7 @@ int detectWall(int dir){
   if(dir == 1){
     int a = measure(2);
     int b = measure(3);
-    if((a<MIN_DIST&&a!=-1&&a!=8191)&&(b<MIN_DIST&&b!=-1&&b!=8191)){
+    if((a<WALL_SEEN_MM&&a!=-1&&a!=8191)&&(b<WALL_SEEN_MM&&b!=-1&&b!=8191)){
       return 0;
     }
     else{
@@ -254,7 +260,7 @@ int detectWall(int dir){
   }
   if(dir == 2){
     int a = measure(4);
-    if(a<MIN_DIST&&a!=-1&&a!=8191){
+    if(a<WALL_SEEN_MM&&a!=-1&&a!=8191){
       return 0;
     }
     else{
@@ -265,7 +271,7 @@ int detectWall(int dir){
     int a = measure(5);
     int b = measure(6);
     
-    if((a<MIN_DIST&&a!=-1&&a!=8191)&&(b<MIN_DIST&&b!=-1&&b!=8191)){
+    if((a<WALL_SEEN_MM&&a!=-1&&a!=8191)&&(b<WALL_SEEN_MM&&b!=-1&&b!=8191)){
       return 0;
     }
     else{
@@ -466,7 +472,7 @@ void centerFrontBack(){
 #define WALL_THICK_MM        20.0   // RCJ walls: 300 mm tiles, 280 mm between wall faces
 #define FRONT_SENSOR_FWD_MM  98.4   // CAD (tools/sim/cad/robot_geometry.json): front ToF sensors ahead of the centre
 #define BACK_SENSOR_BACK_MM  102.8  // CAD: back ToF sensor behind the centre
-#define MAX_ALONG_FIX_MM     100.0
+#define MAX_ALONG_FIX_MM     150.0
 void centreAlong(){
   const int SPEED = 50;
   const unsigned long TIMEOUT_MS = 2000;
