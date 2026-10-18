@@ -89,13 +89,23 @@ static int encoderAvg(){
   return (drivetrain.encoderCountA + drivetrain.encoderCountB + drivetrain.encoderCountD) / 3;
 }
 
+// Test name on LCD line 1, kept on screen (lcdPrint() clears it after 1 s; it is the camera code's message function).
+static void benchLcd(const char *text){
+  char b[17];
+  snprintf(b, sizeof(b), "%-16s", text);
+  if(!lcdMutex.trylock()) return;
+  lcd.setCursor(0, 0);
+  lcd.print(b);
+  lcdMutex.unlock();
+}
+
 // the "next" button: the pause switch flipped on and then off again (LED blinks slowly meanwhile)
 static void waitForSwitch(const char *lcdText, const char *howToPlace){
   drivetrain.fullstop();
   Serial.print("[BENCH] next: ");
   Serial.println(howToPlace);
   Serial.println("[BENCH] flip the pause switch on and off to start");
-  lcdPrint(lcdText);
+  benchLcd(lcdText);
   while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(1000); delay(20); }
   while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(1000); delay(20); }
   led(true);   // on while the test runs
@@ -450,7 +460,7 @@ static void waitForFrontWall(const char *lcdText, const char *howToPlace){
   Serial.print("[BENCH] next: ");
   Serial.println(howToPlace);
   Serial.println("[BENCH] move the robot until the LED comes on (both front sensors 250-400 mm), then flip the pause switch on and off");
-  lcdPrint(lcdText);
+  benchLcd(lcdText);
   unsigned long lastPrint = 0;
   for(int phase = 0; phase < 2; phase++){
     while(digitalRead(BENCH_SWITCH_PIN) == (phase == 0 ? LOW : HIGH)){
@@ -527,7 +537,7 @@ static void moveBlockedLater(){
 static void printAllForever(const char *lcdText){
   drivetrain.fullstop();
   Serial.println("[BENCH] done. Flip the pause switch on and off to print every result again.");
-  lcdPrint(lcdText);
+  benchLcd(lcdText);
   while(true){ // fast blink; each switch flip prints all results again (plug in USB first)
     while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(250); delay(20); }
     while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(250); delay(20); }

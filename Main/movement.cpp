@@ -500,6 +500,18 @@ void fwd(double dist){ // in mm
   // Didn't get halfway (front blocked, stall, timeout): the robot is still in the
   // tile it started from. Back up to its centre and report it so the caller
   // doesn't advance the map position.
+  // End-of-move check (ROBOT_TEST.md 2n c): a box between the front beams hit after a clear start is missed by the 80 mm
+  // window (2n). If the wall ahead came much less near than the encoders say, the robot was blocked. Robot, 2026-10-18:
+  // move test M8 (box 15 cm ahead) drove into it and reported a normal move. Sim: false stops 20 -> 37 per 80 runs,
+  // +0.1 +-3.7 / -1.8 +-3.8, home +4 / +2 pts.
+  if(!noProgress && !noProgressOff && !climbed && !black && moveInterrupted == false && !obstacleAhead && frontRef && !frontLost){
+    double encEnd = avgEncoder() / pulsesForDistanceMm(1);
+    int r = measure(1), l = measure(7);
+    if(encEnd >= 200 && r > 0 && l > 0 && abs(r - l) <= 40){
+      double p = (prog0R + prog0L) / 2.0 - (r + l) / 2.0;   // how much nearer the wall ahead came
+      if(p < 0.8 * encEnd){ Serial.println("[FWD] no progress at the end"); lcdEvent("NO PROGRESS"); fwdExit = "no-progress"; noProgress = true; lastMoveNoProgress = true; }
+    }
+  }
   if(noProgress && moveInterrupted == false){
     // blocked: treat the edge like an obstacle. Back up by the same readings (the encoders over-counted, so
     // backing up by them would go too far), until one is back where it was at the start of the move.

@@ -350,6 +350,12 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
 
 ## 2n. No-progress check: the 80 mm window only when the whole move is behind too (2026-10-18)
 
+**Robot, 2026-10-18 (logs/2026-10-18):** M6 (box 10 cm) caught. M8 (box 15 cm) drove into the box and reported a normal
+move, the gap in c below, so **the end-of-move check from c is now in** (robot-test): M8, M6, M8 all caught and backed up
+to the start. Still to check in the maze: false `no progress at the end` stops in normal runs (sim 20 -> 37 per 80 runs).
+Same session: M7 wheels in the air at fw(255) 118/139/150 RPM (A/B/D; sim fit ~158), fw(150) 67/66/89 (sim ~90); M1 turns
+0.75-0.97 s within 2 deg; M3 move 1 285 mm; M0 back sensor saw nothing with nothing behind.
+
 **What changed** (`Main/movement.cpp` `fwd()`, no-progress check from 2j/2k): the check over each 80 mm of travel now
 stops the move only if the distance sensors also show less than 60% of the encoder distance for the whole move so far.
 
