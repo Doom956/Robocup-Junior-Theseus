@@ -45,6 +45,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   option and re-run robot-test on it. The robot_log centring numbers suggested walls ~25-30 mm further than RCJ's.
 - [ ] **A4. Ramp climb timing.** Real ramp climbs take ~38 fwd() loops, the sim's ~23 (NEXT_STEPS 1c). Find out why
   (motor torque on the slope, grip, loop timing) once a log with millisecond timestamps exists.
+- [x] **A5 result (2026-10-18):** bumps are modelled (comp fields ~6 bump tiles, 10 mm = the 3.4.1 maximum, never on
+  ramps or stairs, 5 points per tile). A 1 cm bump under the 116 mm wheelbase tilts the robot <= ~5 deg in the sim (robot
+  ~7 deg measured), under RAMP_PITCH_DEG 12; no bump-caused losses in today's lostcause runs. Dangerous-zone bumps (2 cm,
+  also on ramps, 3.5.4/3.5.7) not simulated (dangerous zone left out on purpose). Found while reading 3.4: obstacles "may
+  be any shape", "large, heavy items", >= 15 cm tall, NO size limit (3.4.3); the sim's 5-9 cm cylinders are an assumption
+  and the hardest case for the front sensors: test a range of sizes under B2.
 - [ ] **A5. Speed bumps** (rules 3.4, 5.6.8: 5 points per tile crossed). Model them (height from the rules) and check the
   robot doesn't mistake one for a ramp (RAMP_PITCH_DEG 12; a bump tilts this robot ~7 deg) or lose its position on one.
 - [x] **A6 result (2026-10-18, rules PDF of 2026-03-29):** 5.6.6 blue 30, -10 per revisit, never below 0 per tile; 5.6.7
