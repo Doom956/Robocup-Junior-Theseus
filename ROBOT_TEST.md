@@ -348,6 +348,27 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
    jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
    what the real robot does.
 
+## 2n. No-progress check: the 80 mm window only when the whole move is behind too (2026-10-18)
+
+**What changed** (`Main/movement.cpp` `fwd()`, no-progress check from 2j/2k): the check over each 80 mm of travel now
+stops the move only if the distance sensors also show less than 60% of the encoder distance for the whole move so far.
+
+**Why:** in the simulator with the sensors seeing the floor (fitted to move test M0), 120 of 161 no-progress stops came
+while the robot was driving normally: one noisy reading at either end of an 80 mm window was enough. Each false stop
+blocks an edge, the map "looks finished" sooner and the robot explores less. With 2x sensor noise or stronger floor
+reflections, 90-97% of the stops were false. Now: 20 false, 44 real (was 41 real). The robot showed many no-progress stops
+too (7 in run B8, ~15 on one move home on 2026-10-17).
+
+**Simulator** (600 comp fields, seeds 1-600 / 601-1200): +6.5 +-2.4 / +9.3 +-3.0, explored 87% -> 91%, time lost +0 +-1 /
++1 +-1 pts, home -0 / -1 pts, worst 10% of runs 53 -> 62 / 42 -> 61. Without the window at all: +7.1 / +9.2 but runs ever
+lost 50% -> 55%.
+
+**Robot test:**
+- a. A few minutes of normal exploring in the maze with no obstacles: count `[FWD] no progress` in the log
+  (`python tools/robot_log.py log.txt`). It should be 0 or close to it.
+- b. Move test M6 (box taped down in the path, wall 30-40 cm ahead) and an obstacle hit after a clear start (box ~20 cm
+  into the next tile): it should still stop and back up.
+
 ## 2m. Centring along the tile: back sensor only for this tile's own wall (2026-10-18)
 
 **What changed** (`Main/Distance.cpp` `centreAlong()`): the back sensor is used only when it reads 150 mm or less (the

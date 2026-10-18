@@ -363,7 +363,9 @@ void fwd(double dist){ // in mm
       if(refs > 0){
         if(winEncMm < 0){ winEncMm = encMm; winProg = best; }
         else if(encMm - winEncMm >= 80){
-          if(best - winProg < 0.35 * (encMm - winEncMm)) noProgressLoops = 3;
+          // ...and only when the whole move so far is clearly behind too: one noisy reading at either end of a window was
+          // enough to fail it (simulator with the sensors seeing the floor: 3 of 4 stops were false)
+          if(best - winProg < 0.35 * (encMm - winEncMm) && best < 0.6 * encMm) noProgressLoops = 3;
           winEncMm = encMm; winProg = best;
         }
       }
