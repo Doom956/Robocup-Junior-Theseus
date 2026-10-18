@@ -44,13 +44,14 @@ struct Params {
   // or driver channel); at PWM 150 (test 3) A counted like the others (1010 vs 984-1105). 0.16 gives --selftest
   // tests 2/3/4 = 30 / 93 deg / 51 (robot 25-30 / 92-97 deg / 49-51); 0 = motor A like the others.
   double motorAExtraFriction = 0.16;
-  double robotMassKg = 1.15;      // ESTIMATE from the parts' datasheets + printed parts (README "Robot mass") - weigh it
+  double robotMassKg = 1.955;     // WEIGHED 2026-10-16 (the parts list estimate was 1.15, README "Robot mass")
   double driverOhms = 0.5;        // TB6612FNG output ON resistance, upper + lower, typ (Toshiba datasheet); motor 12 V / 1.6 A = 7.5 ohm
   // wheelMu and skidFactor FITTED to the robot's bench mode (Main/bench.cpp, 3 runs on 2026-10-06): lowest
   // turnright() PWM that turns it 5 deg in 1 s 25/30/25 (sim 25), turnright(150) for 1 s 97/92/95 deg (sim 95).
   // (Before: 0.8 and 1.3, assumed, gave 45 and 70.) wheelMu is the sideways drag when turning on the spot; it is
-  // also the grip for pushing a loose obstacle (off by default).
-  double wheelMu = 0.2;
+  // also the grip for pushing a loose obstacle (off by default). Refitted to 0.17 for the weighed 1.955 kg (was 0.2
+  // with the 1.15 kg estimate): bench tests 2/3/4 in the sim 30 / 91.8 deg / 51.
+  double wheelMu = 0.17;
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
   double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)

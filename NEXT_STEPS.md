@@ -1,4 +1,111 @@
-# Next steps (written 2026-10-06)
+# Next steps (updated 2026-10-17, evening)
+
+## 0. On the other PC: get today's work
+
+First time on that PC only (skip if it already has the project):
+```
+git clone https://github.com/Doom956/Robocup-Junior-Theseus.git
+cd Robocup-Junior-Theseus
+pio pkg install -g --tool platformio/toolchain-gccmingw32
+```
+(also needs PlatformIO and Python 3; see section 1 below)
+
+Every time:
+```
+cd Robocup-Junior-Theseus
+git checkout main
+git pull
+git fetch
+```
+Check: `git log --oneline -1` shows `972a272` (LCD one-line check) or newer, and `git log --oneline -1 origin/robot-test`
+shows `22c43c5` or newer. Then open Claude Code in that folder: it reads `CLAUDE.md` and this file.
+
+**The robot runs robot-test.** To flash it:
+```
+git checkout robot-test
+git pull
+pio run -t upload
+git checkout main
+```
+(robot plugged in by USB, battery ON; check `#define BENCH_MODE 0` in `Main/main.cpp` first). At power-on the LCD should
+say `READY`; `!GYRO`, `!COLR` or sensor names (FR RF RB B LB LF FL) mean something isn't plugged in.
+
+What was done on 2026-10-17: `ROBOT_TEST.md` section 2k (on robot-test) and `CLAUDE.md` ("Real robot 2026-10-17").
+Raw logs: `logs/2026-10-16`, `logs/2026-10-17`.
+
+## 1. Simulator jobs (run on the faster PC)
+
+Each command builds both versions from git and runs 600 comp fields; do both seed sets (the second line of each pair).
+They take a while: start them and leave the PC. Or ask Claude: "run the simulator jobs in NEXT_STEPS.md".
+
+**a. The three robot-test fixes of 2026-10-17 not yet checked** (each is one commit, compared with the one before it):
+```
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600 --start 601
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600 --start 601
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600 --start 601
+```
+(407753c -> f6e2fde: no centring on the slope after a ramp, wall after two blocks; f6e2fde -> bc10a83: black found during
+avoidance marked; 6353e9b -> a1f6662: repeated-failure guard.) Keep each if its score interval isn't below zero.
+
+**b. Whole robot-test vs main**, to see where both stand now:
+```
+python tools/sim/physics/ab.py main origin/robot-test --runs 600
+python tools/sim/physics/ab.py main origin/robot-test --runs 600 --start 601
+```
+
+**c. Move the logic bugs to main** (they are wrong on any robot): white reference at the start of the run, blue only if
+blue > 2.5 x red, black found during avoidance marked, repeated-failure guard. Each needs a main-vs-main+fix A/B (no harm)
+and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
+
+**Results (2026-10-17, done on the fast PC):**
+- a. All three kept. 407753c -> f6e2fde +0.3 +-1.2 / -0.3 +-1.0 (time lost -3 +-1 / -3 +-1 pts); f6e2fde -> bc10a83
+  -0.2 +-0.4 / +0.0 +-0.1; 6353e9b -> a1f6662 +0.5 +-0.7 / +0.7 +-0.9.
+- b. main -> robot-test +9.9 +-5.9 / +9.6 +-6.0, time lost 27% -> 10% / 28% -> 10%, home 64% -> 79% / 65% -> 78%. But
+  restarts per run 0.62 -> 2.58 / 0.71 -> 2.53 and the worst 10% of runs 30.8 -> 23.8 / 30.8 -> 23.2: a few lost runs loop
+  on "no path found" (a wall written after repeated failures, often while the position was already off, cuts the only way
+  home; restart, same again). Removing those walls when there is no path home: -0.6 +-0.6 / -0.7 +-0.6, time lost +6 / +6
+  pts: dropped.
+- c. Done: on main (white reference, blue rule, black in avoidance marked, wall after 4 failures at one edge; the
+  no-progress parts of the guard stay on robot-test, main has no no-progress check). main -> main+fixes +1.7 +-3.8 /
+  +1.4 +-3.9, time lost -5 +-3 / -7 +-3 pts, home +1 / +2 pts. pio run builds.
+- Robot logs 2026-10-17 (robot_log.py, B6-B9): turns median 0.5-0.7 deg; moves start 0.4-0.7 deg off. centreAlong from a
+  wall AHEAD says the robot stopped short (median -31 mm), from a wall BEHIND that it stopped past (median +24 mm): both
+  say the wall is ~25-30 mm further than the code's 140 mm from the tile middle (RCJ: 280 mm between wall faces). Measure
+  the practice maze (inner faces across a tile, wall thickness): if it is wider, nothing to fix for competition; if it
+  is 280, the front/back sensors read long at close range.
+
+## 2. Open problems (code, then simulator, then robot)
+
+1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
+   too soon (idea: don't clear a block made in the last minute). Strategy change: needs your yes after the sim numbers.
+2. Obstacles against a wall pass outside both front sensors; the robot scrapes past on its corner (side-front sensor read
+   ~18 mm). Idea: a side-front reading under ~30 mm with no wall there = obstacle. Needs real readings first (robot test 3b).
+3. Blue tiles entered up to 5 times a run (2 blue tiles): try routing around blue on through-routes.
+4. Camera 4 s wait after moves (victim code, team decision to leave it): ask the camera code's author about `>= 0`
+   instead of `!= -1` in cameraTask.
+
+## 3. Robot tests still to do
+
+No maze needed (move tests: set `#define BENCH_MODE 2` in `Main/main.cpp` and the list in `Main/bench.cpp` `MOVE_TESTS`):
+- a. M6 stuck check: box held or taped down in the middle of the path, wall 30-40 cm ahead; it should back up.
+- b. M4 + box: drive along a wall with a box against it in the path; gives the side-sensor readings for problem 2.
+
+In the maze (`BENCH_MODE 0`, cameras off, record with `python tools/serial_log.py logs/<date>/run.txt`):
+- c. Relocalize: after 3-4 tiles pause, carry it back one tile facing the same way, resume (LCD: `POS CORRECTED`).
+- d. Pause and restart from the last checkpoint.
+- e. A full run with no obstacles: count false `OBSTACLE` on the LCD / in the log.
+- f. Cameras on: 2 full runs with victims; check victims are still found and note the wait after each move.
+- g. Obstacle runs again after problem 1 is fixed.
+
+Hardware: secure the gyro cable and the LCD's loose contact (both caused problems); always run with the battery on
+(USB alone is too weak for the motors); switch on with the colour sensor over a white tile.
+
+---
+
+# Notes from 2026-10-06
 
 What was done on 2026-10-06, how to set up another PC, and the software checks that are left. The robot
 tests that need the robot in person are in `ROBOT_TEST.md` on the `robot-test` branch.
@@ -18,7 +125,7 @@ Needs, once per PC:
 - Python 3
 
 Check it works: `python tools/sim/physics/run_physics.py --selftest` builds the simulator and prints its
-`BENCH` lines (should show 25, about 95 deg and 19).
+`BENCH` lines (should show 30, about 92 deg and 51 since the robot was weighed on 2026-10-16).
 
 Branches: `main` (tested fixes) and `robot-test` (main + the changes waiting for real-robot tests). The
 A/B tool builds any branch straight from git, so you don't need to switch branches to compare them:

@@ -1,0 +1,301 @@
+--- connected on COM3 at 13:44:36
+13:44:37 gyro found
+13:44:37 [BENCH] move tests: absoluteturn() and fwd() on an open floor (BENCH_MODE 2 in main.cpp)
+13:44:37 [BENCH] M heading at power-on: 0.0 deg (about 0; stuck at exactly 0.0 in M1 = gyro not found)
+13:44:37 [BENCH] next: M3) open floor, 1.2 m free ahead, 30 cm free each side, a wall or big box right behind the robot (the back sensor measures each move). 3 moves
+13:44:37 [BENCH] flip the pause switch on and off to start
+--- 13:45:13 disconnected (SerialException)
+--- 13:45:15 robot not plugged in
+--- 13:46:15 robot not plugged in
+--- connected on COM3 at 13:46:51
+13:46:53 [CAL] sensor 2  meanRaw=57.6mm  true=80mm  valid=100/100  -> SENSOR_OFFSET_MM[2] = -22
+13:46:53 Port 0: 0x28 0x30 0x60 0x70
+13:46:53 Port 1: 0x28 0x30
+--- 13:46:53 disconnected (SerialException)
+--- 13:46:55 robot not plugged in
+--- connected on COM3 at 13:47:09
+13:47:29 [BENCH] M3 start: back sensor 36 mm
+13:47:29 forwarding
+13:47:29 init_yaw
+13:47:29 0
+13:47:29 [FWD] entry hdg=0.0 init_yaw=0 offset=0.0
+13:47:29 distance travelled: 0.00
+13:47:29 710 1036 1323 c=3054 ratio=0.97
+13:47:29 color
+13:47:29 0
+13:47:29 distance travelled: 0.17
+13:47:29 distance travelled: 3.01
+13:47:29 distance travelled: 9.28
+13:47:29 distance travelled: 18.39
+13:47:29 [CENTER] m2(front)=56 m3(back)=60 err=1.0 adj=1.0
+13:47:29 distance travelled: 30.76
+13:47:29 distance travelled: 44.68
+13:47:29 distance travelled: 55.68
+13:47:29 distance travelled: 66.59
+13:47:29 distance travelled: 77.50
+13:47:29 [CENTER] m2(front)=56 m3(back)=57 err=-1.0 adj=-1.0
+13:47:29 distance travelled: 97.09
+13:47:30 688 1003 1271 c=2946 ratio=0.94
+13:47:30 color
+13:47:30 0
+13:47:30 distance travelled: 112.22
+13:47:30 distance travelled: 122.53
+13:47:30 distance travelled: 133.61
+13:47:30 distance travelled: 144.52
+13:47:30 [CENTER] m2(front)=54 m3(back)=64 err=-1.0 adj=-1.0
+13:47:30 distance travelled: 165.06
+13:47:30 distance travelled: 179.84
+13:47:30 distance travelled: 189.46
+13:47:30 distance travelled: 200.46
+13:47:30 distance travelled: 212.23
+13:47:30 [CENTER] m2(front)=57 m3(back)=65 err=-1.0 adj=-1.0
+13:47:30 distance travelled: 233.03
+13:47:30 728 1059 1347 c=3118 ratio=1.00
+13:47:30 color
+13:47:30 0
+13:47:30 distance travelled: 248.92
+13:47:30 distance travelled: 258.29
+13:47:30 distance travelled: 267.65
+13:47:30 distance travelled: 276.50
+13:47:30 [CENTER] m2(front)=54 m3(back)=60 err=2.0 adj=2.0
+13:47:30 distance travelled: 289.99
+13:47:30 distance travelled: 297.04
+13:47:30 [FWD] exit=normal
+13:47:30 stop- end of fwd
+13:47:31 [BENCH] M3 move 1: 1.08 s, back sensor 348, moved 312 mm (should be 300), heading -0.4 deg off
+13:47:33 forwarding
+13:47:33 init_yaw
+13:47:33 0
+13:47:33 [FWD] entry hdg=359.6 init_yaw=0 offset=359.6
+13:47:33 distance travelled: 2.92
+13:47:33 742 1087 1389 c=3203 ratio=1.02
+13:47:33 color
+13:47:33 0
+13:47:33 distance travelled: 2.92
+13:47:33 distance travelled: 6.27
+13:47:33 distance travelled: 14.69
+13:47:33 distance travelled: 22.60
+13:47:33 [CENTER] m2(front)=56 m3(back)=57 err=-1.0 adj=-1.0
+13:47:33 distance travelled: 40.21
+13:47:33 distance travelled: 53.79
+13:47:33 distance travelled: 65.13
+13:47:33 distance travelled: 76.73
+13:47:33 distance travelled: 87.38
+13:47:33 [CENTER] m2(front)=58 m3(back)=60 err=-1.0 adj=-1.0
+13:47:33 distance travelled: 106.72
+13:47:33 735 1076 1366 c=3161 ratio=1.01
+13:47:33 color
+13:47:33 0
+13:47:33 distance travelled: 122.36
+13:47:33 distance travelled: 133.96
+13:47:33 distance travelled: 144.95
+13:47:33 distance travelled: 155.95
+13:47:33 [CENTER] m2(front)=56 m3(back)=67 err=0.0 adj=0.0
+13:47:33 distance travelled: 175.03
+13:47:33 distance travelled: 188.09
+13:47:33 distance travelled: 197.28
+13:47:33 distance travelled: 208.28
+13:47:33 distance travelled: 220.91
+13:47:33 [CENTER] m2(front)=55 m3(back)=60 err=-1.0 adj=-1.0
+13:47:33 distance travelled: 241.10
+13:47:33 707 1028 1307 c=3027 ratio=0.97
+13:47:33 color
+13:47:33 0
+13:47:33 distance travelled: 256.05
+13:47:33 distance travelled: 266.28
+13:47:33 distance travelled: 275.64
+13:47:34 distance travelled: 283.72
+13:47:34 [CENTER] m2(front)=61 m3(back)=64 err=-2.0 adj=-2.0
+13:47:34 distance travelled: 293.52
+13:47:34 distance travelled: 299.70
+13:47:34 [FWD] exit=normal
+13:47:34 stop- end of fwd
+13:47:34 [BENCH] M3 move 2: 1.10 s, back sensor 535, moved 187 mm (should be 300), heading 0.7 deg off
+13:47:36 forwarding
+13:47:36 init_yaw
+13:47:36 0
+13:47:36 [FWD] entry hdg=0.7 init_yaw=0 offset=0.7
+13:47:36 distance travelled: 2.49
+13:47:36 725 1064 1357 c=3131 ratio=1.00
+13:47:36 color
+13:47:36 0
+13:47:36 distance travelled: 2.32
+13:47:36 distance travelled: 4.73
+13:47:36 distance travelled: 11.60
+13:47:36 distance travelled: 19.33
+13:47:36 [CENTER] m2(front)=51 m3(back)=56 err=1.0 adj=1.0
+13:47:36 distance travelled: 32.57
+13:47:36 distance travelled: 46.14
+13:47:36 distance travelled: 57.57
+13:47:36 distance travelled: 70.03
+13:47:36 distance travelled: 80.68
+13:47:36 [CENTER] m2(front)=53 m3(back)=55 err=3.0 adj=3.0
+13:47:36 distance travelled: 100.45
+13:47:37 706 1038 1318 c=3048 ratio=0.97
+13:47:37 color
+13:47:37 0
+13:47:37 distance travelled: 116.26
+13:47:37 distance travelled: 126.05
+13:47:37 distance travelled: 138.25
+13:47:37 distance travelled: 149.42
+13:47:37 [CENTER] m2(front)=52 m3(back)=64 err=0.0 adj=-0.0
+13:47:37 distance travelled: 168.67
+13:47:37 distance travelled: 184.22
+13:47:37 distance travelled: 194.96
+13:47:37 distance travelled: 206.82
+13:47:37 distance travelled: 217.13
+13:47:37 [CENTER] m2(front)=395 m3(back)=55 err=-24.0 adj=-24.0
+13:47:37 distance travelled: 233.46
+13:47:37 39 51 61 c=148 ratio=0.05
+13:47:37 color
+13:47:37 -1
+13:47:37 black
+13:47:38 [FWD] exit=black
+13:47:38 stop- end of fwd
+13:47:38 [BENCH] M3 move 3: 1.51 s, back sensor 528, moved -7 mm (should be 300), heading 1.9 deg off
+13:47:40 [BENCH] M3 each move should be about 300 mm. Short: raise the 55 in fwd() to 60-65; past: lower it to 50
+13:47:40 [BENCH] next: M3) open floor, 1.2 m free ahead, 30 cm free each side, a wall or big box right behind the robot (the back sensor measures each move). 3 moves
+13:47:40 [BENCH] flip the pause switch on and off to start
+13:47:48 [BENCH] M3 start: back sensor 38 mm
+13:47:48 forwarding
+13:47:48 init_yaw
+13:47:48 0
+13:47:48 [FWD] entry hdg=0.0 init_yaw=0 offset=0.0
+13:47:48 distance travelled: -8.76
+13:47:48 719 1068 1367 c=3139 ratio=1.00
+13:47:48 color
+13:47:48 0
+13:47:48 distance travelled: -8.76
+13:47:48 distance travelled: -6.87
+13:47:48 distance travelled: 0.69
+13:47:48 distance travelled: 7.65
+13:47:48 [CENTER] m2(front)=58 m3(back)=57 err=-7.0 adj=-7.0
+13:47:48 distance travelled: 22.86
+13:47:49 distance travelled: 36.43
+13:47:49 distance travelled: 47.17
+13:47:49 distance travelled: 58.34
+13:47:49 distance travelled: 69.25
+13:47:49 [CENTER] m2(front)=61 m3(back)=62 err=-4.0 adj=-4.0
+13:47:49 distance travelled: 87.90
+13:47:49 693 1026 1305 c=3008 ratio=0.96
+13:47:49 color
+13:47:49 0
+13:47:49 distance travelled: 101.22
+13:47:49 distance travelled: 111.44
+13:47:49 distance travelled: 121.93
+13:47:49 distance travelled: 132.24
+13:47:49 [CENTER] m2(front)=59 m3(back)=62 err=-7.0 adj=-7.0
+13:47:49 distance travelled: 150.71
+13:47:49 distance travelled: 165.23
+13:47:49 distance travelled: 175.89
+13:47:49 distance travelled: 186.45
+13:47:49 distance travelled: 195.48
+13:47:49 [CENTER] m2(front)=58 m3(back)=60 err=-3.0 adj=-3.0
+13:47:49 distance travelled: 211.63
+13:47:49 719 1066 1360 c=3128 ratio=1.00
+13:47:49 color
+13:47:49 0
+13:47:49 distance travelled: 226.50
+13:47:49 distance travelled: 237.24
+13:47:49 distance travelled: 248.23
+13:47:49 distance travelled: 257.94
+13:47:49 [CENTER] m2(front)=55 m3(back)=64 err=0.0 adj=-0.0
+13:47:49 distance travelled: 275.30
+13:47:49 distance travelled: 284.32
+13:47:49 distance travelled: 290.42
+13:47:49 distance travelled: 295.84
+13:47:49 [FWD] exit=normal
+13:47:49 stop- end of fwd
+13:47:50 [BENCH] M3 move 1: 1.13 s, back sensor 364, moved 326 mm (should be 300), heading 1.8 deg off
+13:47:52 forwarding
+13:47:52 init_yaw
+13:47:52 0
+13:47:52 [FWD] entry hdg=1.8 init_yaw=0 offset=1.8
+13:47:52 distance travelled: 2.66
+13:47:52 757 1126 1441 c=3308 ratio=1.06
+13:47:52 color
+13:47:52 0
+13:47:52 distance travelled: 2.66
+13:47:52 distance travelled: 7.13
+13:47:52 distance travelled: 14.18
+13:47:52 distance travelled: 23.54
+13:47:52 [CENTER] m2(front)=54 m3(back)=64 err=1.0 adj=1.0
+13:47:52 distance travelled: 40.73
+13:47:52 distance travelled: 54.39
+13:47:52 distance travelled: 65.73
+13:47:52 distance travelled: 77.33
+13:47:52 distance travelled: 88.67
+13:47:52 [CENTER] m2(front)=59 m3(back)=63 err=0.0 adj=0.0
+13:47:52 distance travelled: 108.35
+13:47:52 698 1029 1308 c=3019 ratio=0.96
+13:47:52 color
+13:47:52 0
+13:47:52 distance travelled: 122.61
+13:47:52 distance travelled: 134.47
+13:47:52 distance travelled: 146.50
+13:47:52 distance travelled: 157.58
+13:47:52 [CENTER] m2(front)=56 m3(back)=63 err=3.0 adj=3.0
+13:47:52 distance travelled: 176.66
+13:47:52 distance travelled: 192.38
+13:47:53 distance travelled: 204.24
+13:47:53 distance travelled: 214.98
+13:47:53 distance travelled: 225.72
+13:47:53 [CENTER] m2(front)=52 m3(back)=60 err=1.0 adj=1.0
+13:47:53 distance travelled: 243.59
+13:47:53 712 1051 1336 c=3084 ratio=0.98
+13:47:53 color
+13:47:53 0
+13:47:53 distance travelled: 259.15
+13:47:53 distance travelled: 268.86
+13:47:53 distance travelled: 277.71
+13:47:53 distance travelled: 285.35
+13:47:53 [CENTER] m2(front)=54 m3(back)=56 err=-1.0 adj=-1.0
+13:47:53 distance travelled: 294.55
+13:47:53 distance travelled: 299.96
+13:47:53 [FWD] exit=normal
+13:47:53 stop- end of fwd
+13:47:53 [BENCH] M3 move 2: 1.10 s, back sensor 537, moved 173 mm (should be 300), heading 1.8 deg off
+13:47:55 forwarding
+13:47:55 init_yaw
+13:47:55 0
+13:47:55 [FWD] entry hdg=1.8 init_yaw=0 offset=1.8
+13:47:55 distance travelled: 2.23
+13:47:55 712 1057 1349 c=3102 ratio=0.99
+13:47:55 color
+13:47:55 0
+13:47:55 distance travelled: 2.23
+13:47:55 distance travelled: 6.27
+13:47:55 distance travelled: 14.26
+13:47:56 distance travelled: 23.11
+13:47:56 [CENTER] m2(front)=54 m3(back)=56 err=-1.0 adj=-1.0
+13:47:56 distance travelled: 38.84
+13:47:56 distance travelled: 52.41
+13:47:56 distance travelled: 63.76
+13:47:56 distance travelled: 75.53
+13:47:56 distance travelled: 86.53
+13:47:56 [CENTER] m2(front)=53 m3(back)=58 err=0.0 adj=-0.0
+13:47:56 distance travelled: 106.37
+13:47:56 693 1029 1307 c=3013 ratio=0.96
+13:47:56 color
+13:47:56 0
+13:47:56 distance travelled: 122.27
+13:47:56 distance travelled: 132.41
+13:47:56 distance travelled: 144.09
+13:47:56 distance travelled: 154.58
+13:47:56 [CENTER] m2(front)=271 m3(back)=64 err=-2.0 adj=-2.0
+13:47:56 distance travelled: 172.62
+13:47:56 distance travelled: 186.97
+13:47:56 distance travelled: 198.40
+13:47:56 distance travelled: 208.88
+13:47:56 distance travelled: 218.42
+13:47:56 [CENTER] m2(front)=394 m3(back)=56 err=-21.0 adj=-21.0
+13:47:56 distance travelled: 233.63
+13:47:56 39 51 62 c=148 ratio=0.05
+13:47:56 color
+13:47:56 -1
+13:47:56 black
+13:47:57 [FWD] exit=black
+13:47:57 stop- end of fwd
+13:47:57 [BENCH] M3 move 3: 1.51 s, back sensor 536, moved -1 mm (should be 300), heading 4.8 deg off
+13:47:59 [BENCH] M3 each move should be about 300 mm. Short: raise the 55 in fwd() to 60-65; past: lower it to 50
+13:47:59 [BENCH] done. Flip the pause switch on and off to print every result again.

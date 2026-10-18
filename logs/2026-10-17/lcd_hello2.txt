@@ -1,0 +1,53 @@
+--- connected on COM3 at 17:54:02
+17:54:05 [CAL] sensor 2  meanRaw=8190.0mm  true=80mm  valid=2/100  -> SENSOR_OFFSET_MM[2] = 8110
+17:54:05 Port 0: 0x28 0x30 0x60 0x70
+17:54:05 Port 1: 0x28 0x30 0x60 0x70
+17:54:05 Port 2: 0x28 0x30 0x60 0x70
+17:54:05 Port 3: 0x28 0x30 0x60 0x70
+17:54:05 Port 4: 0x28 0x30 0x60 0x70
+17:54:05 Port 5: 0x28 0x30 0x60 0x70
+17:54:05 Port 6: 0x28 0x30 0x60 0x70
+17:54:05 Port 7: 0x28 0x29 0x60 0x70
+17:54:05 Found tcs34725 sensor
+17:54:06 clear value
+17:54:06 62.00
+17:54:06 motor shield found
+17:54:07 gyro found
+17:54:07 [BENCH] LCD test: RS 27, E 25, D4 23, D5 53, D6 29, D7 31 (RW to GND)
+17:54:07 [BENCH] LCD count 0
+17:54:08 [BENCH] LCD count 1
+17:54:09 [BENCH] LCD count 2
+17:54:10 [BENCH] LCD count 3
+17:54:11 [BENCH] LCD count 4
+17:54:12 [BENCH] LCD count 5
+17:54:13 [BENCH] LCD count 6
+17:54:14 [BENCH] LCD count 7
+17:54:15 [BENCH] LCD count 8
+17:54:16 [BENCH] LCD count 9
+17:54:17 [BENCH] LCD count 10
+17:54:18 [BENCH] LCD count 11
+17:54:19 [BENCH] LCD count 12
+17:54:20 [BENCH] LCD count 13
+17:54:21 [BENCH] LCD count 14
+17:54:22 [BENCH] LCD count 15
+17:54:23 [BENCH] LCD count 16
+17:54:24 [BENCH] LCD count 17
+17:54:25 [BENCH] LCD count 18
+17:54:26 [BENCH] LCD count 19
+17:54:27 [BENCH] LCD count 20
+17:54:28 [BENCH] LCD count 21
+17:54:29 [BENCH] LCD count 22
+17:54:30 [BENCH] LCD count 23
+17:54:31 [BENCH] LCD count 24
+17:54:32 [BENCH] LCD count 25
+17:54:33 [BENCH] LCD count 26
+17:54:34 [BENCH] LCD count 27
+17:54:35 [BENCH] LCD count 28
+17:54:36 [BENCH] LCD count 29
+17:54:37 [BENCH] LCD count 30
+17:54:38 [BENCH] LCD count 31
+17:54:39 [BENCH] LCD count 32
+17:54:40 [BENCH] LCD count 33
+17:54:41 [BENCH] LCD count 34
+17:54:42 [BENCH] LCD count 35
+17:54:43 [BENCH] LCD count 36

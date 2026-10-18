@@ -1,0 +1,75 @@
+--- 17:40:07 robot not plugged in
+--- 17:41:08 robot not plugged in
+--- 17:42:08 robot not plugged in
+--- connected on COM3 at 17:42:42
+17:42:44 [CAL] sensor 2  meanRaw=8190.0mm  true=80mm  valid=1/100  -> SENSOR_OFFSET_MM[2] = 8110
+17:42:45 Port 0: 0x28 0x30 0x60 0x70
+17:42:45 Port 1: 0x28 0x30 0x60 0x70
+17:42:45 Port 2: 0x28 0x30 0x60 0x70
+17:42:45 Port 3: 0x28 0x30 0x60 0x70
+17:42:45 Port 4: 0x28 0x30 0x60 0x70
+17:42:45 Port 5: 0x28 0x30 0x60 0x70
+17:42:45 Port 6: 0x28 0x30 0x60 0x70
+17:42:45 Port 7: 0x28 0x29 0x60 0x70
+17:42:45 Found tcs34725 sensor
+17:42:45 clear value
+17:42:45 68.00
+17:42:46 motor shield found
+17:42:46 gyro found
+17:42:46 [BENCH] LCD test: RS 27, E 25, D4 23, D5 53, D6 29, D7 31 (RW to GND)
+17:42:47 [BENCH] LCD count 0
+17:42:48 [BENCH] LCD count 1
+17:42:49 [BENCH] LCD count 2
+17:42:50 [BENCH] LCD count 3
+17:42:51 [BENCH] LCD count 4
+17:42:52 [BENCH] LCD count 5
+17:42:53 [BENCH] LCD count 6
+17:42:54 [BENCH] LCD count 7
+17:42:55 [BENCH] LCD count 8
+17:42:56 [BENCH] LCD count 9
+17:42:57 [BENCH] LCD count 10
+17:42:58 [BENCH] LCD count 11
+17:42:59 [BENCH] LCD count 12
+17:43:00 [BENCH] LCD count 13
+17:43:01 [BENCH] LCD count 14
+17:43:02 [BENCH] LCD count 15
+17:43:03 [BENCH] LCD count 16
+17:43:04 [BENCH] LCD count 17
+17:43:05 [BENCH] LCD count 18
+17:43:06 [BENCH] LCD count 19
+17:43:07 [BENCH] LCD count 20
+17:43:08 [BENCH] LCD count 21
+17:43:09 [BENCH] LCD count 22
+17:43:10 [BENCH] LCD count 23
+17:43:11 [BENCH] LCD count 24
+17:43:12 [BENCH] LCD count 25
+17:43:13 [BENCH] LCD count 26
+17:43:14 [BENCH] LCD count 27
+17:43:15 [BENCH] LCD count 28
+17:43:16 [BENCH] LCD count 29
+17:43:17 [BENCH] LCD count 30
+17:43:18 [BENCH] LCD count 31
+17:43:19 [BENCH] LCD count 32
+17:43:20 [BENCH] LCD count 33
+17:43:21 [BENCH] LCD count 34
+17:43:22 [BENCH] LCD count 35
+17:43:23 [BENCH] LCD count 36
+17:43:24 [BENCH] LCD count 37
+17:43:25 [BENCH] LCD count 38
+17:43:26 [BENCH] LCD count 39
+17:43:27 [BENCH] LCD count 40
+17:43:28 [BENCH] LCD count 41
+17:43:29 [BENCH] LCD count 42
+17:43:30 [BENCH] LCD count 43
+17:43:31 [BENCH] LCD count 44
+17:43:32 [BENCH] LCD count 45
+17:43:33 [BENCH] LCD count 46
+17:43:34 [BENCH] LCD count 47
+17:43:35 [BENCH] LCD count 48
+17:43:36 [BENCH] LCD count 49
+17:43:37 [BENCH] LCD count 50
+17:43:38 [BENCH] LCD count 51
+17:43:39 [BENCH] LCD count 52
+17:43:40 [BENCH] LCD count 53
+17:43:41 [BENCH] LCD count 54
+17:43:42 [BENCH] LCD count 55
