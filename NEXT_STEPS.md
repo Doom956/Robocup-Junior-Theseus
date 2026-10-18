@@ -108,6 +108,8 @@ entry; strategy changes wait for my yes.
 5. **Blue revisits:** route around blue tiles on through-routes when another way exists.
 6. **Robustness of robot-test:** sweep walls wider/narrower (after the maze measurement), more wheel slip, noisier
    sensors; then `lostcause.py` on robot-test to find what now loses most runs.
+7. **Optional, for realistic times:** a simulator option for the camera's wait after moves (up to 4 s per move next to a
+   wall, from the 2026-10-07 robot runs), so time-based results (way home, explored) match runs with the cameras on.
 
 ## 2. Open problems (code, then simulator, then robot)
 
