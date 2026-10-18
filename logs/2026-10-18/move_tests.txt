@@ -1,0 +1,66 @@
+--- connected on COM3 at 17:10:14
+17:10:14 [BENCH] move tests: absoluteturn() and fwd() on an open floor (BENCH_MODE 2 in main.cpp)
+17:10:14 [BENCH] M heading at power-on: 0.0 deg (about 0; stuck at exactly 0.0 in M1 = gyro not found)
+17:10:14 [BENCH] next: M7) robot lifted so no wheel touches anything (on a box or held), battery on
+17:10:14 [BENCH] flip the pause switch on and off to start
+17:10:58 [BENCH] M7 fw(150) wheels free: RPM A/B/D 21/23/22 (sim about 90)
+17:11:01 [BENCH] M7 fw(255) wheels free: RPM A/B/D 37/38/36 (sim about 158)
+17:11:01 [BENCH] M7 if these are about half the sim's, the motors are the 72 RPM ones and something else makes the robot fast; tell Claude
+17:11:01 [BENCH] next: M0) all 7 distance sensors, twice a second for 10 s: open floor, nothing within 1 m behind it
+17:11:01 [BENCH] flip the pause switch on and off to start
+17:11:46 [BENCH] M0 0.0 s: front 991/1177 right 643/628 back 8190 left 740/367
+17:11:46 [BENCH] M0 0.5 s: front 991/1181 right 643/625 back 8190 left 743/396
+17:11:47 [BENCH] M0 1.0 s: front 998/1147 right 639/635 back 8190 left 705/375
+17:11:47 [BENCH] M0 1.5 s: front 1007/1208 right 648/636 back 8190 left 739/361
+17:11:48 [BENCH] M0 2.1 s: front 1005/1187 right 646/631 back 8190 left 782/374
+17:11:48 [BENCH] M0 2.6 s: front 982/1190 right 642/634 back 8190 left 716/366
+17:11:49 [BENCH] M0 3.1 s: front 996/1177 right 638/632 back 8190 left 729/359
+17:11:49 [BENCH] M0 3.6 s: front 981/1195 right 645/643 back 8190 left 749/358
+17:11:50 [BENCH] M0 4.1 s: front 993/1200 right 645/625 back 8190 left 731/361
+17:11:51 [BENCH] M0 4.6 s: front 985/1189 right 648/627 back 8190 left 754/368
+17:11:51 [BENCH] M0 5.1 s: front 989/1194 right 647/631 back 8190 left 694/334
+17:11:52 [BENCH] M0 5.6 s: front 999/1177 right 639/629 back 8190 left 748/341
+17:11:52 [BENCH] M0 6.1 s: front 1004/1172 right 647/625 back 8190 left 729/344
+17:11:53 [BENCH] M0 6.6 s: front 985/1172 right 645/622 back 8190 left 747/357
+17:11:53 [BENCH] M0 7.2 s: front 994/1182 right 649/633 back 8190 left 720/335
+17:11:54 [BENCH] M0 7.7 s: front 1004/1173 right 644/629 back 8190 left 710/379
+17:11:54 [BENCH] M0 8.2 s: front 979/1186 right 646/628 back 8190 left 770/399
+17:11:55 [BENCH] M0 8.7 s: front 990/1195 right 648/637 back 8190 left 772/383
+17:11:55 [BENCH] M0 9.2 s: front 995/1181 right 651/628 back 8190 left 751/363
+17:11:56 [BENCH] M0 9.7 s: front 982/1193 right 645/625 back 8190 left 719/341
+17:11:56 [BENCH] M0 back sensor over 10 s: never a reading under 8000 (nothing behind it should read 8190 or -1; a steady reading under 400 = it sees the floor or the cable)
+17:11:56 [BENCH] next: M1) open floor, room to turn: 4 right 90s, 4 left 90s, then 180 and back
+17:11:56 [BENCH] flip the pause switch on and off to start
+17:12:08 [BENCH] M1 (robot-test: 90 in about 1-1.5 s, 180 in 2-2.5 s, within 2-3 deg; exactly 2.00 / 4.00 s = waited out its time limit)
+17:12:08 [TURN] target=90.00 hdg=0.0 init_diff=90.0
+17:12:10 finished turning
+17:12:11 [BENCH] M1 right 90 #1: 2.01 s, stopped -64.1 deg off, after 0.5 s -63.6 (turned 26.4)
+17:12:11 [TURN] target=180.00 hdg=26.4 init_diff=153.6
+17:12:14 finished turning
+17:12:15 [BENCH] M1 right 90 #2: 3.43 s, stopped -109.4 deg off, after 0.5 s -109.0 (turned 44.6)
+17:12:15 [TURN] target=270.00 hdg=71.0 init_diff=161.0
+17:12:18 finished turning
+17:12:19 [BENCH] M1 right 90 #3: 3.59 s, stopped 109.7 deg off, after 0.5 s 109.1 (turned -51.9)
+17:12:19 [TURN] target=0.00 hdg=19.1 init_diff=19.1
+17:12:20 finished turning
+17:12:20 [BENCH] M1 right 90 #4: 1.01 s, stopped 9.5 deg off, after 0.5 s 9.3 (turned -9.8)
+17:12:20 [TURN] target=270.00 hdg=9.3 init_diff=99.3
+17:12:22 finished turning
+17:12:23 [BENCH] M1 left 90 #1: 2.22 s, stopped 65.9 deg off, after 0.5 s 65.3 (turned -34.1)
+17:12:23 [TURN] target=180.00 hdg=335.3 init_diff=155.3
+17:12:26 finished turning
+17:12:27 [BENCH] M1 left 90 #2: 3.46 s, stopped 100.3 deg off, after 0.5 s 99.7 (turned -55.6)
+17:12:27 [TURN] target=90.00 hdg=279.7 init_diff=170.3
+17:12:31 finished turning
+17:12:31 [BENCH] M1 left 90 #3: 3.80 s, stopped -110.5 deg off, after 0.5 s -109.9 (turned 60.4)
+17:12:31 [TURN] target=0.00 hdg=340.1 init_diff=19.9
+17:12:32 finished turning
+17:12:33 [BENCH] M1 left 90 #4: 1.01 s, stopped -10.1 deg off, after 0.5 s -10.0 (turned 9.9)
+17:12:33 [TURN] target=180.00 hdg=350.0 init_diff=170.0
+17:12:37 finished turning
+17:12:37 [BENCH] M1 180 #1: 3.79 s, stopped 112.3 deg off, after 0.5 s 111.6 (turned -58.4)
+17:12:37 [TURN] target=0.00 hdg=291.6 init_diff=68.4
+17:12:39 finished turning
+17:12:39 [BENCH] M1 180 #2: 1.54 s, stopped -45.0 deg off, after 0.5 s -44.4 (turned 23.9)
+17:12:39 [BENCH] next: M3) open floor, 1.2 m free ahead, 30 cm free each side, a wall or big box right behind the robot (the back sensor measures each move). 3 moves
+17:12:39 [BENCH] flip the pause switch on and off to start
