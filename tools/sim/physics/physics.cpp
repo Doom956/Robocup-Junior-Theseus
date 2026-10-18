@@ -39,7 +39,11 @@ struct Params {
   // on the robot are a faster gearing than that part. 170 gives 1.16 s and 27-28 loops. Stall torque and no-load current
   // are still the #3493 datasheet values (unknown for the real motor).
   double noLoadRpmAt12V = 170;
-  double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
+  // FITTED 2026-10-18: on the robot's 13-15 deg practice ramp, climbing (PWM 180) takes as long as coming down (PWM 120):
+  // 36-43 fwd() climb loops either way (logs/2026-10-17 partB7/B8). That needs gravity to cost ~0.12 of stall torque, so
+  // ~4 kg.cm: 4.2 gives 23.4 / 22.5 loops up / down at 14 deg (10, the #3493 datasheet, gave 21 / 26). Fits the faster
+  // gearing (10 x 72/170). Real climbs take more loops than the sim's (~38 vs ~23): not explained yet.
+  double stallKgcmAt12V = 4.2;
   double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
   double stictionFactor = 1.3;    // extra friction to start from standstill
   // Motor A (left front) only: extra friction at low power, fraction of stall torque, fading to none at
@@ -55,7 +59,9 @@ struct Params {
   // (Before: 0.8 and 1.3, assumed, gave 45 and 70.) wheelMu is the sideways drag when turning on the spot; it is
   // also the grip for pushing a loose obstacle (off by default). Refitted to 0.17 for the weighed 1.955 kg (was 0.2
   // with the 1.15 kg estimate): bench tests 2/3/4 in the sim 30 / 91.8 deg / 51.
-  double wheelMu = 0.17;
+  // Refitted 2026-10-18 to 0.071 with the 4.2 kg.cm stall torque (same drag as a fraction of it): bench tests 2/3/4 in the
+  // sim 30 / 97.6 deg / 51, move test M1 90 deg in 1.1 s.
+  double wheelMu = 0.071;
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
   double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
@@ -87,6 +93,10 @@ struct Params {
   // 14/8/17 mm (front + back) more than the CAD says, whatever the centring: about +8 mm per sensor on average.
   // (Measured on the team's practice tile; walls thinner than the 20 mm used here would explain part of it.)
   double tofOffsetMeanMm = 8;
+  // The left-back sensor (code sensor 5) was replaced on 2026-10-17; the new one reads 26-30 mm more than left-front
+  // between two walls (MEASURED, robot-test sets SENSOR_OFFSET_MM[5] = 30 for it). Added to that sensor's offset so the
+  // firmware's correction matches; 0 = the original sensor.
+  double tofLeftBackExtraMm = 30;
   // Bench test 6: 0.00 deg in 2 min standing still (BNO055 steps are 1/16 deg), so under 0.03 deg/min at rest.
   // Drift while moving isn't measured. (Before: 0.5, assumed.)
   double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.03, pitchNoiseDeg = 0.5;
@@ -120,7 +130,7 @@ static std::map<std::string, double *> paramTable() {
     {"gyroMagnetic", &P.gyroMagnetic}, {"magErrorDeg", &P.magErrorDeg}, {"driverOhms", &P.driverOhms}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
     {"tofMinReliableMm", &P.tofMinReliableMm},
     {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
-    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
+    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofLeftBackExtraMm", &P.tofLeftBackExtraMm}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
@@ -1159,6 +1169,7 @@ int main(int argc, char **argv) {
     rng.seed(1);
     for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
     for (int i = 1; i <= 7; i++) tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma);
+    tof[5].offset += P.tofLeftBackExtraMm;
     return selfTest();
   }
 
@@ -1181,6 +1192,7 @@ int main(int argc, char **argv) {
 
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
   for (int i = 1; i <= 7; i++) { tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
+  tof[5].offset += P.tofLeftBackExtraMm;
   gyroBiasDegPerUs = gauss(P.gyroDriftSigmaDegPerMin) / 60e6;
   magOffsetDeg = P.gyroMagneticOffsetDeg >= 0 ? P.gyroMagneticOffsetDeg : std::uniform_real_distribution<double>(0, 360)(rng);
   for (double &ph : magPhase) ph = std::uniform_real_distribution<double>(0, 2 * M_PI)(rng);
