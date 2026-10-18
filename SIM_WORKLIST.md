@@ -90,6 +90,9 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 - [ ] **B3. Obstacles at the robot's corner.** The simple side-front < 30 mm rule fired at every wall start/end
   (-77, dropped). Needs real readings: move test M4 + box against the wall (robot test, see NEXT_STEPS section 3).
   Then: only when the map says there is no wall on that side at that point along the tile.
+- [x] **B4 (2026-10-18):** keep an obstacle block for good once the no-progress check stopped the robot twice at that edge
+  (after 2o): -0.3 +-0.5 / -1.2 +-1.1, big obstacles +0.0 +-0.9: no effect, held. (Earlier: keep blocks < 60 s old -20,
+  keep while something else is open -1.0 / +2.3.) The case that motivated it is now handled by 2o.
 - [ ] **B4. Obstacle blocks cleared too early** ("map looks finished early" clears a block made seconds before). Tried:
   keep blocks made in the last 60 s (-20, explores less) and keep while something else is open (-1.0 / +2.3). Try:
   keep a block until the robot has explored N more tiles, or clear only blocks made more than 2 min ago. **Strategy:
@@ -98,6 +101,10 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   runs). Tried: drop guard walls when no path (-0.6/-0.7), write the wall only when the tile matches (no effect). Try:
   after "no path found", relocalize from the last checkpoint's map, or head for the last checkpoint and ask for a LoP
   restart deliberately (rules 5.5) instead of sitting still.
+- [x] **B6 (2026-10-18):** real way home (logs 2026-10-17 partB8, the one clean trip): 7 tiles in 26 s = 3.7 s per tile,
+  cameras off; sim runs home at 3.1 s per tile; the code plans RETURN_SEC_PER_TILE 5.0 + 30 s margin. With the cameras on,
+  each move next to a wall can wait up to ~4 s more (victim code, not changed), so 5.0 is about right for a real run:
+  kept. Lowering it only makes sense if the camera wait is fixed. 5.3.1 (8 min include calibration): see A6.
 - [ ] **B6. Time management.** The 8 minutes include calibration; the exit bonus pays +10 per victim and per blue tile
   and +5 per ramp only if the robot gets home (5.6.12). Re-check `timeToReturn()` on the fitted (faster) sim:
   RETURN_SEC_PER_TILE and the margin were set on the slow sim. Measure real seconds per tile on the way home.
