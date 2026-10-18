@@ -97,6 +97,10 @@ struct Params {
   // between two walls (MEASURED, robot-test sets SENSOR_OFFSET_MM[5] = 30 for it). Added to that sensor's offset so the
   // firmware's correction matches; 0 = the original sensor.
   double tofLeftBackExtraMm = 30;
+  // How strongly the floor / a ramp's slope returns light into the cone (0 = sensors only see walls, as before). FITTED
+  // 2026-10-18 to move test M0 on open floor: robot back 266-373 mm, front 685-702, sides 669-763; the sim with 3 reads
+  // back ~340, front ~770, sides ~750 (selftest "M0 open floor"). The robot's back sensor sometimes reads 8190 instead.
+  double tofFloorGain = 3.0;
   // Bench test 6: 0.00 deg in 2 min standing still (BNO055 steps are 1/16 deg), so under 0.03 deg/min at rest.
   // Drift while moving isn't measured. (Before: 0.5, assumed.)
   double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.03, pitchNoiseDeg = 0.5;
@@ -130,7 +134,7 @@ static std::map<std::string, double *> paramTable() {
     {"gyroMagnetic", &P.gyroMagnetic}, {"magErrorDeg", &P.magErrorDeg}, {"driverOhms", &P.driverOhms}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
     {"tofMinReliableMm", &P.tofMinReliableMm},
     {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
-    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofLeftBackExtraMm", &P.tofLeftBackExtraMm}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
+    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofLeftBackExtraMm", &P.tofLeftBackExtraMm}, {"tofFloorGain", &P.tofFloorGain}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
@@ -844,6 +848,37 @@ uint16_t VL53L0X::readRangeContinuousMillimeters() {
     double w = prof * std::max(0.05, facing) / std::max(d * d, 100.0);
     sumW += w; sumWD += w * d;
   }
+  // The cone also spreads up and down: its lower part reaches the floor, or a ramp's slope ahead. MEASURED on the
+  // robot: the back sensor (43 mm up) reads 170-540 mm with nothing behind it, the front ones ~690 on open floor and
+  // ~360-390 facing a ramp from the tile before it (logs/2026-10-16, 2026-10-17 sensor_check / ramp_sensors).
+  if (P.tofFloorGain > 0) {
+    double gz = W.height(rx, ry), hz = gz + s.height;
+    double axisElev = s.facing == 0 ? rpitch : s.facing == 2 ? -rpitch : 0; // nose up tilts the front beams up
+    double rx0 = W.rampX0 * field::TILE, rx1 = (W.rampX0 + W.rampLen) * field::TILE;
+    for (double hOff : {-half / 2, 0.0, half / 2}) {
+      double a = rad(base + hOff), dx = std::sin(a), dy = std::cos(a);
+      double dWall = raycast(ox, oy, dx, dy, P.tofMaxRange * 1.5);
+      double profH = std::exp(-hOff * hOff / (2 * sigma * sigma));
+      for (double vOff : {0.0, half / 3, 2 * half / 3, half}) {         // degrees below the beam axis
+        double elev = rad(axisElev - vOff), tz = std::tan(elev);
+        double sHit = -1, slope = 0;
+        bool nearRamp = W.rampLen > 0 && std::max(ox, ox + dx * dWall) > rx0 && std::min(ox, ox + dx * dWall) < rx1;
+        if (nearRamp) {                                                  // march: the ground isn't flat
+          for (double t = 20; t < std::min(dWall, P.tofMaxRange); t += 20) {
+            double g = W.height(ox + dx * t, oy + dy * t);
+            if (hz + t * tz <= g) { sHit = t; slope = std::atan((g - W.height(ox + dx * (t - 20), oy + dy * (t - 20))) / 20); break; }
+          }
+        } else if (tz < -1e-6) {                                          // flat floor at this level
+          double t = (hz - gz) / -tz;
+          if (t < dWall && t < P.tofMaxRange) sHit = t;
+        }
+        if (sHit < 0) continue;
+        double d3 = sHit / std::cos(elev), graze = std::fabs(std::sin(slope - elev));
+        double w = P.tofFloorGain * profH * std::exp(-vOff * vOff / (2 * sigma * sigma)) * graze / std::max(d3 * d3, 100.0);
+        sumW += w; sumWD += w * d3;
+      }
+    }
+  }
   // too little light back (only far or grazing surfaces) = out of range
   if (sumW < sumProfile / (P.tofMaxRange * P.tofMaxRange)) return tofLast[code] = 8190;
   double dist = sumWD / sumW;
@@ -1105,6 +1140,25 @@ static int selfTest() {
         delay(2000);
       }
       (void)y0;
+    }
+    // Move test M0 on open floor: what each sensor reads with no wall near (robot: back 170-540 or 8190, front ~690
+    // or 8190, sides ~470-760; logs/2026-10-16 move_tests2, 2026-10-17 sensor_check, ramp_sensors).
+    {
+      W = field::World();
+      W.W = 7; W.H = 7;
+      W.wall.assign(49, {{false, false, false, false}});
+      W.type.assign(49, field::FLOOR); W.level.assign(49, 0);
+      for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      indexObstacles();
+      place(1050, 1050, 0); delay(300);
+      const char *nm[8] = {"", "front-right", "right-front", "right-back", "back", "left-back", "left-front", "front-left"};
+      std::printf("  M0 open floor (walls 900+ mm away):");
+      for (int i = 1; i <= 7; i++) { std::printf(" %s", nm[i]); for (int k = 0; k < 3; k++) std::printf(" %d", measure(i)); std::printf(";"); }
+      std::printf("\n");
+      place(450, 1050, 0); delay(300); // west wall 450 mm from the middle: one tile out for the left sensors (CAD 359)
+      int lf1 = measure(6), lf2 = measure(6), lb1 = measure(5), lb2 = measure(5);
+      std::printf("  M0 wall one tile out on the left: left-front %d %d, left-back %d %d (CAD 359 + offset; robot's right side peaks at 375-400)\n", lf1, lf2, lb1, lb2);
     }
     // Move test M1: absoluteturn() 90 deg right, then left, from rest in the middle of a tile (robot 2026-10-16:
     // right 0.97-1.01 s, left 0.76-0.80 s, all within 2 deg).
