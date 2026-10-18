@@ -42,4 +42,18 @@
 - The goal is the real robot; the sim is a tool and isn't perfect. Avoid real-life regressions: don't fully trust sim results unless they are conclusive or don't depend only on assumed values.
 - Keep ROBOT_WIDTH_MM as is (80 mm one-wall gap beat 49/59 mm).
 - Never add, pull from or push to my teammate's repo (Chrisyyyys/Robocup-Junoir-Theseus). My repo stays private.
+- Real robot beats simulator. When the sim and the real robot (logs, my observations) disagree, the sim is wrong until
+  shown otherwise: find out why before changing the robot's code to suit the sim.
+- Before removing or weakening a guard, check, threshold or "skip" rule, find out why it was added (git log, ROBOT_TEST.md,
+  CLAUDE.md, the robot logs it cites). Anything added because of a real-robot failure stays unless a real-robot test
+  shows it's no longer needed; say so explicitly in the A/B report.
+- Don't explain away a measurement with a guess (e.g. "the battery was probably low"): ask me how it was taken, or check
+  the log. A measurement that conflicts with others is a question for me, not something to discard.
+- Before adding or changing a simulator parameter, check whether an existing one already models the same effect (e.g.
+  motor A's weakness is motorAExtraFriction; a general wheel spread must not count it twice).
+- A calibration made for the real robot (sensor offsets, a replaced part) must be mirrored in the simulator in the same
+  change, or every sim result after it is wrong (2026-10-17: the left-back sensor offset made robot-test look ~60 points
+  worse for a day).
+- Changes are compared commit to commit; also re-check the whole branch vs the last known-good version
+  (tag known-good-2026-10-17) every few changes, so several small harmless-looking steps can't add up to a regression.
 - Answer simply and directly.
