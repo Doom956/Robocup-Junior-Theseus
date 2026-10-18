@@ -60,6 +60,23 @@ python tools/sim/physics/ab.py main origin/robot-test --runs 600 --start 601
 blue > 2.5 x red, black found during avoidance marked, repeated-failure guard. Each needs a main-vs-main+fix A/B (no harm)
 and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
 
+**Results (2026-10-17, done on the fast PC):**
+- a. All three kept. 407753c -> f6e2fde +0.3 +-1.2 / -0.3 +-1.0 (time lost -3 +-1 / -3 +-1 pts); f6e2fde -> bc10a83
+  -0.2 +-0.4 / +0.0 +-0.1; 6353e9b -> a1f6662 +0.5 +-0.7 / +0.7 +-0.9.
+- b. main -> robot-test +9.9 +-5.9 / +9.6 +-6.0, time lost 27% -> 10% / 28% -> 10%, home 64% -> 79% / 65% -> 78%. But
+  restarts per run 0.62 -> 2.58 / 0.71 -> 2.53 and the worst 10% of runs 30.8 -> 23.8 / 30.8 -> 23.2: a few lost runs loop
+  on "no path found" (a wall written after repeated failures, often while the position was already off, cuts the only way
+  home; restart, same again). Removing those walls when there is no path home: -0.6 +-0.6 / -0.7 +-0.6, time lost +6 / +6
+  pts: dropped.
+- c. Done: on main (white reference, blue rule, black in avoidance marked, wall after 4 failures at one edge; the
+  no-progress parts of the guard stay on robot-test, main has no no-progress check). main -> main+fixes +1.7 +-3.8 /
+  +1.4 +-3.9, time lost -5 +-3 / -7 +-3 pts, home +1 / +2 pts. pio run builds.
+- Robot logs 2026-10-17 (robot_log.py, B6-B9): turns median 0.5-0.7 deg; moves start 0.4-0.7 deg off. centreAlong from a
+  wall AHEAD says the robot stopped short (median -31 mm), from a wall BEHIND that it stopped past (median +24 mm): both
+  say the wall is ~25-30 mm further than the code's 140 mm from the tile middle (RCJ: 280 mm between wall faces). Measure
+  the practice maze (inner faces across a tile, wall thickness): if it is wider, nothing to fix for competition; if it
+  is 280, the front/back sensors read long at close range.
+
 ## 2. Open problems (code, then simulator, then robot)
 
 1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
