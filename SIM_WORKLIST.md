@@ -86,16 +86,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   step backwards and forwards (2026-10-17). Add stairs to the sim (dimensions from the rules) and see whether the current
   code climbs them, treats them as a wall, or gets lost. Only then think about a stair-climbing routine (strategy).
 
-## C. Victims (Baichen's area: simulate and report only, don't change the victim code)
+## C. Victims: not simulated (decided 2026-10-18)
 
-- [ ] **C1. Victims in the sim.** Place letter victims and cognitive targets on walls as the rules allow (3.6: never on
-  walls facing black/silver/blue/red tiles, obstacles, speed bumps, stairs, ramps; more than one per tile is allowed),
-  with decoys (3.6.4). Model the camera as "detects when within X cm and facing", with the robot-side timing: 5 s blink
-  (5.6.1), dispense time, 1 s LCD message, and the up-to-4 s wait when a camera sends `c` with no letter. Score SVI,
-  kits and misidentification (-5, 5.6.14) as the rules do.
-- [ ] **C2. Then measure** (report to me for Baichen, no code change): time lost per run to `c`/decoy waits; victims
-  missed because the map marks one victim per tile; victims missed because only one is serviced per move; effect of
-  stopping only on H/S/U.
+Simulating victims would rest on guesses (camera range, angle, miss rate, false circles), none of them measured. The
+code-level facts don't need a sim (a second victim on the same tile is ignored; each `c` with no letter costs up to 4 s).
+Instead, measure on the robot in the cameras-on maze runs, from the Serial log: victim stops with no victim (the `c`
+waits) per run, victims driven past without a stop, and seconds spent in victim stops per run. Those go to Baichen.
 
 ## D. Robustness and reporting
 
@@ -106,6 +102,6 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
 ## Not on this list (decided)
 
-- Camera 4 s wait as a sim option for time realism: not wanted (user, 2026-10-18); C1 covers it properly instead.
+- Camera 4 s wait as a sim option, and victims in the sim: not wanted (user, 2026-10-18): measure on the robot instead (section C).
 - A third, middle front distance sensor: no free mux port (user, 2026-10-18).
 - Changing ROBOT_WIDTH_MM / the 80 mm one-wall gap: keep as is (CLAUDE.md rule).
