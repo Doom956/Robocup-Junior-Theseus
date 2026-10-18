@@ -98,6 +98,27 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   Centring by balancing front and back when both walls are in the tile: -0.5 +-1.3 / -0.3 +-1.0, walls 300 apart -0.2
   +-3.5: no change in the sim (held). Stopping 12 mm early / PWM 50 not tried: the moves don't overshoot.
 
+## 1d. Section 1b worked through on the fitted sim (2026-10-18, fast PC; robot-test with the ramp fix = 170.2 / 165.3)
+
+- **Ramp exit (now robot-test 2l):** the timed push after a ramp sent the robot a whole tile on at real speed; on the
+  robot every "centring along" after "compensating" said 15-70 mm past (logs 2026-10-17). Drive 155 mm from the ramp's
+  end instead: +13.1 +-3.4 / +8.9 +-3.6, time lost 15% -> 8%, home 77% -> 86%. Ramps as first cause of getting lost:
+  28% -> 3%. Robot test in ROBOT_TEST.md 2l.
+- **2. "no path found" loop:** write the 4-failure wall only when this tile's other walls match the map (or a wall is
+  seen ahead): -0.0 +-0.5 / +0.4 +-0.4. Held (no effect).
+- **4b. side-front obstacle at the corner** (side-front < 30 mm and its back sensor 60+ mm more): -76.9 / -79.4, 20
+  restarts per run: fires at every side wall starting or ending beside the robot. Dropped; needs real readings (M4 + box).
+- **Obstacle straight ahead** (both front sensors 70-250): not retried. A 5-9 cm obstacle in the middle of the path sits
+  in the gap between the front beams (72-116 mm wide at 100-250 mm ahead), so both sensors agree only on walls.
+- **4a. keep obstacle blocks made in the last 60 s when the map looks finished early** (strategy, needs the user's yes):
+  always keep them -20.4 +-4.2 / -19.3 +-4.5 but ever lost 50% -> 22%, time lost 8% -> 3%, home 86% -> 92% / 95%,
+  explored 92% -> 79% (it goes home early instead of driving round); keep them only while something else is open
+  -1.0 +-3.1 / +2.3 +-3.1. Neither recommended.
+- **Where runs get lost now** (lostcause, 300 fields): obstacles ~75% (pushed obstacle 40%, real obstacle 18%, false
+  alarm 16%), short move 8%, scraped wall 6%, ramp 3%. The obstacles the robot pushes are mostly ones between its front
+  beams: a third, middle front sensor (the mux has a free port: 7 sensors on 8 ports) would see them. Hardware change:
+  simulate first if wanted.
+
 ## 1b. Next simulator work (written 2026-10-18), in this order
 
 On the fast PC: `git checkout main`, `git pull`, `git fetch`, open Claude Code in the folder and say
