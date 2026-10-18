@@ -34,7 +34,11 @@ struct Params {
   // Motors: Pololu 195.3125:1 Metal Gearmotor 20Dx44L mm 12V (#3493) on a Carobot V3 shield
   // (TB6612FNG + PCA9685, like the Adafruit Motor Shield V2), powered by a 3S LiPo.
   double batteryVoltage = 11.76;  // 3S LiPo, measured before the bench tests (2026-10-06)
-  double noLoadRpmAt12V = 72;     // datasheet
+  // FITTED 2026-10-18 to the robot's move tests (logs/2026-10-16, 2026-10-17): one tile (fwd(300) from rest) takes
+  // 1.08-1.13 s and 27-29 loops of fwd(); with the datasheet's 72 RPM (Pololu #3493) the sim took 2.7 s, so the motors
+  // on the robot are a faster gearing than that part. 170 gives 1.16 s and 27-28 loops. Stall torque and no-load current
+  // are still the #3493 datasheet values (unknown for the real motor).
+  double noLoadRpmAt12V = 170;
   double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
   double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
   double stictionFactor = 1.3;    // extra friction to start from standstill
@@ -55,8 +59,13 @@ struct Params {
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
   double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
-  double skidFactor = 1.1;        // skid steering turns slower than the ideal track predicts (fitted, see wheelMu)
-  double tractionMean = 0.97, tractionSigma = 0.02, tractionTau = 0.5; // wheel grip (ground speed / wheel speed)
+  // skid steering turns slower than the ideal track predicts. FITTED: bench test 3 (turnright(150) 1 s: 92-97 deg) gives
+  // 2.5 with the 170 RPM motor (97.5 deg; move test M1: 90 deg in 1.1 s, robot 0.77-1.01 s). Was 1.1 with 72 RPM.
+  double skidFactor = 2.5;
+  // wheel grip (ground speed / wheel speed). tractionMean FITTED 2026-10-18: one-tile moves on the robot measured 297-326 mm
+  // by the back sensor (median 307, encoders ~296-300), so no slip on flat floor; 1.0 gives 302 in the sim (0.97, assumed,
+  // gave 295). Sigma and tau assumed.
+  double tractionMean = 1.0, tractionSigma = 0.02, tractionTau = 0.5;
   double wallNudgeMm = 0.3;       // how far a wall can shove a turning robot sideways, mm per ms (0 = it jams)
   double wheelDiameter = 80;
   double encoderCountsPerRev = 5 * 195.3125; // 20 CPR encoder, code counts rising edges of one channel = 5 per motor turn
@@ -969,6 +978,7 @@ static bool loadGeometry(const std::string &path) {
 // --selftest: fixed experiments with the simulated hardware, through the robot's own functions.
 // The same tests on the real robot (see README) show which assumptions in Params need changing.
 int measure(int sensor);
+void fwd(double dist);
 static int selfTest() {
   // 3 x 3 field; middle tile walled on N, E and W, open to the south
   W = field::World();
@@ -1057,6 +1067,47 @@ static int selfTest() {
     std::printf("MODEL at %.1f V: top speed %.0f mm/s; lowest PWM that moves it straight %.0f (from standstill %.0f); "
                 "lowest PWM that turns it on the spot %.0f\n", V, P.noLoadRpmAt12V * V / 12 / 60 * M_PI * P.wheelDiameter,
                 255 * fr, 255 * fr * P.stictionFactor, 255 * (fr + spin) * P.stictionFactor);
+  }
+  {
+    // Move test M3 (Main/bench.cpp, robot-test): fwd(300) three times from rest on open floor, a wall right behind;
+    // the real distance driven each time and what the back sensor says (robot 2026-10-16/17, first move: 297-326 mm).
+    W = field::World();
+    W.W = 3; W.H = 6;
+    W.wall.assign(18, {{false, false, false, false}});
+    W.type.assign(18, field::FLOOR); W.level.assign(18, 0);
+    for (int y = 0; y < 6; y++) for (int x = 0; x < 3; x++) for (int d = 0; d < 4; d++)
+      if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+    W.sx = 1; W.sy = 0;
+    indexObstacles();
+    auto back = []() { double s = 0; int n = 0; for (int k = 0; k < 5; k++) { int v = measure(4); if (v > 0 && v < 1500) { s += v; n++; } } return n ? s / n : -1.0; };
+    for (int run = 0; run < 3; run++) {
+      place(450, 150 + 4 * (run - 1), 0); delay(500);
+      double y0 = ry, b0 = back();
+      std::printf("  M3 run %d start: back sensor %.0f mm\n", run + 1, b0);
+      for (int i = 1; i <= 3; i++) {
+        double ys = ry, bs = back();
+        unsigned long t0 = millis();
+        fwd(300);
+        double secs = (millis() - t0) / 1000.0;
+        delay(300);
+        double b = back();
+        std::printf("  M3 move %d: %.2f s, really moved %.0f mm, back sensor says %.0f mm (encoder target 300)\n", i, secs, ry - ys, b - bs);
+        delay(2000);
+      }
+      (void)y0;
+    }
+    // Move test M1: absoluteturn() 90 deg right, then left, from rest in the middle of a tile (robot 2026-10-16:
+    // right 0.97-1.01 s, left 0.76-0.80 s, all within 2 deg).
+    for (int k = 0; k < 2; k++) {
+      place(450, 450, 0); delay(500);
+      double h0 = myGyro.heading();
+      unsigned long t0 = millis();
+      absoluteturn(std::fmod(h0 + (k == 0 ? 90 : 270), 360));
+      double secs = (millis() - t0) / 1000.0;
+      delay(500);
+      double turned = myGyro.heading() - h0; if (turned > 180) turned -= 360; if (turned < -180) turned += 360;
+      std::printf("  M1 %s 90: %.2f s, turned %.1f deg\n", k == 0 ? "right" : "left", secs, turned);
+    }
   }
   std::printf("COLOUR raw r g b c over each tile type\n");
   const char *names[] = {"white", "black", "blue", "silver"};
