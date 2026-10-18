@@ -22,7 +22,8 @@ void lcdStatus(){
   char buf[17];
   snprintf(buf, sizeof(buf), "%d,%d F%d %c %4lus", x_pos - MAP_SIZE / 2, y_pos - MAP_SIZE / 2, currentFloor,
            dirs[((int)currentDir) & 3], (unsigned long)(mazeTime.getTime() / 1000000.0));
-  lcdMutex.lock();
+  // Never wait for the LCD: the camera code holds it for 1 s while it shows a victim. Skipped now, shown next tile.
+  if(!lcdMutex.trylock()) return;
   writeLine(0, buf);
   writeLine(1, eventLine);
   lcdMutex.unlock();
@@ -37,7 +38,7 @@ void lcdEvent(const char *msg){
   // The end of the run still shows (and the simulator ends runs on this text).
   if(problemLine[0] && strcmp(msg, "back to start") != 0 && strcmp(msg, "no path found") != 0) msg = problemLine;
   snprintf(eventLine, sizeof(eventLine), "%s", msg);
-  lcdMutex.lock();
+  if(!lcdMutex.trylock()) return; // busy (victim message): the event shows with the next update
   writeLine(1, eventLine);
   lcdMutex.unlock();
 }
