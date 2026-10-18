@@ -443,10 +443,8 @@ static bool repeatedFailure(){
   static int fx = -1, fy = -1, ff = -1, fd = -1, fails = 0, noProg = 0;
   if(x_pos == fx && y_pos == fy && currentFloor == ff && (int)currentDir == fd){ fails++; }
   else { fails = 1; noProg = 0; fx = x_pos; fy = y_pos; ff = currentFloor; fd = currentDir; }
-  if(lastMoveNoProgress && ++noProg == 2){
-    Serial.println("no progress twice here: next try without the check");
-    noProgressSkip = true;
-  }
+  if(lastMoveNoProgress) ++noProg; // (the check is no longer switched off after two stops here: with 2n the stops are
+                                   // mostly real, and a third try without it drove into the obstacle)
   if(fails >= 4){
     Serial.println("failed 4 times here: wall written to the map");
     lcdEvent("WALL WRITTEN");

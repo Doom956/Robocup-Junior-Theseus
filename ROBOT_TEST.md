@@ -348,6 +348,21 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
    jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
    what the real robot does.
 
+## 2o. The no-progress check is no longer switched off after two stops at one edge (2026-10-18)
+
+**What changed** (`Main/main.cpp` `repeatedFailure()`, from 2k): the 2nd no-progress stop at the same edge used to turn the
+check off for the next try there (two in a row were thought more likely false). The "wall after 4 failures" part stays.
+
+**Why:** with 2n most stops are real. In the simulator (obstacle beside the path, seed 3): stopped twice correctly, "map
+looks finished early" cleared the block at once, and on the 3rd try, with the check off, the robot drove into the obstacle
+and counted a tile it never drove.
+
+**Simulator** (600 comp fields, seeds 1-600 / 601-1200): -0.6 +-1.0 / -0.5 +-0.7, time lost -1 / -1 pts, runs ever lost
+55% -> 47% / 54% -> 47%. With 15-20 cm obstacles: +0.1 +-1.6, ever lost 79% -> 72%.
+
+**Robot test:** with M8 (box 15 cm ahead): run fwd() at it 3 times in a row (or let the maze run hit the same box): every
+try should stop with `[FWD] no progress`, never `exit=normal` against the box.
+
 ## 2n. No-progress check: the 80 mm window only when the whole move is behind too (2026-10-18)
 
 **Robot, 2026-10-18 (logs/2026-10-18):** M6 (box 10 cm) caught. M8 (box 15 cm) drove into the box and reported a normal
