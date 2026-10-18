@@ -92,16 +92,17 @@ entry; strategy changes wait for my yes.
    current robot-test. If it is the offset: give the sim the same +30 mm on that sensor (a sim
    parameter, measured on the robot) so sim and robot match, and keep the firmware's 30. Don't change the robot's firmware
    for this.
-1. **Moves overshoot the tile (real robot).** The video of the 2026-10-17 maze runs shows the robot stopping a bit past
-   the middle of the tiles; move test M3 measured 307, 312 and 326 mm for one-tile moves (target 300; logs/2026-10-16
-   move_tests*.txt and logs/2026-10-17 maze_m3.txt / partA.txt). Steps:
-   a. Fit the simulator's stopping to that: today the sim stops ~6 mm short (stopcentre.py). Find what makes the real
-      robot coast further (motor stop time / coasting at PWM 55) and set it from the M3 numbers, marked as fitted.
-   b. With the fitted sim, A/B on robot-test: (i) stop 12 mm early again (undo the "stop on target" half of 2f in fwd()),
-      (ii) minimum drive PWM 50 instead of 55, (iii) both. Keep the best one if its interval isn't below zero.
-   c. Note: centreAlong() corrects the stop when there is a wall ahead or behind; the overshoot adds up in open areas.
-      Also see the maze measurement (section 1 results): if the practice maze is wider than 280 mm, part of what looked
-      like overshoot near walls is the wider maze.
+1. **Moves stop short of the tile middle (real robot).** Corrected 2026-10-18: the video of the 2026-10-17 maze runs
+   shows the robot **undershooting** (stopping before the middle of the tile), not overshooting. Conflicting data: move
+   test M3 measured 307-326 mm by the back sensor (that sensor reads long, +6-13 mm at the bench, and its long-range
+   readings were unreliable), and the maze logs' centring from the wall ahead says median 31 mm short (but the practice
+   maze may be wider than 280 mm). Steps:
+   a. Get one clean real measurement: M3 with a tape measure or ruler (mark the back of the robot before and after each
+      of 3 moves), on a maze tile, and measure the practice maze (inner wall faces across a tile, wall thickness).
+   b. Fit the simulator's stopping to it (today the sim stops ~6 mm short, stopcentre.py).
+   c. With the fitted sim, A/B on robot-test: minimum drive PWM 60 and 65 instead of 55 (ROBOT_TEST.md 2f: "mostly short:
+      raise the 55 to 60-65"); keep the best if its interval isn't below zero. Then M3 + one maze run on the robot.
+   d. centreAlong() corrects the stop when there is a wall within ~45 cm ahead or behind; the error adds up in open areas.
 2. **"no path found" loop on robot-test** (worst 10% of runs, 2.6 restarts per run): the wall written after repeated
    failures can cut the only way home. Removing those walls when there is no path made it worse. Try: only write the
    wall when the position looks right (walls of this tile match the map), or keep the guard's walls out of the way-home

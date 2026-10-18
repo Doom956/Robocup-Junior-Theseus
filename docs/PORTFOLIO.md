@@ -184,7 +184,7 @@ up and down, black and blue tiles handled. Turns within 2 deg; one-tile moves wi
   the simulator's realism stayed on a test branch until the real robot confirmed it.
 - **Reject things.** A long list of reasonable-sounding changes was tested and not kept.
 - **Simulation to reality and back.** Where the real robot disagreed with the simulator (floor readings, ramp slopes,
-  overshoot), that became a fix and a simulator improvement.
+  where moves stop), that became a fix and a simulator improvement.
 - **Make the robot explain itself.** Serial logs with the map position on every tile, log-analysis scripts, an on-robot
   display and a power-on self-check.
 - **Written rules and notes** (`CLAUDE.md`, `ROBOT_TEST.md`, `NEXT_STEPS.md`) so the work could continue across PCs and
@@ -199,7 +199,7 @@ up and down, black and blue tiles handled. Turns within 2 deg; one-tile moves wi
 - Statistics matter: many changes that looked like improvements on 200 fields disappeared on 600 or on new fields.
 
 ## 8. Still to do
-Overshoot at the end of moves, the "no path found" loop in badly-lost runs, obstacles that touch the robot's corner,
+Moves still stopping a little short of the tile middle, the "no path found" loop in badly-lost runs, obstacles that touch the robot's corner,
 fewer blue-tile revisits, and runs with the cameras on. See `NEXT_STEPS.md`.
 
 ---
