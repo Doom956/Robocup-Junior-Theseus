@@ -84,6 +84,14 @@ On the fast PC: `git checkout main`, `git pull`, `git fetch`, open Claude Code i
 both seed sets (`--start 601`), report score / time lost / home; robot-test changes go on robot-test with a ROBOT_TEST.md
 entry; strategy changes wait for my yes.
 
+0. **First: why robot-test's lead over main fell from +50 (2026-10-16, 171.4 vs 120.9) to +10 (2026-10-17, home 89% ->
+   79%).** Each 2026-10-17 change passed its own A/B, but they were compared commit to commit. Suspect: `SENSOR_OFFSET_MM[5]
+   = 30` (the replacement left-back sensor reads 30 mm long on the REAL robot; the simulated one doesn't, so the
+   correction makes the sim's sensor read 30 mm short and squaring up on left walls goes wrong). Check: A/B robot-test vs
+   a temporary branch of robot-test with that offset at 0 (ab.py takes any two git refs), and 99ff621 (2026-10-16) vs
+   current robot-test. If it is the offset: give the sim the same +30 mm on that sensor (a sim
+   parameter, measured on the robot) so sim and robot match, and keep the firmware's 30. Don't change the robot's firmware
+   for this.
 1. **Moves overshoot the tile (real robot).** The video of the 2026-10-17 maze runs shows the robot stopping a bit past
    the middle of the tiles; move test M3 measured 307, 312 and 326 mm for one-tile moves (target 300; logs/2026-10-16
    move_tests*.txt and logs/2026-10-17 maze_m3.txt / partA.txt). Steps:
