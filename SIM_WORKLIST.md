@@ -29,7 +29,10 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   battery on, voltage unknown, so "low battery" is a guess. fw(150) (66/67/89 RPM = 276-373 mm/s) is consistent with a
   1.1 s tile at PWM <= 150: check the fit against fw(150). Wheel spread: most of it is motor A (already modelled by
   motorAExtraFriction); B vs D 4-8% at full power. 12% stacked on top of motor A cost -15.3 +-6.3 but double-counts A:
-  default kept at 0.03 until 0.05 is checked. Next robot session: charged battery, note the voltage, redo M7, and swap
+  0.05 vs 0.03: -2.5 +-3.6 (no clear effect): default 0.05. Speed fit vs fw(150): matching M7 at 150 (145 RPM: 73-80 vs real
+  66-89) makes a tile 1.31-1.36 s (real 1.08-1.13) and turns 1.33 s; with 170 RPM the tile matches but M7 at 150 reads
+  88-94. One speed can't match both: the sim's fwd() dynamics differ somewhere (motor response, slow-down near the end).
+  Kept the tile-time fit (that's what navigation timing depends on); open until M7 is repeated with the voltage. Next robot session: charged battery, note the voltage, redo M7, and swap
   motor A's plug with another motor's (if the weakness moves with the motor, it's the motor). Selftest prints M7.
 - [ ] **A1. Motor speed from M7.** Move test M7 (2026-10-18, logs/2026-10-18/move_tests2.txt), wheels in the air:
   fw(255) **118 / 139 / 150 RPM** (wheels A / B / D), fw(150) **67 / 66 / 89**. The sim's fit is ~158 / ~90. Refit the

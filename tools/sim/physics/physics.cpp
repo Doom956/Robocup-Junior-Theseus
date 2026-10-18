@@ -65,8 +65,9 @@ struct Params {
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
   // per-motor speed difference (fraction), assumed. Move test M7 (2026-10-18, wheels in the air): A/B/D 118/139/150 RPM at
   // fw(255), 67/66/89 at fw(150); most of that spread is motor A, which motorAExtraFriction already models, B vs D ~4-8%
-  // at full power. 0.05 / 0.12 being checked (SIM_WORKLIST A1); 0.03 until then.
-  double motorGainSigma = 0.03;
+  // at full power: 0.05 (motor A's weakness stays in motorAExtraFriction). robot-test: 0.05 vs 0.03 -2.5 +-3.6; 0.12 (which
+  // double-counted motor A) -15.3 +-6.3.
+  double motorGainSigma = 0.05;
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
   // skid steering turns slower than the ideal track predicts. FITTED: bench test 3 (turnright(150) 1 s: 92-97 deg) gives
   // 2.5 with the 170 RPM motor (97.5 deg; move test M1: 90 deg in 1.1 s, robot 0.77-1.01 s). Was 1.1 with 72 RPM.
