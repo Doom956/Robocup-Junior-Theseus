@@ -114,6 +114,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 - [ ] **B8. Lack of progress costs:** each LoP is -15 in the reliability bonus (5.6.7) plus the restart time. Count LoP
   causes (lostcause) and see which are avoidable: e.g. stopping 5 s on blue before backing off, black tile handling,
   stuck on ramps.
+- [x] **B9 measured (2026-10-18, robot-test, 200 comp fields):** relocalize corrected 42 times, 38 right (90%), 4 wrong
+  -> wrong. A wall mismatch is a strong "lost" signal: 283 times the position really was wrong, 25 times it was right
+  (sensor misread), so 92% precision, but only ~1 in 7 lost moments gets corrected. Where the code was then: 1 tile
+  sideways 104, 1 tile ahead/behind 64, diagonal 23, 2 tiles 21, more than 2 tiles 69. The rule only moves one tile and
+  only when exactly one neighbour fits. Earlier tries (last 4 tiles, probability-based) gained nothing: needs a careful
+  design (e.g. track the few most likely positions over several tiles), not a quick patch.
 - [ ] **B9. Relocalize** (robot-test 2): measure how often it fires in the sim and how often it's right; tune or extend
   (e.g. check two tiles back) only if it's often wrong or often missing a real one-tile error.
 - [ ] **B10. Ramps:** a robot stuck tilted on the slope added 13-21 ramp tiles (12 of 674 crossings); the cap was held
