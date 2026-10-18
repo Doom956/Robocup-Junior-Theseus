@@ -141,6 +141,8 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   checking more often catches it but 213 false stops; an end-of-move check catches it (false 20 -> 37) but +0.1 +-3.7 /
   -1.8 +-3.8: held, written into ROBOT_TEST.md 2n c, to add if the robot's M8 drives into the box. New move tests on
   robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
+- **Sim 553492e** (wheel spread 5%, LoP restart facing a random direction): main -> robot-test +93.2 +-5.1 / +96.4 +-5.0,
+  home 34% -> 83% / 33% -> 81%, time lost 56% -> 10%. robot-test steering gain 2 instead of 1: +3.1 +-3.8 / +1.4 +-4.0 (keep 1).
 - Section 1b done (2026-10-18): 1 sim fitted + robot-test settings checked; 2 held; 3 floor/ramp seen (+ fix 2m); 4a/4b
   held/dropped; 5 mostly structural; 6 robustness (+ fix 2n); 7 not wanted. robot-test now 2l + 2m + 2n on top of 2k.
 

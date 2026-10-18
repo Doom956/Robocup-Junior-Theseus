@@ -105,6 +105,8 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 - [ ] **B10. Ramps:** a robot stuck tilted on the slope added 13-21 ramp tiles (12 of 674 crossings); the cap was held
   because those runs were lost anyway. Look for what gets it stuck (A4) and whether 2l (drive 155 mm after the ramp)
   holds for both ramp directions and lengths.
+- [x] **B11 (partly, 2026-10-18):** steering gain 2 vs 1 on the 5%-spread sim: +3.1 +-3.8 / +1.4 +-4.0, keep 1. Turn
+  settings, min PWM 55 were checked on the 2026-10-18 fit (keep); A1 didn't change the motor model.
 - [ ] **B11. Speed-sensitive settings** after A1: turn power 45 / gain 8, steering gain 1, minimum drive PWM 55,
   MAX_STEER_DEG 10, the no-progress thresholds (2j/2n): a quick sweep of each on the refitted sim. Keep only clear gains;
   these were checked once on the 2026-10-18 fit (keep all), redo only if A1 changes the motor model a lot.

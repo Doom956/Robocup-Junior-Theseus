@@ -113,6 +113,7 @@ struct Params {
   double rampMinDeg = 15, rampMaxDeg = 25;
   // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
   double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
+  double obstacleRMinMm = 25, obstacleRMaxMm = 45; // obstacle radius: 5-9 cm across, assumed (rules 3.4.3: any shape, large heavy items, >= 15 cm tall)
   // RCJ 2026 3.4.3: obstacles are "large, heavy items" and "may be fixed to the floor"; 3.4.5: one that is
   // moved stays where it ends up. ASSUMED (the rules give no mass or material): this share of the obstacles
   // is loose, each with a mass between obstacleMassMinKg and obstacleMassMaxKg and floor friction
@@ -144,7 +145,7 @@ static std::map<std::string, double *> paramTable() {
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
-    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
+    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
     {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
@@ -1280,7 +1281,7 @@ int main(int argc, char **argv) {
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
   std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(sc - field::SCENARIOS));
   field::Extras ex;
-  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
+  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.obstacleRMin = P.obstacleRMinMm; ex.obstacleRMax = P.obstacleRMaxMm; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
   W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
   indexObstacles();
   rng.seed((unsigned)seed * 7919u + 4242u);
