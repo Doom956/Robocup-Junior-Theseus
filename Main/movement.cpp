@@ -7,6 +7,7 @@
 // the old 20 deg threshold missed shallower ramps and could drop out mid-ramp on a
 // ~20 deg one. Speed bumps (<=2 cm) only tilt this robot ~7 deg. Bench-tune.
 #define RAMP_PITCH_DEG 12
+#define RAMP_END_TO_MIDDLE_MM 155
 // fwd() gives up on a tile after this long (victim stops excluded): covers a stall
 // at the low end of the Scale ramp-down or a wheel caught on debris.
 #define FWD_TIMEOUT_US_PER_TILE 8000000.0
@@ -450,10 +451,18 @@ void fwd(double dist){ // in mm
         climbed = false;
         carried = avgEncoder();
       }
-      // ramp crested: restore pre-ramp encoder values so outer loop finishes the tile
-      drivetrain.set_encoderCountA(_encoderCountA + carried);
-      drivetrain.set_encoderCountB(_encoderCountB + carried);
-      drivetrain.set_encoderCountD(_encoderCountD + carried);
+      if(cnt == 0){ // not a ramp: restore the pre-tilt counts plus the tilted distance, the outer loop finishes the tile
+        drivetrain.set_encoderCountA(_encoderCountA + carried);
+        drivetrain.set_encoderCountB(_encoderCountB + carried);
+        drivetrain.set_encoderCountD(_encoderCountD + carried);
+      }
+      else { // ramp crested: the pitch drops back under RAMP_PITCH_DEG with the robot's middle at about the end of
+             // the ramp, so the middle of the tile after it is RAMP_END_TO_MIDDLE_MM ahead: drive exactly that
+        int left = (int)(pulses - pulsesForDistanceMm(RAMP_END_TO_MIDDLE_MM));
+        drivetrain.set_encoderCountA(left);
+        drivetrain.set_encoderCountB(left);
+        drivetrain.set_encoderCountD(left);
+      }
       climbtoggle = false; // re-enable encoder-based exit in outer loop
       myTime = timer();    // restart the tile timeout for the remainder after the ramp
       if(moveInterrupted == true) break;
@@ -543,9 +552,10 @@ void fwd(double dist){ // in mm
         else descend(mapGrid, x_pos, y_pos, m1, m2, m3, currentFloor);
       }
     }
+    // (No timed push here any more: fw(200) for 300 ms after the ramp left the robot 15-70 mm past the middle of the
+    // tile on the robot (2026-10-17 logs) and a whole tile on in the simulator at the robot's real speed. The move now
+    // ends RAMP_END_TO_MIDDLE_MM after the ramp, see the climb loop. The log line keeps its name for the tools.)
     Serial.println("compensating");
-    drivetrain.fw(200);
-    delay(300);
     drivetrain.fullstop();
     delay(200);
     absoluteturn(turnNeededDeg(currentDir)); // snap direction.

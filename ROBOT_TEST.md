@@ -348,6 +348,31 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
    jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
    what the real robot does.
 
+## 2l. After a ramp: drive half a tile from the ramp's end, no timed push (2026-10-18)
+
+**What changed** (`Main/movement.cpp` `fwd()`): after the climb loop, the move used to finish the tile from the encoder
+count before the ramp and then push `fw(200)` for 300 ms ("compensating"). Now it drives exactly `RAMP_END_TO_MIDDLE_MM`
+(155 mm) from the moment the tilt drops back under 12 deg (the robot's middle is then at about the ramp's end) and stops.
+The snap turn after it stays.
+
+**Why:** on the robot (logs/2026-10-17 partB3-B8) every "centring along" right after "compensating" said 15-70 mm past
+the middle (from the wall ahead, which reads "short" in the practice maze: really further). It worked only because each
+ramp exit in the practice maze had a wall within reach for `centreAlong()`. With no wall there, the robot stays past the
+middle and the colour sensor (93 mm ahead) reads the next tile. In the simulator fitted to the robot's real speed the push
+went a whole tile on; ramps were the most common way to get lost.
+
+**Simulator** (fitted sim, 600 comp fields, seeds 1-600 / 601-1200): +13.1 +-3.4 / +8.9 +-3.6, time lost 15% -> 8% /
+15% -> 8%, home 77% -> 86% / 78% -> 86%, worst 10% of runs 50 -> 69 / 43 -> 51. Stop position after a ramp (at the next
+colour read): more than 60 mm past the middle 106 of 542 -> 0 of 404, median +3 mm.
+
+**Robot test:** cameras off, logging. Drive over each ramp of the practice maze 3-4 times each way (up and down).
+- Watch: the robot stops in the middle of the tile after the ramp on its own, not past it and not on the slope.
+- Log: after each `compensating`, a `centring along` line should be small (under ~20 mm) or missing. Before this change
+  it was +15 to +70.
+- If it stops **short** (still partly on the ramp, or "centring along" clearly negative from a wall ahead): raise
+  `RAMP_END_TO_MIDDLE_MM` to 170-180. If it stops **past**: lower it to 140.
+- If it gets stuck at the top or bottom of the ramp, set it back (`git revert` this commit) and tell Claude.
+
 ## 2k. Fixes from the maze runs of 2026-10-17 (real robot; the last 3 not yet checked in the simulator)
 
 All found on the real robot (logs/2026-10-16 and logs/2026-10-17). Simulator: 600 comp fields, two seed sets, where noted.
