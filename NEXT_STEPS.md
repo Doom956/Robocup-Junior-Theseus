@@ -77,6 +77,70 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   the practice maze (inner faces across a tile, wall thickness): if it is wider, nothing to fix for competition; if it
   is 280, the front/back sensors read long at close range.
 
+## 1c. Simulator fitted to the robot (2026-10-18, fast PC)
+
+- **The sim was 2.5x too slow.** One tile took 2.7 s in the sim, 1.08-1.13 s on the robot (M3). Fitted to the move tests and
+  bench tests: motor 170 RPM (was 72, the BOM's #3493; the real motors are geared faster, or a 6 V version on 12 V), stall
+  torque 4.2 kg.cm (ramp: up at PWM 180 as slow as down at PWM 120 on the robot), skidFactor 2.5, wheelMu 0.071, no wheel
+  slip (tractionMean 1.0). Sim now: one tile 1.13 s / 300 mm (robot 1.1 s / 297-326 mm), turnright(150) 1 s 97.6 deg
+  (92-97), 90 deg turn 1.1 s (0.77-1.01), bench tests 2 / 4: 30 / 51 (25-30 / 49-51). `--selftest` repeats M3 and M1.
+  Not explained: real ramp climbs take ~38 fwd() loops, the sim's ~23 (a log with ms timestamps would tell).
+- **Replacement left-back sensor modelled** (`tofLeftBackExtraMm` 30): robot-test's SENSOR_OFFSET_MM[5] = 30 corrected an
+  error the sim's sensor didn't have, so robot-test squared up crooked on left walls (heading 9-14 deg off, 82% of runs
+  lost). Every robot-test sim result since 2026-10-17 had this (section 1 above too).
+- **main -> robot-test on the fitted sim:** +69.9 +-5.6 / +66.6 +-5.7, home 38% -> 77% / 35% -> 78%, time lost 50% -> 15%.
+  main has no correction for the long left-back sensor: don't run main on the robot while that sensor is fitted.
+- **robot-test settings at real speed** (600 comp): turns back to main's (20 / 4.5) -5.4 +-3.5 (keep 45 / 8); steering
+  gain back to 2 +1.3 +-3.8; no minimum PWM 55 +0.7 +-3.3 (no difference: keep, they work on the robot).
+- **Overshoot (1b item 1):** the moves themselves end about right (M3 307 mm, sim 300). The robot ending near the back of
+  tiles in the maze is centreAlong(): from a wall behind it reads 24 mm "past", from a wall ahead 31 mm "short", so it
+  pulls the robot toward whichever wall it uses. Measure the practice maze (inner faces across a tile, wall thickness).
+  Centring by balancing front and back when both walls are in the tile: -0.5 +-1.3 / -0.3 +-1.0, walls 300 apart -0.2
+  +-3.5: no change in the sim (held). Stopping 12 mm early / PWM 50 not tried: the moves don't overshoot.
+
+## 1b. Next simulator work (written 2026-10-18), in this order
+
+On the fast PC: `git checkout main`, `git pull`, `git fetch`, open Claude Code in the folder and say
+**"work through section 1b of NEXT_STEPS.md"** (or one item at a time). Rules as in CLAUDE.md: A/B on 600 comp fields,
+both seed sets (`--start 601`), report score / time lost / home; robot-test changes go on robot-test with a ROBOT_TEST.md
+entry; strategy changes wait for my yes.
+
+0. **First: why robot-test's lead over main fell from +50 (2026-10-16, 171.4 vs 120.9) to +10 (2026-10-17, home 89% ->
+   79%).** Each 2026-10-17 change passed its own A/B, but they were compared commit to commit. Suspect: `SENSOR_OFFSET_MM[5]
+   = 30` (the replacement left-back sensor reads 30 mm long on the REAL robot; the simulated one doesn't, so the
+   correction makes the sim's sensor read 30 mm short and squaring up on left walls goes wrong). Check: A/B robot-test vs
+   a temporary branch of robot-test with that offset at 0 (ab.py takes any two git refs), and 99ff621 (2026-10-16) vs
+   current robot-test. If it is the offset: give the sim the same +30 mm on that sensor (a sim
+   parameter, measured on the robot) so sim and robot match, and keep the firmware's 30. Don't change the robot's firmware
+   for this.
+1. **Moves stop short of the tile middle (real robot).** Corrected 2026-10-18: the video of the 2026-10-17 maze runs
+   shows the robot **undershooting** (stopping before the middle of the tile), not overshooting. Conflicting data: move
+   test M3 measured 307-326 mm by the back sensor (that sensor reads long, +6-13 mm at the bench, and its long-range
+   readings were unreliable), and the maze logs' centring from the wall ahead says median 31 mm short (but the practice
+   maze may be wider than 280 mm). Steps:
+   a. Get one clean real measurement: M3 with a tape measure or ruler (mark the back of the robot before and after each
+      of 3 moves), on a maze tile, and measure the practice maze (inner wall faces across a tile, wall thickness).
+   b. Fit the simulator's stopping to it (today the sim stops ~6 mm short, stopcentre.py).
+   c. With the fitted sim, A/B on robot-test: minimum drive PWM 60 and 65 instead of 55 (ROBOT_TEST.md 2f: "mostly short:
+      raise the 55 to 60-65"); keep the best if its interval isn't below zero. Then M3 + one maze run on the robot.
+   d. centreAlong() corrects the stop when there is a wall within ~45 cm ahead or behind; the error adds up in open areas.
+2. **"no path found" loop on robot-test** (worst 10% of runs, 2.6 restarts per run): the wall written after repeated
+   failures can cut the only way home. Removing those walls when there is no path made it worse. Try: only write the
+   wall when the position looks right (walls of this tile match the map), or keep the guard's walls out of the way-home
+   planner only after a "no path found".
+3. **Make the sim see what the real sensors saw:** (a) front sensors read a ramp's slope as a wall at ~370 mm from the
+   tile in front of it (logs/2026-10-17 ramp_sensors.txt) and ~800 once the robot tips onto it; (b) the back sensor
+   sometimes reads the floor at 170-420 mm with nothing behind (logs/2026-10-16, 2026-10-17 partA). Then re-run robot-test
+   vs main: results that depend on these get more trustworthy.
+4. **Obstacles:** (a) don't let "map looks finished early" clear an obstacle block made in the last minute (strategy:
+   numbers first, then my yes); (b) a side-front sensor under ~30 mm where the map has no wall = obstacle at the corner
+   (logs/2026-10-17 partB9.txt: right-front read 48, 23, 18 mm scraping past one).
+5. **Blue revisits:** route around blue tiles on through-routes when another way exists.
+6. **Robustness of robot-test:** sweep walls wider/narrower (after the maze measurement), more wheel slip, noisier
+   sensors; then `lostcause.py` on robot-test to find what now loses most runs.
+7. **Optional, for realistic times:** a simulator option for the camera's wait after moves (up to 4 s per move next to a
+   wall, from the 2026-10-07 robot runs), so time-based results (way home, explored) match runs with the cameras on.
+
 ## 2. Open problems (code, then simulator, then robot)
 
 1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
