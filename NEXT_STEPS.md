@@ -116,8 +116,15 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   -1.0 +-3.1 / +2.3 +-3.1. Neither recommended.
 - **Where runs get lost now** (lostcause, 300 fields): obstacles ~75% (pushed obstacle 40%, real obstacle 18%, false
   alarm 16%), short move 8%, scraped wall 6%, ramp 3%. The obstacles the robot pushes are mostly ones between its front
-  beams: a third, middle front sensor (the mux has a free port: 7 sensors on 8 ports) would see them. Hardware change:
-  simulate first if wanted.
+  beams: a third, middle front sensor would see them, but the mux has no free port (7 distance sensors + the colour sensor on
+  port 7). Not pursued (user, 2026-10-18).
+- **3. Sensors see the floor (sim):** the VL53L0X cone also reaches the floor and ramp slopes (tofFloorGain 3, fitted to M0:
+  back 266-373 mm with nothing behind, front ~690, sides ~670-760). With that, robot-test drops 172 -> 90 in the sim:
+  centreAlong() took the back sensor's floor reading (~300-370) for "a wall one tile behind" and moved the robot up to
+  150 mm. That matches the robot's back-wall centring saying +24 mm "past" on average and the robot ending near the back
+  of tiles. Fix on robot-test (2m): back sensor only for this tile's wall (<= 150 mm): +69.8 +-5.1 / +70.5 +-5.2, home
+  54% -> 82%; on the sim without floor -2.7 +-3.1. Wall one tile out on the side still reads right (342-364 vs real peak
+  375-400). Item 7 (camera wait): not wanted (user).
 
 ## 1b. Next simulator work (written 2026-10-18), in this order
 
