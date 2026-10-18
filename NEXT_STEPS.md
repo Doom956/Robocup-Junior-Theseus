@@ -125,6 +125,14 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   of tiles. Fix on robot-test (2m): back sensor only for this tile's wall (<= 150 mm): +69.8 +-5.1 / +70.5 +-5.2, home
   54% -> 82%; on the sim without floor -2.7 +-3.1. Wall one tile out on the side still reads right (342-364 vs real peak
   375-400). Item 7 (camera wait): not wanted (user).
+- **Ramp count capped at 3 tiles** (a robot stuck tilted on the slope added 13-21 ramp tiles in 12 of 674 crossings):
+  +0.1 +-0.6 / -0.2 +-0.5 (those runs were already lost). Held.
+- **6. Robustness of robot-test** (300 comp fields each, vs the fitted sim): walls 6 mm (wider path, like the practice
+  maze) +11.5 +-5.5; walls 30 mm (narrower) -16.7 +-6.4 (home 84% -> 75%); 3x grip variation +3.4; gyro drift 0.5
+  deg/min -1.1; 2x sensor noise -26.3 +-7.0 and 2x floor reflection -32.4 +-6.1, both by exploring less (88% -> 75-78%),
+  not by getting lost: the no-progress check's 80 mm window fired on noise (3 of 4 stops false by default, 9 of 10 with
+  noise). Fixed on robot-test (2n): the window only counts when the whole move is also < 60% behind: +6.5 +-2.4 /
+  +9.3 +-3.0, explored 87% -> 91%. Still open: narrower corridors (30 mm walls).
 
 ## 1b. Next simulator work (written 2026-10-18), in this order
 
