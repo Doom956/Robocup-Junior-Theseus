@@ -1160,6 +1160,27 @@ static int selfTest() {
       int lf1 = measure(6), lf2 = measure(6), lb1 = measure(5), lb2 = measure(5);
       std::printf("  M0 wall one tile out on the left: left-front %d %d, left-back %d %d (CAD 359 + offset; robot's right side peaks at 375-400)\n", lf1, lf2, lb1, lb2);
     }
+    // Move tests M6 / M8: a box (fixed, 9 cm across) in the middle of the path, its front D mm ahead of the robot, a wall at
+    // the far end of the next tile. The no-progress check must stop the move and back up (the box sits between the front
+    // sensors' beams). With --verbose the firmware's own lines show what happened.
+    for (double gap : {100.0, 150.0, 200.0, 250.0}) {
+      W = field::World();
+      W.W = 3; W.H = 4;
+      W.wall.assign(12, {{false, false, false, false}});
+      W.type.assign(12, field::FLOOR); W.level.assign(12, 0);
+      for (int y = 0; y < 4; y++) for (int x = 0; x < 3; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      W.wall[W.id(1, 1)][0] = true; W.wall[W.id(1, 2)][2] = true;      // wall at the far end of the next tile (y = 600)
+      double front = 150 + bodyFront;
+      W.obstacles = {{450, front + gap + 45, 45}};
+      indexObstacles();
+      place(450, 150, 0); delay(300);
+      std::printf("  M8 box %.0f mm ahead: start\n", gap);
+      fwd(300);
+      delay(300);
+      std::printf("  M8 box %.0f mm ahead: ended %.0f mm from the start (box front at %.0f)\n", gap, ry - 150, gap);
+    }
+    W.obstacles.clear(); indexObstacles();
     // Move test M1: absoluteturn() 90 deg right, then left, from rest in the middle of a tile (robot 2026-10-16:
     // right 0.97-1.01 s, left 0.76-0.80 s, all within 2 deg).
     for (int k = 0; k < 2; k++) {

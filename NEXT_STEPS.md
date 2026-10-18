@@ -135,6 +135,10 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   +9.3 +-3.0, explored 87% -> 91%. Re-check with 2n: 2x noise +4.3 +-5.3, 2x floor reflection -0.1 +-5.3 (both fixed);
   walls 30 mm (270 mm path) still -17.8 +-6.2: probably the one-wall steering target (80 mm, ROBOT_WIDTH_MM, kept as is by
   the user's rule) leaving the robot close to the far side. Only matters if competition walls are thicker than RCJ's 20 mm.
+- **2n gap (sim selftest "M8 box"):** a box between the front beams 200 mm ahead is missed with 2n (caught before);
+  checking more often catches it but 213 false stops; an end-of-move check catches it (false 20 -> 37) but +0.1 +-3.7 /
+  -1.8 +-3.8: held, written into ROBOT_TEST.md 2n c, to add if the robot's M8 drives into the box. New move tests on
+  robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
 - Section 1b done (2026-10-18): 1 sim fitted + robot-test settings checked; 2 held; 3 floor/ramp seen (+ fix 2m); 4a/4b
   held/dropped; 5 mostly structural; 6 robustness (+ fix 2n); 7 not wanted. robot-test now 2l + 2m + 2n on top of 2k.
 
