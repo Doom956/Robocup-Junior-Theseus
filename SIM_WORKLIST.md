@@ -73,6 +73,13 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   and try: (a) the planner prefers routes that avoid visited blue tiles when another way exists (the earlier try routed
   around *all* blue: +0.6; try only visited ones, and on the way home); (b) when exploring, visit a blue dead end last.
   Strategy-ish: report before keeping.
+- [x] **B2 (part, 2026-10-18): obstacle size and repeated tries.** Rules 3.4.3 give no obstacle size; the sim's 5-9 cm
+  is assumed (now `obstacleRMinMm/RMaxMm`). robot-test with 10-15 cm obstacles -17.1 +-5.2, 15-20 cm -22.6 +-6.2 (ever
+  lost 56% -> 74-79%); no obstacles +22.5 +-4.9. Big obstacles: the robot stops (no-progress) correctly, "map looks
+  finished early" clears the block at once (B4), and on the 3rd try the 2k guard had switched the check off: it drove in.
+  Fixed on robot-test (2o): the check stays on: -0.6 / -0.5, ever lost 55% -> 47%. Tried and dropped: a late one-sided
+  stop (front <= 45 mm, other >= 100, after 250 mm): +0.0 / -0.5; driving around on every second try even when the
+  obstacle isn't seen at the start: -18.6 / -11.8 (the avoidance manoeuvre gets lost).
 - [ ] **B2. Obstacles between the front beams** (lostcause 2026-10-18: obstacles cause ~75% of lost runs; most are
   obstacles in the gap between the two front sensors, pushed by the robot). Ideas to test, in this order:
   (a) the BNO055's accelerometer: a sharp deceleration when the bumper hits something (does the sim model it? needs a
