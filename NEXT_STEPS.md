@@ -77,6 +77,38 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   the practice maze (inner faces across a tile, wall thickness): if it is wider, nothing to fix for competition; if it
   is 280, the front/back sensors read long at close range.
 
+## 1b. Next simulator work (written 2026-10-18), in this order
+
+On the fast PC: `git checkout main`, `git pull`, `git fetch`, open Claude Code in the folder and say
+**"work through section 1b of NEXT_STEPS.md"** (or one item at a time). Rules as in CLAUDE.md: A/B on 600 comp fields,
+both seed sets (`--start 601`), report score / time lost / home; robot-test changes go on robot-test with a ROBOT_TEST.md
+entry; strategy changes wait for my yes.
+
+1. **Moves overshoot the tile (real robot).** The video of the 2026-10-17 maze runs shows the robot stopping a bit past
+   the middle of the tiles; move test M3 measured 307, 312 and 326 mm for one-tile moves (target 300; logs/2026-10-16
+   move_tests*.txt and logs/2026-10-17 maze_m3.txt / partA.txt). Steps:
+   a. Fit the simulator's stopping to that: today the sim stops ~6 mm short (stopcentre.py). Find what makes the real
+      robot coast further (motor stop time / coasting at PWM 55) and set it from the M3 numbers, marked as fitted.
+   b. With the fitted sim, A/B on robot-test: (i) stop 12 mm early again (undo the "stop on target" half of 2f in fwd()),
+      (ii) minimum drive PWM 50 instead of 55, (iii) both. Keep the best one if its interval isn't below zero.
+   c. Note: centreAlong() corrects the stop when there is a wall ahead or behind; the overshoot adds up in open areas.
+      Also see the maze measurement (section 1 results): if the practice maze is wider than 280 mm, part of what looked
+      like overshoot near walls is the wider maze.
+2. **"no path found" loop on robot-test** (worst 10% of runs, 2.6 restarts per run): the wall written after repeated
+   failures can cut the only way home. Removing those walls when there is no path made it worse. Try: only write the
+   wall when the position looks right (walls of this tile match the map), or keep the guard's walls out of the way-home
+   planner only after a "no path found".
+3. **Make the sim see what the real sensors saw:** (a) front sensors read a ramp's slope as a wall at ~370 mm from the
+   tile in front of it (logs/2026-10-17 ramp_sensors.txt) and ~800 once the robot tips onto it; (b) the back sensor
+   sometimes reads the floor at 170-420 mm with nothing behind (logs/2026-10-16, 2026-10-17 partA). Then re-run robot-test
+   vs main: results that depend on these get more trustworthy.
+4. **Obstacles:** (a) don't let "map looks finished early" clear an obstacle block made in the last minute (strategy:
+   numbers first, then my yes); (b) a side-front sensor under ~30 mm where the map has no wall = obstacle at the corner
+   (logs/2026-10-17 partB9.txt: right-front read 48, 23, 18 mm scraping past one).
+5. **Blue revisits:** route around blue tiles on through-routes when another way exists.
+6. **Robustness of robot-test:** sweep walls wider/narrower (after the maze measurement), more wheel slip, noisier
+   sensors; then `lostcause.py` on robot-test to find what now loses most runs.
+
 ## 2. Open problems (code, then simulator, then robot)
 
 1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
