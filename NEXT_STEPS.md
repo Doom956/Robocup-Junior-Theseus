@@ -77,6 +77,27 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   the practice maze (inner faces across a tile, wall thickness): if it is wider, nothing to fix for competition; if it
   is 280, the front/back sensors read long at close range.
 
+## 1c. Simulator fitted to the robot (2026-10-18, fast PC)
+
+- **The sim was 2.5x too slow.** One tile took 2.7 s in the sim, 1.08-1.13 s on the robot (M3). Fitted to the move tests and
+  bench tests: motor 170 RPM (was 72, the BOM's #3493; the real motors are geared faster, or a 6 V version on 12 V), stall
+  torque 4.2 kg.cm (ramp: up at PWM 180 as slow as down at PWM 120 on the robot), skidFactor 2.5, wheelMu 0.071, no wheel
+  slip (tractionMean 1.0). Sim now: one tile 1.13 s / 300 mm (robot 1.1 s / 297-326 mm), turnright(150) 1 s 97.6 deg
+  (92-97), 90 deg turn 1.1 s (0.77-1.01), bench tests 2 / 4: 30 / 51 (25-30 / 49-51). `--selftest` repeats M3 and M1.
+  Not explained: real ramp climbs take ~38 fwd() loops, the sim's ~23 (a log with ms timestamps would tell).
+- **Replacement left-back sensor modelled** (`tofLeftBackExtraMm` 30): robot-test's SENSOR_OFFSET_MM[5] = 30 corrected an
+  error the sim's sensor didn't have, so robot-test squared up crooked on left walls (heading 9-14 deg off, 82% of runs
+  lost). Every robot-test sim result since 2026-10-17 had this (section 1 above too).
+- **main -> robot-test on the fitted sim:** +69.9 +-5.6 / +66.6 +-5.7, home 38% -> 77% / 35% -> 78%, time lost 50% -> 15%.
+  main has no correction for the long left-back sensor: don't run main on the robot while that sensor is fitted.
+- **robot-test settings at real speed** (600 comp): turns back to main's (20 / 4.5) -5.4 +-3.5 (keep 45 / 8); steering
+  gain back to 2 +1.3 +-3.8; no minimum PWM 55 +0.7 +-3.3 (no difference: keep, they work on the robot).
+- **Overshoot (1b item 1):** the moves themselves end about right (M3 307 mm, sim 300). The robot ending near the back of
+  tiles in the maze is centreAlong(): from a wall behind it reads 24 mm "past", from a wall ahead 31 mm "short", so it
+  pulls the robot toward whichever wall it uses. Measure the practice maze (inner faces across a tile, wall thickness).
+  Centring by balancing front and back when both walls are in the tile: -0.5 +-1.3 / -0.3 +-1.0, walls 300 apart -0.2
+  +-3.5: no change in the sim (held). Stopping 12 mm early / PWM 50 not tried: the moves don't overshoot.
+
 ## 1b. Next simulator work (written 2026-10-18), in this order
 
 On the fast PC: `git checkout main`, `git pull`, `git fetch`, open Claude Code in the folder and say
