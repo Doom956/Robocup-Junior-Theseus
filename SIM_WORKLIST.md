@@ -23,6 +23,11 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
 ## A. Make the simulator match the robot better (do first: every later result depends on it)
 
+- [x] **A1 result (2026-10-18):** M7 can't be the motor speed fit: fitting it (166 RPM, friction 0.11) breaks M3 (1.4 s
+  vs 1.1), M1 (1.7 s vs 0.8-1.0) and bench tests 2/3 (50 / 84 vs 25-30 / 92-97). Free wheels can't be slower than on the
+  floor: likely a low battery (the first M7 read 36-38) or a rubbing wheel. Kept the speed fit; repeat M7 with the
+  battery voltage noted. What M7 does show: the wheels differ ~12% (sim had 3%): motorGainSigma 0.12 (measured), which
+  costs robot-test -15.3 +-6.3 (home 86% -> 76%, more wall contact). Selftest prints M7.
 - [ ] **A1. Motor speed from M7.** Move test M7 (2026-10-18, logs/2026-10-18/move_tests2.txt), wheels in the air:
   fw(255) **118 / 139 / 150 RPM** (wheels A / B / D), fw(150) **67 / 66 / 89**. The sim's fit is ~158 / ~90. Refit the
   motor model to these (per wheel if the model allows: wheel A is the weak one, as in bench test 4), then re-check that

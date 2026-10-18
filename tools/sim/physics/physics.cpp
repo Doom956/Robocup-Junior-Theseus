@@ -63,7 +63,9 @@ struct Params {
   // sim 30 / 97.6 deg / 51, move test M1 90 deg in 1.1 s.
   double wheelMu = 0.071;
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
-  double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
+  // per-motor speed difference (fraction). MEASURED 2026-10-18 (move test M7, wheels in the air): A/B/D 118/139/150 RPM at
+  // fw(255) and 67/66/89 at fw(150), about 12% apart (was 0.03, assumed). Motor C has no encoder.
+  double motorGainSigma = 0.12;
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
   // skid steering turns slower than the ideal track predicts. FITTED: bench test 3 (turnright(150) 1 s: 92-97 deg) gives
   // 2.5 with the 170 RPM motor (97.5 deg; move test M1: 90 deg in 1.1 s, robot 0.77-1.01 s). Was 1.1 with 72 RPM.
@@ -1140,6 +1142,27 @@ static int selfTest() {
         delay(2000);
       }
       (void)y0;
+    }
+    // Move test M7: wheel speeds from the encoders, as Main/bench.cpp does it (robot 2026-10-18, wheels in the air:
+    // fw(150) A/B/D 67/66/89 RPM, fw(255) 118/139/150). The sim has no rolling load, so driving on the floor is the same.
+    {
+      W = field::World();
+      W.W = 7; W.H = 7;
+      W.wall.assign(49, {{false, false, false, false}});
+      W.type.assign(49, field::FLOOR); W.level.assign(49, 0);
+      for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      indexObstacles();
+      for (int pwm : {150, 255}) {
+        place(1050, 200, 0);
+        drivetrain.fw(pwm); delay(700);
+        drivetrain.reset_encoderCount(true, true, true);
+        delay(1000);
+        double a = drivetrain.encoderCountA, b = drivetrain.encoderCountB, d = drivetrain.encoderCountD;
+        drivetrain.fullstop(); delay(500);
+        std::printf("  M7 fw(%d): RPM A/B/D %.0f/%.0f/%.0f (robot %s)\n", pwm, a / 975 * 60, b / 975 * 60, d / 975 * 60,
+                    pwm == 150 ? "67/66/89" : "118/139/150");
+      }
     }
     // Move test M0 on open floor: what each sensor reads with no wall near (robot: back 170-540 or 8190, front ~690
     // or 8190, sides ~470-760; logs/2026-10-16 move_tests2, 2026-10-17 sensor_check, ramp_sensors).
