@@ -366,8 +366,23 @@ lost 50% -> 55%.
 **Robot test:**
 - a. A few minutes of normal exploring in the maze with no obstacles: count `[FWD] no progress` in the log
   (`python tools/robot_log.py log.txt`). It should be 0 or close to it.
-- b. Move test M6 (box taped down in the path, wall 30-40 cm ahead) and an obstacle hit after a clear start (box ~20 cm
-  into the next tile): it should still stop and back up.
+- b. Move tests M6 (box 10 cm ahead) and M8 (box 15 cm ahead): it should stop (`[FWD] no progress`) and back up.
+- c. **Known gap:** in the simulator (selftest "M8 box"), with 2n a box 200 mm ahead is missed: the robot pushes into it and
+  reports a normal move, ~100 mm short (before 2n it was caught; 250 mm is missed by both). If M8 on the robot also drives
+  into the box without `[FWD] no progress`, add this end-of-move check in `fwd()` just before
+  `if(noProgress && moveInterrupted == false){` (sim: catches 100/150/200 mm, false stops 20 -> 37 per 80 runs, score
+  +0.1 +-3.7 / -1.8 +-3.8, home +4 / +2 pts: held until the robot shows the gap):
+
+  ```cpp
+  if(!noProgress && !noProgressOff && !climbed && !black && moveInterrupted == false && !obstacleAhead && frontRef && !frontLost){
+    double encEnd = avgEncoder() / pulsesForDistanceMm(1);
+    int r = measure(1), l = measure(7);
+    if(encEnd >= 200 && r > 0 && l > 0 && abs(r - l) <= 40){
+      double p = (prog0R + prog0L) / 2.0 - (r + l) / 2.0;   // how much nearer the wall ahead came
+      if(p < 0.8 * encEnd){ Serial.println("[FWD] no progress at the end"); fwdExit = "no-progress"; noProgress = true; lastMoveNoProgress = true; }
+    }
+  }
+  ```
 
 ## 2m. Centring along the tile: back sensor only for this tile's own wall (2026-10-18)
 
