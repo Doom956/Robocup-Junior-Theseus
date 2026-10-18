@@ -348,6 +348,25 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
    jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
    what the real robot does.
 
+## 2m. Centring along the tile: back sensor only for this tile's own wall (2026-10-18)
+
+**What changed** (`Main/Distance.cpp` `centreAlong()`): the back sensor is used only when it reads 150 mm or less (the
+wall at the back of this tile). Before, anything up to 450 mm counted, taken as "a wall one tile behind".
+
+**Why:** the back sensor is 43 mm above the floor and its beam reaches the floor: with nothing behind it read 170-540 mm
+(move tests M0, 2026-10-16/17), the same as a wall one tile behind. centreAlong() then "corrected" the robot by tens of mm.
+In the maze logs, back-wall centring said +24 mm past the middle on average and moved the robot backwards: the robot
+ending near the back edge of tiles (video, 2026-10-17). In the simulator with the floor modelled (fitted to M0), this
+was the main way runs got lost.
+
+**Simulator** (600 comp fields, seeds 1-600 / 601-1200): +69.8 +-5.1 / +70.5 +-5.2, home 54% -> 82%, time lost 30% -> 10%,
+runs ever lost 87% -> 50%. On a sim where sensors don't see the floor: -2.7 +-3.1 (no harm).
+
+**Robot test:** cameras off, logging, a few minutes of exploring in the maze (also part of the tile accuracy check).
+- Watch: the robot should end in the middle of tiles, not near the back edge.
+- Log: `centring along: ... (back wall)` lines should be rare and small now; `python tools/robot_log.py log.txt`, the
+  "stops along the tile" line.
+
 ## 2l. After a ramp: drive half a tile from the ramp's end, no timed push (2026-10-18)
 
 **What changed** (`Main/movement.cpp` `fwd()`): after the climb loop, the move used to finish the tile from the encoder

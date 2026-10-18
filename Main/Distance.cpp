@@ -486,7 +486,9 @@ void centreAlong(){
   bool useFront = f1 > 0 && f7 > 0 && f1 <= 450 && f7 <= 450 && abs(f1 - f7) <= 25;
   // Right after a ramp the slope is behind the robot: the back sensor reads it like a wall (2026-10-17: "centring
   // along: -107 mm (back wall)" after coming down a ramp moved the robot ~10 cm off).
-  bool useBack = b > 0 && b <= 450 && !justClimbedRamp;
+  // Only this tile's own back wall: the back sensor is 43 mm above the floor and reads the floor itself at 170-540 mm
+  // with nothing behind (robot, 2026-10-16/17), so "a wall one tile behind" can't be told from the floor.
+  bool useBack = b > 0 && b <= 150 && !justClimbedRamp;
   if(useFront && useBack){ if(b < (f1 + f7) / 2) useFront = false; else useBack = false; } // the nearer wall reads more accurately
   if(!useFront && !useBack) return;
   double now = useFront ? (f1 + f7) / 2.0 : b;
