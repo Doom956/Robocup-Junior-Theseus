@@ -132,7 +132,11 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   deg/min -1.1; 2x sensor noise -26.3 +-7.0 and 2x floor reflection -32.4 +-6.1, both by exploring less (88% -> 75-78%),
   not by getting lost: the no-progress check's 80 mm window fired on noise (3 of 4 stops false by default, 9 of 10 with
   noise). Fixed on robot-test (2n): the window only counts when the whole move is also < 60% behind: +6.5 +-2.4 /
-  +9.3 +-3.0, explored 87% -> 91%. Still open: narrower corridors (30 mm walls).
+  +9.3 +-3.0, explored 87% -> 91%. Re-check with 2n: 2x noise +4.3 +-5.3, 2x floor reflection -0.1 +-5.3 (both fixed);
+  walls 30 mm (270 mm path) still -17.8 +-6.2: probably the one-wall steering target (80 mm, ROBOT_WIDTH_MM, kept as is by
+  the user's rule) leaving the robot close to the far side. Only matters if competition walls are thicker than RCJ's 20 mm.
+- Section 1b done (2026-10-18): 1 sim fitted + robot-test settings checked; 2 held; 3 floor/ramp seen (+ fix 2m); 4a/4b
+  held/dropped; 5 mostly structural; 6 robustness (+ fix 2n); 7 not wanted. robot-test now 2l + 2m + 2n on top of 2k.
 
 ## 1b. Next simulator work (written 2026-10-18), in this order
 
