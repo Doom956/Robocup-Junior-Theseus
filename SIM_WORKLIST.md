@@ -47,6 +47,15 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   (motor torque on the slope, grip, loop timing) once a log with millisecond timestamps exists.
 - [ ] **A5. Speed bumps** (rules 3.4, 5.6.8: 5 points per tile crossed). Model them (height from the rules) and check the
   robot doesn't mistake one for a ramp (RAMP_PITCH_DEG 12; a bump tilts this robot ~7 deg) or lose its position on one.
+- [x] **A6 result (2026-10-18, rules PDF of 2026-03-29):** 5.6.6 blue 30, -10 per revisit, never below 0 per tile; 5.6.7
+  reliability non-negative, 10 x SBV - 15 x LoP; 5.6.8 bumps 5 per tile; 5.6.9 ramps 10 once per ramp; 5.6.11 checkpoints
+  10; 5.6.12 exit +10 per SBV, +5 per ramp; 5.6.13 no duplicates; total never below 0: all as the sim scores them
+  (victims, stairs, misidentification not simulated). Exit bonus needs >= 10 s blinking 1 s on / 1 s off with the
+  victim LED: the code blinks LEDPIN (51, the victim LED) 1 s on/off at home until paused. 5.5.2: after a LoP the
+  robot may be put down facing any direction: the code turns to gyro 0 (the gyro tracks while carried); the sim now
+  does that (lopAnyDirection 1, was always the start direction). 5.3.1: the 8 min include calibration, but the code's
+  clock starts at power-on (RUN_TIME_S 480) and the sim's at the run start: if the team spends time on the field before
+  powering on, lower RUN_TIME_S (team procedure, not changed).
 - [ ] **A6. Scoring check against the 2026 rules:** blue tile revisits -10 each (5.6.6), reliability bonus with -15 per
   LoP (5.6.7), exit bonus (5.6.12: +10 per victim and blue tile, +5 per ramp), no duplicate rewards (5.6.13), the 8 min
   including calibration (5.3). Make sure the sim's score does all of these.

@@ -119,6 +119,7 @@ struct Params {
   // obstacleMu; the rest are fixed. 0 = all fixed (the default, as before).
   double obstacleMovableFrac = 0, obstacleMassMinKg = 0.5, obstacleMassMaxKg = 2.0, obstacleMu = 0.4;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
+  double lopAnyDirection = 1; // put back after a lack of progress facing a random direction (rules 5.5.2); 0 = start direction
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
   double oracleTile = 0;
@@ -144,7 +145,7 @@ static std::map<std::string, double *> paramTable() {
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
     {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -721,7 +722,8 @@ static void lackOfProgress(const char *why) {
   pauseUntilUs = tUs + P.lopPauseS * 1e6;
   rx = (cpX + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (cpY + 0.5) * field::TILE + gauss(P.placeSigmaMm);
-  rhead = wrap360(gauss(P.placeSigmaDeg)); // placed facing the start direction
+  // RCJ 2026 5.5.2: after a lack of progress "the robot can be installed in any direction"
+  rhead = wrap360((P.lopAnyDirection > 0 ? 90.0 * std::uniform_int_distribution<int>(0, 3)(rng) : 0.0) + gauss(P.placeSigmaDeg));
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
   curTile = W.id(cpX, cpY); stillUs = 0; blueStopped = false; lastStillX = rx; lastStillY = ry;
