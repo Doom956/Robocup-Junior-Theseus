@@ -1,5 +1,7 @@
 # Next steps (updated 2026-10-17, evening)
 
+**Fast PC: the simulator to-do list is now [SIM_WORKLIST.md](SIM_WORKLIST.md)** (say "work through SIM_WORKLIST.md").
+
 ## 0. On the other PC: get today's work
 
 First time on that PC only (skip if it already has the project):
