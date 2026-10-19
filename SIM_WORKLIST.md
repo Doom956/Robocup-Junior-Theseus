@@ -20,10 +20,22 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   -23 / -16 mm or no centring needed. A/B `9205f12` vs `d5ed8aa` (both seed sets) and the stop position after descents
   (stopcentre.py). Report only: it stays on robot-test unless the sim shows clear harm, and then tell me before changing it
   (real robot beats sim).
+- [x] **N2 (2026-10-19):** sim option `--set tileMm=320` (tile pitch; robot still drives 300 mm), sim-only commit.
+  robot-test (d5ed8aa) on 320 vs 300 mm tiles: +10.4 +-4.6 / +9.5 +-4.4, ever lost 48% -> 38-39%: the practice maze is
+  easier (more room). Centring readings reproduce the robot: from a wall ahead median -40 mm on 320 mm tiles (robot
+  2026-10-19: -37), -13 on 300; from a wall behind +25 (robot +22). So the "short" readings are the practice tiles; on
+  competition tiles expect ~-13. 300 mm tiles unchanged by the option (default).
 - [ ] **N2. Practice maze in the sim (A3).** The practice maze has 320 mm tiles, walls on the joints, ~300 mm path (CLAUDE.md;
   the robot's moves are 300 mm). Add it as a field option and run robot-test on it, so practice-maze logs can be compared
   with the sim: centring readings ("short" ~25-30 mm from a wall ahead), how often it gets lost, how it gets home.
   Also check robot-test on 300 mm tiles stays as before (the competition size).
+- [ ] **N3 (in progress, 2026-10-19):** the robot logs: front-left 8190 (looking down the ramp), front-right 58 mm = about
+  the distance to the tile edge on a 320 mm tile (160 - 98): it sees the end of the ramp's side wall, which needs the
+  robot ~40+ mm off-centre sideways (it arrived going north on a 320 mm tile, ending short; after turning east that is
+  sideways). In the sim this exact case is rare (19-43 per 200 runs), but one-sided obstacle alarms in general are false
+  more often than real: 439 false vs 294 real per 200 runs on 300 mm tiles (false: 352 at move start, 73% with the robot
+  30+ mm off-centre sideways, 62% with its true heading 3+ deg off while the gyro says square). Test: square up on the
+  walls (parallel()) before deciding at move start: false at start 352 -> 285, real still caught; A/B running.
 - [ ] **N3. False obstacle beside a ramp top.** Both runs on 2026-10-19 (logs/2026-10-19 run1.txt, run2.txt, run2b.txt):
   at the tile next to the top of a ramp (map 23,18 floor 2), facing the way down, the one-sided obstacle check fired:
   front-left out of range (8190, looking down the ramp), front-right 58 mm (mid-move, 17 mm in) / 84 mm (move start).
@@ -33,6 +45,10 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   end of the wall beside the ramp. Reproduce in the sim (ramp approached from the side; practice-maze tiles too), then
   try: on a one-sided reading at about the distance of the tile edge (40-90 mm), square up / re-centre along before
   deciding, as the start-of-move check already does for turns > 3 deg. Physics-dependent: robot-test with a ROBOT_TEST entry.
+- [x] **N4 (2026-10-19):** logic fix on main (357f049) and robot-test (703472e): a pitch over 35 deg isn't a ramp (rules
+  3.1.5: ramps <= 25 deg), at most 3 ramp tiles per climb. Sim: robot-test -1.3 +-2.9 / +0.8 +-2.7, main +0.9 +-2.4 /
+  +0.8 +-2.3 (main home -4 +-3 on seeds 1-600 / +0 on 601-1200: main is lost in 99% of its sim runs). On the robot-test
+  unconfirmed list (test: lift the robot mid-move).
 - [ ] **N4. Lifted robot counts dozens of ramp tiles** (logs/2026-10-19 ramp.txt, 11:07:32-35: the robot was picked up
   while running, pitch up to 55 deg, ~60 "1 section of the ramp climbed" in 3 s, the map ran out). Rules 3.1.5: ramps
   are at most 25 deg. Logic fix candidate: in the climb loop, a pitch over ~35 deg is not a ramp (stop counting, or end
