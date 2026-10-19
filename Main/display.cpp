@@ -7,6 +7,10 @@
 
 extern timer mazeTime; // main.cpp
 
+#ifndef FW_VERSION
+#define FW_VERSION "unknown" // set by tools/fw_version.py when built with PlatformIO
+#endif
+
 static char eventLine[17] = "";
 static char problemLine[17] = ""; // a start-up problem: shown instead of events until the next power-on
 
@@ -50,6 +54,9 @@ extern bool colourMissing;                       // Color.cpp
 // e.g. "!GYRO COLR LB FR" (gyro, colour sensor, left-back and front-right distance sensors); the Serial log has
 // the full names. All fine: "READY" until the run starts.
 void lcdStartupCheck(){
+  Serial.print("firmware ");
+  Serial.println(FW_VERSION);
+  if(lcdMutex.trylock()){ writeLine(0, "fw " FW_VERSION); lcdMutex.unlock(); } // replaced by the position line
   char dead[24];
   checkDistanceSensors(dead, sizeof(dead));
   char line[40] = "";

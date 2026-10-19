@@ -1,5 +1,13 @@
 # Robot tests
 
+**Not yet confirmed on the robot** (keep this list current; at most ~5 before the next maze session):
+- 2l ramp exit (drive 155 mm from the ramp's end)
+- 2m centring: back sensor only for this tile's wall
+- 2n no-progress 80 mm window + end-of-move check (M6/M8 passed on the bench 2026-10-18; maze run still to do)
+- 2o no-progress check stays on after two stops at one edge (revert if the maze shows repeated stops at one edge with
+  nothing there, as on 2026-10-17 partB8)
+Last good maze version: tag `known-good-2026-10-17`.
+
 Changes on this branch depend on how real the simulator's motors, grip, turning, gyro or sensors are,
 so they stay off `main` until they pass on the real robot. Each one has a short test below: what to
 set up, what to run, and what to watch for in the Serial monitor.
