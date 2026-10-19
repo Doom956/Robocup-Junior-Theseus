@@ -11,7 +11,9 @@
 
 namespace field {
 
-const double TILE = 300.0;
+// tile pitch, mm: RCJ 2026 3.1.2 says 300 (--set tileMm=320 for the team's practice maze, measured 2026-10-19). Only
+// physics.cpp includes this header, so one copy; set before the field is generated.
+static double TILE = 300.0;
 const int DX[4] = {0, 1, 0, -1}; // N E S W
 const int DY[4] = {1, 0, -1, 0};
 enum CellType { FLOOR, BLACK_T, BLUE_T, SILVER_T, RAMP_T, SOLID_T };

@@ -112,6 +112,9 @@ struct Params {
   double placeSigmaMm = 8, placeSigmaDeg = 2; // how accurately a person places the robot
   double rampMinDeg = 15, rampMaxDeg = 25;
   // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
+  // tile pitch (RCJ 3.1.2: 300). The practice maze (measured 2026-10-19): 320 mm tiles, 20 mm walls on the joints, so a
+  // ~300 mm path (295 measured). The robot still drives 300 mm per tile (its code doesn't know).
+  double tileMm = 300;
   double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
   double obstacleRMinMm = 25, obstacleRMaxMm = 45; // obstacle radius: 5-9 cm across, assumed (rules 3.4.3: any shape, large heavy items, >= 15 cm tall)
   // RCJ 2026 3.4.3: obstacles are "large, heavy items" and "may be fixed to the floor"; 3.4.5: one that is
@@ -152,7 +155,7 @@ static std::map<std::string, double *> paramTable() {
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
-    {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
+    {"wallThicknessMm", &P.wallThicknessMm}, {"tileMm", &P.tileMm}, {"obstacleRate", &P.obstacleRate},
     {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"pushGripMu", &P.pushGripMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
     {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
@@ -1293,6 +1296,7 @@ int main(int argc, char **argv) {
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
   std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(sc - field::SCENARIOS));
   field::Extras ex;
+  field::TILE = P.tileMm;
   ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.obstacleRMin = P.obstacleRMinMm; ex.obstacleRMax = P.obstacleRMaxMm; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
   W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
   indexObstacles();
@@ -1328,7 +1332,7 @@ int main(int argc, char **argv) {
     *traceOut << "],\"cone\":" << P.tofConeDeg << ",\"outline\":[";
     for (size_t k = 0; k < outF.size(); k++) *traceOut << (k ? "," : "") << "[" << outF[k] << "," << outL[k] << "]";
     *traceOut << "]},\"map\":{\"size\":" << MAP_SIZE << ",\"floors\":" << NUM_FLOORS << ",\"start\":" << START_FLOOR << "}";
-    *traceOut << ",\"field\":{\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg
+    *traceOut << ",\"field\":{\"tile\":" << field::TILE << ",\"W\":" << W.W << ",\"H\":" << W.H << ",\"sx\":" << W.sx << ",\"sy\":" << W.sy << ",\"rampDeg\":" << W.rampDeg
           << ",\"rampX0\":" << W.rampX0 << ",\"rampLen\":" << W.rampLen << ",\"levelHeight\":[" << W.levelHeight[0] << "," << W.levelHeight[1] << "]"
           << ",\"wallT\":" << P.wallThicknessMm << ",\"bumpH\":" << W.bumpH << ",\"bumpW\":" << W.bumpW << ",\"obstacles\":[";
     for (size_t k = 0; k < W.obstacles.size(); k++) *traceOut << (k ? "," : "") << "[" << (int)W.obstacles[k].x << "," << (int)W.obstacles[k].y << "," << (int)W.obstacles[k].r << "]";
