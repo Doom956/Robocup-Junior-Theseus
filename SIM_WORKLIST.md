@@ -76,6 +76,9 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   / 30% -> 80%. D2 now: score 159.9 of 227.7; blue revisits -28.1, unexplored -25.7, restarts -7.8 (0.67 per run), not
   home -6.2 per run; first wrong position: false obstacle alarm 23%, pushed obstacle 20%, real obstacle 20%, move 15%,
   ramp 11%, scraped wall 5%. Ended home 490, no path 86, time 24 (of 600). PORTFOLIO.md row updated.
+  **Question (2026-10-19):** "pushed obstacle 20%": loose obstacles (`obstacleMovableFrac`) are off by default, so which
+  settings did this lostcause run use, and what does "pushed" count (an obstacle that moved, or the robot driving into a
+  fixed one)? Say so next to the number.
 - [ ] **N6. Re-check robot-test vs `known-good-2026-10-19`** after N1-N4 (CLAUDE.md rule), and update D2 (what loses
   points now) and the PORTFOLIO.md results row.
 - Still open further down, after N1-N6: A2 (largely explained by the 320 mm practice tiles), A4 (ramp climb timing: the
