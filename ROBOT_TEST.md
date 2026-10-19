@@ -3,7 +3,8 @@
 **Not yet confirmed on the robot** (keep this list current; at most ~5 before the next maze session):
 - 2l ramp exit (drive 155 mm from the ramp's end)
 - 2m centring: back sensor only for this tile's wall
-- 2n no-progress 80 mm window + end-of-move check (M6/M8 passed on the bench 2026-10-18; maze run still to do)
+- 2n no-progress 80 mm window + end-of-move check (bench: M6/M8 caught 5 of 5, a loose box pushed without a false stop,
+  2026-10-18; still to do: count false stops in a maze run)
 - 2o no-progress check stays on after two stops at one edge (revert if the maze shows repeated stops at one edge with
   nothing there, as on 2026-10-17 partB8)
 Confirmed 2026-10-18 (no maze): run clock starts at 0 at the first switch flip (switched on 2.5 min earlier; firmware 9cdce30).
