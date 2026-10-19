@@ -142,6 +142,18 @@ struct Params {
   // Analysis only: 1 = put the robot itself in the middle of its tile (heading untouched) each time
   // the code starts reading a tile. Shows how much being off-centre costs.
   double oracleCentre = 0;
+  // Rehearsals of the robot tests in TEST_PRIORITY.md (2026-10-19, SIM_WORKLIST T1): --scenario t2 / t3 / t6 / t7 are small
+  // fixed fields (testField()), the others act on any field. All off by default.
+  double testPos = 0;      // t2 / t6: obstacle at the near end (0), middle (1) or far end (2) of its tile; t7: in the first half of the blue tile (0) or of the tile after it (1)
+  double testOffsetMm = 0, testTurnDeg = 0; // t3: start this far toward the open side, turned this much toward it
+  double testGyroZero = 0; // 1 = the gyro reads 0 at the heading the robot was placed at (switched on where it stands, IMUPLUS)
+  // test 4: once carryAfterTiles tiles are visited, at the next tile read, move the robot back one tile with the same
+  // heading: 1 = pause 3 s first (as TEST_PRIORITY says), 2 = at once, no pause, 3 = hold it still through its next move
+  double carryTest = 0, carryAfterTiles = 4;
+  double carryOnRevisit = 0; // 1 = only at a tile the code has visited before (relocalize compares with what it recorded)
+  double homeCarry = 0;    // test 5: when it sets off home, pause 3 s and put it on a tile next to the start, facing the start
+  double testNoCheckpoints = 0; // 1 = silver tiles become white (after a pause the code goes back to its last checkpoint)
+  double testWide = 0;     // t6: the obstacle's tile is open on the side away from the obstacle (room to drive around it)
 } P;
 
 // --set name=value overrides any of the numbers above
@@ -161,7 +173,10 @@ static std::map<std::string, double *> paramTable() {
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"tileMm", &P.tileMm}, {"obstacleRate", &P.obstacleRate},
     {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"pushGripMu", &P.pushGripMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"slopeDrag", &P.slopeDrag}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"slopeDrag", &P.slopeDrag}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre},
+    {"testPos", &P.testPos}, {"testOffsetMm", &P.testOffsetMm}, {"testTurnDeg", &P.testTurnDeg}, {"testGyroZero", &P.testGyroZero},
+    {"carryTest", &P.carryTest}, {"carryAfterTiles", &P.carryAfterTiles}, {"homeCarry", &P.homeCarry},
+    {"carryOnRevisit", &P.carryOnRevisit}, {"testNoCheckpoints", &P.testNoCheckpoints}, {"testWide", &P.testWide}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -655,6 +670,61 @@ static int majorityTile() {
   return -1;
 }
 
+// carryTest / homeCarry (see Params): a person moves the robot by hand, as in TEST_PRIORITY.md tests 4 and 5
+static bool carryDone = false, homeCarryDone = false, holdSet = false;
+static int holdPhase = 0; // carryTest 3: 1 = waiting for the next move, 2 = done
+static double holdX = 0, holdY = 0;
+static void testEvent(const std::string &what) {
+  if (traceOut) *traceOut << "{\"event\":\"carry\",\"why\":\"" << jsonEsc(what) << "\",\"t\":" << (int)((tUs - runStartUs) / 1000) << "}\n";
+}
+// put the robot in the middle of tile (x, y) facing `head`; false (nothing changed) if it wouldn't fit there
+static bool carryTo(int x, int y, double head, bool pause) {
+  double ox = rx, oy = ry, oh = rhead;
+  rx = (x + 0.5) * field::TILE + gauss(P.placeSigmaMm); ry = (y + 0.5) * field::TILE + gauss(P.placeSigmaMm);
+  rhead = wrap360(head + gauss(P.placeSigmaDeg));
+  if (collides(rx, ry, rhead)) { rx = ox; ry = oy; rhead = oh; return false; }
+  for (int i = 1; i <= 4; i++) mot[i].speed = 0;
+  if (pause) { switchHigh = true; pauseUntilUs = tUs + P.lopPauseS * 1e6; }
+  lastProgressUs = tUs + (pause ? P.lopPauseS * 1e6 : 0);
+  return true;
+}
+static void testEvents(bool enteredSense) {
+  const double T = field::TILE;
+  int tx = (int)std::floor(rx / T), ty = (int)std::floor(ry / T);
+  if (P.carryTest > 0 && !carryDone && enteredSense && !switchHigh && visitedCount >= P.carryAfterTiles && W.in(tx, ty) &&
+      (P.carryOnRevisit <= 0 || mapGrid[x_pos][y_pos].getVisited())) {
+    int k = (int)std::lround(rhead / 90.0) % 4, back = (k + 2) % 4, bx = tx + field::DX[back], by = ty + field::DY[back];
+    if (W.in(bx, by) && !W.hasWall(tx, ty, back) && W.type[W.id(bx, by)] == field::FLOOR && W.level[W.id(bx, by)] == W.level[W.id(tx, ty)]) {
+      if (P.carryTest == 3) { holdPhase = 1; carryDone = true; testEvent("hold the robot through its next move"); }
+      else if (carryTo(bx, by, rhead, P.carryTest == 1)) {
+        carryDone = true;
+        testEvent(P.carryTest == 1 ? "pause, carried back one tile, resume" : "carried back one tile (no pause)");
+      }
+    }
+  }
+  if (holdPhase == 1) {
+    if (state == EXECUTE_MOVE) { if (!holdSet) { holdX = rx; holdY = ry; holdSet = true; } rx = holdX; ry = holdY; }
+    else if (holdSet) { holdPhase = 2; testEvent("let go"); }
+  }
+  if (P.homeCarry > 0 && !homeCarryDone && state == RETURN && !switchHigh) {
+    homeCarryDone = true;
+    if (std::abs(tx - W.sx) + std::abs(ty - W.sy) < 2) { testEvent("home carry skipped: already next to the start"); return; }
+    std::vector<int> ds;
+    for (int d = 0; d < 4; d++) {
+      int nx = W.sx + field::DX[d], ny = W.sy + field::DY[d];
+      if (W.in(nx, ny) && !W.hasWall(W.sx, W.sy, d) && W.type[W.id(nx, ny)] == field::FLOOR && W.level[W.id(nx, ny)] == W.level[W.id(W.sx, W.sy)]) ds.push_back(d);
+    }
+    std::shuffle(ds.begin(), ds.end(), rng);
+    for (int d : ds)
+      if (carryTo(W.sx + field::DX[d], W.sy + field::DY[d], ((d + 2) % 4) * 90.0, true)) {
+        testEvent(std::string("pause, carried to the tile next to the start (") + "NESW"[d] + " of it, facing it), resume" +
+                  (cpX == W.sx && cpY == W.sy ? "" : "; last checkpoint is not the start"));
+        return;
+      }
+    testEvent("home carry skipped: no free tile next to the start");
+  }
+}
+
 static void refereeTick() {
   Pausemaze = switchHigh; // what pauseTask() does every 10 ms
   if (!runStarted) return;
@@ -716,6 +786,7 @@ static void refereeTick() {
   static int prevState = -1;
   bool enteredSense = state == SENSE_TILE && prevState != SENSE_TILE;
   prevState = state;
+  testEvents(enteredSense);
   if (state == SENSE_TILE && !switchHigh && W.in(tx, ty) && W.type[W.id(tx, ty)] != field::RAMP_T) {
     int ef = START_FLOOR + W.level[W.id(tx, ty)] - W.level[W.id(W.sx, W.sy)];
     if (P.oracleTile > 0 && enteredSense && currentFloor == ef) { x_pos = tx - W.sx + MAP_SIZE / 2; y_pos = ty - W.sy + MAP_SIZE / 2; }
@@ -943,6 +1014,7 @@ static int bnoMode = OPERATION_MODE_NDOF;
 bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) { bnoMode = mode; simAdvance(20000); return true; }
 void Adafruit_BNO055::setMode(adafruit_bno055_opmode_t mode) { bnoMode = mode; }
 static double magOffsetDeg = 0;                // maze "north" vs magnetic north
+static double gyroZeroDeg = 0;                // testGyroZero: heading the robot was switched on at (IMUPLUS reads 0 there)
 static double magPhase[4] = {0, 0, 0, 0};      // where the heading error from local magnetic distortion peaks
 static bool magneticMode() {                   // NDOF, NDOF_FMC_OFF, COMPASS, M4G use the magnetometer for heading
   if (P.gyroMagnetic >= 0) return P.gyroMagnetic > 0;
@@ -953,7 +1025,7 @@ bool Adafruit_BNO055::getEvent(sensors_event_t *e) {
   bool magnetic = magneticMode() && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
   // magnetic heading: no gyro drift, but the frame is magnetic north and local distortion bends it a little
   double magErr = P.magErrorDeg * std::sin(2 * M_PI * rx / 900 + magPhase[0]) * std::cos(2 * M_PI * ry / 1100 + magPhase[1]);
-  e->orientation.x = (float)wrap360(rhead + (magnetic ? magOffsetDeg + magErr : gyroBiasDegPerUs * tUs) + gauss(P.gyroNoiseDeg));
+  e->orientation.x = (float)wrap360(rhead + (magnetic ? magOffsetDeg + magErr : gyroBiasDegPerUs * tUs - gyroZeroDeg) + gauss(P.gyroNoiseDeg));
   gyroLast = e->orientation.x;
   e->orientation.y = 0;
   e->orientation.z = (float)(rpitch + gauss(P.pitchNoiseDeg));
@@ -1251,6 +1323,50 @@ static int selfTest() {
   return 0;
 }
 
+// --scenario t2 / t3 / t6 / t7: the maze tests of TEST_PRIORITY.md (2026-10-19) on small fixed fields, set up as written
+// there (details: ROBOT_TEST.md 1 a-e on robot-test). The robot starts on (1, 0) facing north; the seed varies the obstacle's
+// size (obstacleRMinMm..obstacleRMaxMm, 5-9 cm) and side, and the placement (placeSigmaMm / placeSigmaDeg).
+static const field::Scenario TEST_FIELDS[] = {{"t2", 3, 3, 3, 3, 0, 0, 0, 0, 0}, {"t3", 3, 3, 3, 3, 0, 0, 0, 0, 0},
+                                              {"t6", 3, 3, 3, 3, 0, 0, 0, 0, 0}, {"t7", 3, 3, 4, 4, 0, 0, 0, 0, 0}};
+static void testField(const std::string &name, std::mt19937 &frng) {
+  const double T = field::TILE;
+  int w = 3, h = name == "t7" ? 4 : 3;
+  W = field::World();
+  W.W = w; W.H = h; W.sx = 1; W.sy = 0;
+  W.wall.assign(w * h, {{false, false, false, false}});
+  W.type.assign(w * h, field::FLOOR); W.level.assign(w * h, 0); W.bump.assign(w * h, 0);
+  for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) for (int d = 0; d < 4; d++)
+    if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+  auto wall = [](int x, int y, int d) {
+    W.wall[W.id(x, y)][d] = true;
+    int nx = x + field::DX[d], ny = y + field::DY[d];
+    if (W.in(nx, ny)) W.wall[W.id(nx, ny)][(d + 2) % 4] = true;
+  };
+  std::uniform_real_distribution<double> u(0, 1);
+  double r = P.obstacleRMinMm + (P.obstacleRMaxMm - P.obstacleRMinMm) * u(frng);
+  int side = u(frng) < 0.5 || P.testWide > 0 ? 1 : -1; // touching the east (1) or west (-1) wall
+  // an obstacle touching the side wall of tile (x, y), its centre `along` mm into the tile from its south edge (RCJ 3.4.4:
+  // at most 10 cm into the path)
+  auto obstacle = [&](int x, int y, double along) {
+    double face = side > 0 ? (x + 1) * T - P.wallThicknessMm / 2 : x * T + P.wallThicknessMm / 2;
+    W.obstacles.push_back({face - side * r, y * T + along, r});
+  };
+  auto alongFor = [&](int pos) { return pos == 0 ? r + 10 : pos == 1 ? T / 2 : T - r - 10; };
+  if (name == "t2") {        // 1 b: obstacle in the walled tile ahead; the start is open to the east, so there is somewhere else to go
+    wall(1, 0, 3); wall(1, 1, 1); wall(1, 1, 3);
+    obstacle(1, 1, alongFor((int)P.testPos));
+  } else if (name == "t3") { // 1 a: start open on its left (west), the tile ahead walled on its left; no obstacle
+    wall(1, 0, 1); wall(1, 1, 3);
+  } else if (name == "t6") { // 1 c: start in a dead end; the only way out passes the obstacle
+    wall(1, 0, 1); wall(1, 0, 3); wall(1, 1, 1); if (P.testWide <= 0) wall(1, 1, 3);
+    obstacle(1, 1, alongFor((int)P.testPos));
+  } else if (name == "t7") { // 1 e: blue tile ahead, obstacle in the first half of it (testPos 0) or of the tile after it (1)
+    wall(1, 0, 3); wall(1, 1, 1); wall(1, 1, 3); wall(1, 2, 1); wall(1, 2, 3);
+    W.type[W.id(1, 1)] = field::BLUE_T;
+    obstacle(1, P.testPos > 0 ? 2 : 1, r + 10 + (T / 2 - r - 10) * u(frng));
+  }
+}
+
 int main(int argc, char **argv) {
   std::string scenario = "loops", tracePath, geomPath;
   long seed = 1;
@@ -1297,12 +1413,16 @@ int main(int argc, char **argv) {
 
   const field::Scenario *sc = nullptr;
   for (const auto &s : field::SCENARIOS) if (scenario == s.name) sc = &s;
+  bool isTest = false;
+  for (const auto &s : TEST_FIELDS) if (scenario == s.name) { sc = &s; isTest = true; }
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
-  std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(sc - field::SCENARIOS));
+  std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(isTest ? 100 + (sc - TEST_FIELDS) : sc - field::SCENARIOS));
   field::Extras ex;
   field::TILE = P.tileMm;
   ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.obstacleRMin = P.obstacleRMinMm; ex.obstacleRMax = P.obstacleRMaxMm; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
-  W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
+  if (isTest) testField(scenario, fieldRng);
+  else W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
+  if (P.testNoCheckpoints > 0) for (int &t : W.type) if (t == field::SILVER_T) t = field::FLOOR;
   indexObstacles();
   rng.seed((unsigned)seed * 7919u + 4242u);
   if (P.obstacleMovableFrac > 0) { // which obstacles are loose and how heavy: own generator, the rest of the run is unchanged
@@ -1322,6 +1442,8 @@ int main(int argc, char **argv) {
   rx = (W.sx + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (W.sy + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   rhead = wrap360(gauss(P.placeSigmaDeg));
+  if (scenario == "t3") { rx -= P.testOffsetMm; rhead = wrap360(rhead - P.testTurnDeg); } // toward the open west side
+  if (P.testGyroZero > 0) gyroZeroDeg = rhead;
   cpX = W.sx; cpY = W.sy;
   visited.assign(W.W * W.H, false);
   blueVisits.assign(W.W * W.H, 0); blueGood.assign(W.W * W.H, 0); cpVisited.assign(W.W * W.H, false);

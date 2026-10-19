@@ -140,6 +140,20 @@ To check whether a code change helps, compare the two versions on the same field
 
 `--set oracleTile=1` is for analysis only, not something the real robot can do: each time the code starts reading a tile, its map position is set to the tile the robot is really on. Comparing a batch with and without it shows how many points getting lost costs. `--set oracleCentre=1` (also analysis only) puts the robot itself in the middle of its tile at the same moments; `=2` only along the way it faces, `=3` only sideways. These showed that stopping in the middle of the tile was the biggest thing to fix (it led to `centreAlong()`).
 
+**Rehearsing a robot test** (TEST_PRIORITY.md, 2026-10-19). `--scenario t2 | t3 | t6 | t7` are small fixed fields set up like the maze tests in ROBOT_TEST.md 1 a-e (robot on tile (1, 0) facing north; the seed varies the obstacle's size and side and the placement):
+- `t2`: an obstacle touching a side wall of the walled tile ahead. `testPos` 0/1/2 puts it at the near end, middle or far end.
+- `t3`: start open on the left, the tile ahead walled on its left, no obstacle. `testOffsetMm` and `testTurnDeg` place the robot toward the open side.
+- `t6`: a dead end whose only way out passes an obstacle. `testWide=1` opens the obstacle's tile on its free side.
+- `t7`: a blue tile ahead. `testPos` 0 puts the obstacle in the first half of the blue tile; 1 puts it in the first half of the tile after.
+
+These act on any field:
+- `testGyroZero=1`: the gyro reads 0 at the placed heading, as when the robot is switched on where it stands.
+- `carryTest` (test 4): once `carryAfterTiles` tiles are visited, the robot is moved back one tile with the same heading. 1 = after a 3 s pause, 2 = at once, 3 = held still through its next move. `carryOnRevisit=1` does it only on a tile the code has visited before.
+- `homeCarry=1` (test 5): when the robot sets off home, it is paused and put on a tile next to the start, facing it.
+- `testNoCheckpoints=1`: silver tiles become white.
+
+The events are written to the trace as `{"event":"carry",...}`. All of these are off by default and change nothing when off.
+
 ## Where the numbers come from, and what to measure
 
 All of them are in `Params` at the top of `physics.cpp` and can be changed per run with
