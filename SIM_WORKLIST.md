@@ -141,6 +141,17 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   step backwards and forwards (2026-10-17). Add stairs to the sim (dimensions from the rules) and see whether the current
   code climbs them, treats them as a wall, or gets lost. Only then think about a stair-climbing routine (strategy).
 
+## B+. Obstacle placement and pushable obstacles (rules 3.4, added 2026-10-18)
+
+- [ ] **B13. Obstacles as the rules place them.** Rule 3.4.4: an obstacle is either at least 20 cm from every wall, or
+  touches a wall and is at least 20 cm from the opposite edge of the tile. In a corridor (28 cm path) that means it touches
+  a wall and sticks out at most ~10 cm: the corner-clipping case (B3), not the middle-of-the-path box (M8 setup). Check the
+  sim's obstacle generator follows 3.4.4 and re-weight B2/B3 by what the rules actually allow. Obstacles are at least
+  15 cm tall (3.4.3a), any shape, may or may not be fixed.
+- [ ] **B14. Pushable obstacles** (3.4.3c "may be fixed", 3.4.5 moved obstacles stay where they end up). Run robot-test
+  with `--set obstacleMovableFrac=0.5` and `=1.0` (both seed sets): does pushing an obstacle cause partial wheel slip that
+  the no-progress checks (2n) miss, and does the robot lose position? Real-robot check: M8 with the box NOT taped down.
+
 ## C. Victims: not simulated (decided 2026-10-18)
 
 Simulating victims would rest on guesses (camera range, angle, miss rate, false circles), none of them measured. The
