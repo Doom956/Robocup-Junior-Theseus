@@ -128,6 +128,9 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   fw(255) **118 / 139 / 150 RPM** (wheels A / B / D), fw(150) **67 / 66 / 89**. The sim's fit is ~158 / ~90. Refit the
   motor model to these (per wheel if the model allows: wheel A is the weak one, as in bench test 4), then re-check that
   M3 (one tile ~1.1 s, ~300 mm), M1 (90 deg in 0.75-1.0 s) and bench tests 2-4 still match (`--selftest`).
+- [x] **A2 explained (2026-10-19):** the robot's "short" stops in the practice maze are its 320 mm tiles (moves are 300 mm):
+  with tileMm=320 the sim reproduces the robot's centring readings (from a wall ahead -40 vs robot -37 mm median, from a wall
+  behind +25 vs +22); on 300 mm competition tiles the sim reads -13. See N2. B11 not needed: A1 kept the motor model.
 - [ ] **A2. Where moves stop.** The robot was seen stopping short of the tile middle (video 2026-10-17); robot-test 2m
   (back-wall centring only for this tile's wall) should have fixed most of it. When the next maze log comes in, run
   `tools/robot_log.py` ("stops along the tile") and compare with `stopcentre.py` on the sim. Fit if they differ.
