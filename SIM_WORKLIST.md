@@ -86,7 +86,7 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   around *all* blue: +0.6; try only visited ones, and on the way home); (b) when exploring, visit a blue dead end last.
   Strategy-ish: report before keeping.
 - [x] **B2 (part, 2026-10-18): obstacle size and repeated tries.** Rules 3.4.3 give no obstacle size; the sim's 5-9 cm
-  is assumed (now `obstacleRMinMm/RMaxMm`). robot-test with 10-15 cm obstacles -17.1 +-5.2, 15-20 cm -22.6 +-6.2 (ever
+  is assumed (now `obstacleRMinMm/RMaxMm`). [Withdrawn, see B13: the big sizes were placed against walls, against rule 3.4.4b.] robot-test with 10-15 cm obstacles -17.1 +-5.2, 15-20 cm -22.6 +-6.2 (ever
   lost 56% -> 74-79%); no obstacles +22.5 +-4.9. Big obstacles: the robot stops (no-progress) correctly, "map looks
   finished early" clears the block at once (B4), and on the 3rd try the 2k guard had switched the check off: it drove in.
   Fixed on robot-test (2o): the check stays on: -0.6 / -0.5, ever lost 55% -> 47%. Tried and dropped: a late one-sided
@@ -155,6 +155,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
 ## B+. Obstacle placement and pushable obstacles (rules 3.4, added 2026-10-18)
 
+- [x] **B13 (2026-10-18):** the generator's "against a wall" branch didn't check the 10 cm reach of rule 3.4.4b (fixed,
+  sim-only commit). With the rule enforced, comp fields have no room for obstacles over ~9 cm: 10-15 and 15-20 cm sizes
+  give 0 obstacles per field (no open area 20 cm from every wall; against a wall at most 9 cm). So the earlier "bigger
+  obstacles -17 / -23" (B2 note) came from placements the rules don't allow: withdrawn. 2o stands (it was confirmed on
+  the default 5-9 cm fields). Default fields unchanged by the fix. In corridors, competition obstacles are small and touch
+  a wall: the corner-clipping case (B3).
 - [ ] **B13. Obstacles as the rules place them.** Rule 3.4.4: an obstacle is either at least 20 cm from every wall, or
   touches a wall and is at least 20 cm from the opposite edge of the tile. In a corridor (28 cm path) that means it touches
   a wall and sticks out at most ~10 cm: the corner-clipping case (B3), not the middle-of-the-path box (M8 setup). Check the
