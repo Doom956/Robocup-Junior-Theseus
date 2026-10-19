@@ -132,6 +132,10 @@ struct Params {
   // without having reached any new tile since the restart its last stop caused, the run ends there (that restart isn't
   // called). Assumed (team behaviour); 0 = the captain restarts it every time (before 2026-10-19: ~17 restarts per such run).
   double captainGivesUp = 1;
+  // Extra resistance on a slope, same up and down, as a fraction of stall torque per unit sin(pitch). The robot crosses
+  // the practice ramp (13-15 deg, one 320 mm tile) in ~1.75 s both ways (logs/2026-10-19, SIM_WORKLIST A4); without it the
+  // sim took 1.22 s. Cause unknown (steering between the ramp walls, gyro pitch lag, rolling resistance): fitted, not modelled.
+  double slopeDrag = 0;
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
   double oracleTile = 0;
@@ -157,7 +161,7 @@ static std::map<std::string, double *> paramTable() {
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"tileMm", &P.tileMm}, {"obstacleRate", &P.obstacleRate},
     {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"pushGripMu", &P.pushGripMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"slopeDrag", &P.slopeDrag}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -507,7 +511,7 @@ static void physicsStep(double dt) {
     Motor &m = mot[i];
     double d = duty[i];
     double extraA = i == 1 ? P.motorAExtraFriction * std::max(0.0, 1 - std::fabs(d) / (128 / 255.0)) : 0;
-    double resist = friction + extraA + skidSpin * turning;
+    double resist = friction + extraA + skidSpin * turning + P.slopeDrag * std::fabs(sinPitch); // slopeDrag: see Params
     if (std::fabs(m.speed) < 1) resist *= P.stictionFactor;
     double eff = std::fabs(d) - resist - gravity * (d >= 0 ? 1 : -1); // driving uphill costs, downhill helps
     double target = eff > 0 ? (d > 0 ? 1 : -1) * eff * vNoLoad * m.gain : 0;
