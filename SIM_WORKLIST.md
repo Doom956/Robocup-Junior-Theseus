@@ -34,6 +34,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   88-94. One speed can't match both: the sim's fwd() dynamics differ somewhere (motor response, slow-down near the end).
   Kept the tile-time fit (that's what navigation timing depends on); open until M7 is repeated with the voltage. Next robot session: charged battery, note the voltage, redo M7, and swap
   motor A's plug with another motor's (if the weakness moves with the motor, it's the motor). Selftest prints M7.
+- **A1 follow-up (2026-10-18, robot, battery 11.98 V measured, firmware 4800419):** M7 repeated with a full battery:
+  fw(255) **119 / 140 / 145 RPM** (A/B/D), fw(150) **60 / 93 / 79**: the same as the first battery-on run (118/139/150,
+  67/66/89). So it is not a low battery: the free-running wheels are ~10-20% slower than the sim's fit (158 / 90). The
+  conflict with the tile time (1.1 s) is real and needs explaining (load model? encoder RPM maths? PWM-to-voltage?), not
+  discarding. M8 with a loose (untaped) box: pushed it ~260 mm of a 300 mm move with no false stop (B14 data point).
+  M3 move 1: 292 mm, 1.08 s. Log: logs/2026-10-18/move_tests6.txt.
 - [ ] **A1. Motor speed from M7.** Move test M7 (2026-10-18, logs/2026-10-18/move_tests2.txt), wheels in the air:
   fw(255) **118 / 139 / 150 RPM** (wheels A / B / D), fw(150) **67 / 66 / 89**. The sim's fit is ~158 / ~90. Refit the
   motor model to these (per wheel if the model allows: wheel A is the weak one, as in bench test 4), then re-check that
