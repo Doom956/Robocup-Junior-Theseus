@@ -118,6 +118,12 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   loses much less time accelerating/slowing than the sim, or the timing reads differently: needs the speed profile within
   a move. serial_log.py now stamps every line to the millisecond: the next M3 (and maze) log gives it. Fit kept at
   170 RPM until then (it matches the moves the navigation depends on); the conflict is open, not explained away.
+- [x] **A1 resolved for navigation (2026-10-19, ms-stamped maze logs run1/run2/run2b):** 84 normal one-tile moves on the
+  robot vs the sim (robot-test, default fit 170 RPM): time 1.04 / 1.03 s, cruise (100-200 mm) 339 / 346 mm/s, loop 34 /
+  33 ms, start->100 mm 0.42 / 0.41 s, last 50 mm 0.19 / 0.17 s. The fit matches the moves navigation depends on; 150 RPM
+  (closer to M7) gives 1.16 s and 305 mm/s (too slow). The M7 numbers (wheels free at fixed PWM 150: 60/93/79 RPM, avg ~324
+  mm/s) also agree with the robot's ~339 mm/s cruise; what differs is only the sim's free-wheel speed at a fixed PWM
+  (88-94 RPM): the PWM-to-speed curve at constant PWM, which fwd() never runs at (steering varies the power). Left as is.
 - [ ] **A1. Motor speed from M7.** Move test M7 (2026-10-18, logs/2026-10-18/move_tests2.txt), wheels in the air:
   fw(255) **118 / 139 / 150 RPM** (wheels A / B / D), fw(150) **67 / 66 / 89**. The sim's fit is ~158 / ~90. Refit the
   motor model to these (per wheel if the model allows: wheel A is the weak one, as in bench test 4), then re-check that
