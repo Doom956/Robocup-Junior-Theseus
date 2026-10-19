@@ -55,6 +55,10 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   `tools/robot_log.py` ("stops along the tile") and compare with `stopcentre.py` on the sim. Fit if they differ.
 - [ ] **A3. Practice maze size.** When I measure it (inner wall faces across a tile, wall thickness), add it as a field
   option and re-run robot-test on it. The robot_log centring numbers suggested walls ~25-30 mm further than RCJ's.
+  **Measured 2026-10-19 (user):** wall thickness **20 mm** (as RCJ), inner wall faces across one tile **295 mm** (RCJ
+  280: 15 mm wider, 7.5 mm per side). That explains only part of the ~25-30 mm "short" the centring reads from a wall ahead
+  (front sensors also read ~6 mm long at the bench). Model the practice maze (295 mm path) as a field option, check where
+  the remaining ~10-20 mm comes from, and confirm robot-test is fine on both 280 and 295 (the competition uses 280).
 - [ ] **A4. Ramp climb timing.** Real ramp climbs take ~38 fwd() loops, the sim's ~23 (NEXT_STEPS 1c). Find out why
   (motor torque on the slope, grip, loop timing) once a log with millisecond timestamps exists.
 - [x] **A5 result (2026-10-18):** bumps are modelled (comp fields ~6 bump tiles, 10 mm = the 3.4.1 maximum, never on
