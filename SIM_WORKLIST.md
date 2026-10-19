@@ -120,6 +120,13 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   sideways 104, 1 tile ahead/behind 64, diagonal 23, 2 tiles 21, more than 2 tiles 69. The rule only moves one tile and
   only when exactly one neighbour fits. Earlier tries (last 4 tiles, probability-based) gained nothing: needs a careful
   design (e.g. track the few most likely positions over several tiles), not a quick patch.
+- [x] **B9 diagnosed (2026-10-18, before designing it):** at 426 wall mismatches with the position really wrong, the true
+  tile was a visited tile (within 3) whose recorded walls match what is seen in only 102 (89 of them the unique nearest
+  match); in 324 it wasn't among the matches at all (191 had no match): the robot is on an unmapped tile or the map
+  around it is already wrong. So any wall-matching relocalize can fix at most ~1 in 4 lost moments, and a looser rule
+  would move the robot wrongly at least as often (why the earlier tries failed). A multi-hypothesis tracker from the first
+  doubtful move is the only real fix: big, uncertain. Not started; avoiding getting lost (obstacles ~75% of first losses:
+  2l-2o) is worth more. Diagnostic patch and script: scratch pdiag_reloc.py / relocdiag.py (session of 2026-10-18).
 - [ ] **B9. Relocalize** (robot-test 2): measure how often it fires in the sim and how often it's right; tune or extend
   (e.g. check two tiles back) only if it's often wrong or often missing a real one-tile error.
 - [ ] **B10. Ramps:** a robot stuck tilted on the slope added 13-21 ramp tiles (12 of 674 crossings); the cap was held
