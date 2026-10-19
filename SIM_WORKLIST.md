@@ -17,6 +17,12 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   the robot measured climbs (-10 to -22 mm) and descents (-31 to -53) on the same practice tiles, so the ~25 mm up/down
   difference isn't the tile size; and the sim's slope speed is ~30% off (A4), so its descent stops aren't trustworthy.
   180 stays (ROBOT_TEST.md 2l). Re-check after fitting the sim's slope speed to the A4 timings (below).
+  **Re-check with the slope speed fitted (2026-10-19):** `slopeDrag` 0.8 gives the robot's practice-ramp timing (sim 1.78 /
+  1.70 s up / down, robot ~1.72 / 1.82). On 320 mm tiles at 14 deg, 1-tile ramps, the first centring from a wall ahead after
+  a ramp: 155 mm both ways: up median -68, down -67 (robot: up -10 to -22, down -31 to -53); d5ed8aa (180 down): up -64, down
+  -41. The sim still reads ~40 mm more "short" than the robot after ramps and shows no up/down difference: its ramp exit
+  isn't modelled well enough to judge the descent setting. 180 stays (robot decides). slopeDrag added as a parameter,
+  default 0 until the ramp exit matches (sim-only commit).
 - [ ] **N1. Sim-check the down-ramp change** that went straight onto robot-test from the robot (`d5ed8aa`:
   `RAMP_END_TO_MIDDLE_DOWN_MM` 180, up stays 155). Real evidence: 5 descents stopped 31-53 mm short, 4 after the change
   -23 / -16 mm or no centring needed. A/B `9205f12` vs `d5ed8aa` (both seed sets) and the stop position after descents
