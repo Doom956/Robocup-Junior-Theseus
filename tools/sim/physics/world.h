@@ -235,7 +235,9 @@ inline void addExtras(World &w, std::mt19937 &rng, const Extras &ex) {
           if (std::hypot(cx - qx, cy - qy) - h - r < 200) open = false;
         }
     if (open && clearOfOthers(cx, cy, r)) { w.obstacles.push_back({cx, cy, r}); obstacles--; continue; }
-    // against a wall of this tile, reaching at most 10 cm in (20 cm left to the opposite edge)
+    // against a wall of this tile, reaching at most 10 cm in from the tile edge (rule 3.4.4b: at least 20 cm left to the
+    // opposite edge), i.e. 2r <= 100 - h from the wall face. A bigger obstacle can only stand in the open (above).
+    if (2 * r > 100 - h) continue;
     int sides[4], k = 0;
     for (int d = 0; d < 4; d++) if (w.wall[i][d]) sides[k++] = d;
     if (!k) continue;
