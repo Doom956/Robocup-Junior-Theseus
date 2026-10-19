@@ -166,6 +166,10 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   a wall and sticks out at most ~10 cm: the corner-clipping case (B3), not the middle-of-the-path box (M8 setup). Check the
   sim's obstacle generator follows 3.4.4 and re-weight B2/B3 by what the rules actually allow. Obstacles are at least
   15 cm tall (3.4.3a), any shape, may or may not be fixed.
+- [ ] **B14 (part, 2026-10-18; paused by the user):** first run showed loose = fixed in every run: the push grip was wheelMu,
+  which had become the turning drag (0.071) in the fit; split into pushGripMu 0.8 (assumed, sim-only commit). With that:
+  half the obstacles loose, seeds 1-600: +0.7 +-0.9, ever lost 49% -> 46% (no worse). Still to run: half loose seeds
+  601-1200, all loose both seed sets.
 - [ ] **B14. Pushable obstacles** (3.4.3c "may be fixed", 3.4.5 moved obstacles stay where they end up). Run robot-test
   with `--set obstacleMovableFrac=0.5` and `=1.0` (both seed sets): does pushing an obstacle cause partial wheel slip that
   the no-progress checks (2n) miss, and does the robot lose position? Real-robot check: M8 with the box NOT taped down.
