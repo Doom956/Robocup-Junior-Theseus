@@ -57,4 +57,13 @@
   worse for a day).
 - Changes are compared commit to commit; also re-check the whole branch vs the last known-good version
   (tag known-good-2026-10-17) every few changes, so several small harmless-looking steps can't add up to a regression.
+- Keep the "Not yet confirmed on the robot" list at the top of ROBOT_TEST.md (robot-test) current: every robot-test change
+  that hasn't passed its real-robot test. At most ~5 on it: no more sim-only changes on robot-test until a maze session
+  confirms some. After a good maze session, move the known-good tag to the version that ran.
+- Every robot log must say which firmware ran (it prints `firmware <commit>` at start-up) and the battery voltage (ask me).
+- Never push with BENCH_MODE other than 0.
+- Reports keep "the simulator says" apart from "the robot showed", and say what wasn't checked.
+- Simulator model changes and firmware changes go in separate commits.
+- Don't run simulations on the laptop (slow) unless I ask; the fast PC runs them.
+- Before the competition there will be a code freeze: after it, only fixes for things that failed on the robot (date TBD).
 - Answer simply and directly.
