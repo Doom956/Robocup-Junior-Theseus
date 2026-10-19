@@ -478,6 +478,13 @@ colour read): more than 60 mm past the middle 106 of 542 -> 0 of 404, median +3 
   `RAMP_END_TO_MIDDLE_MM` to 170-180. If it stops **past**: lower it to 140.
 - If it gets stuck at the top or bottom of the ramp, set it back (`git revert` this commit) and tell Claude.
 
+**Descents: 180 mm (`RAMP_END_TO_MIDDLE_DOWN_MM`), decided by the robot (2026-10-19).** On the same practice tiles, the
+next centring said -10 to -22 mm after climbs and -31 to -53 mm after descents: the ~25 mm up/down difference is not the
+tile size (both on 320 mm tiles), so the descent gets its own 180 mm. After the change: 4 descents, -23 / -16 mm or no
+centring. The simulator's descent stop positions (SIM_WORKLIST N1: 10-18% more than 30 mm past on 300 mm tiles) are not
+trustworthy here: its slope speed is ~30% faster than the robot's (A4: 1.22 s vs 1.75 s on the practice ramp), so the
+robot's numbers decide (real robot beats sim). Re-check in the sim only after its slope speed is fitted to the A4 timings.
+
 ## 2k. Fixes from the maze runs of 2026-10-17 (real robot; the last 3 not yet checked in the simulator)
 
 All found on the real robot (logs/2026-10-16 and logs/2026-10-17). Simulator: 600 comp fields, two seed sets, where noted.
