@@ -130,6 +130,9 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 - [ ] **B6. Time management.** The 8 minutes include calibration; the exit bonus pays +10 per victim and per blue tile
   and +5 per ramp only if the robot gets home (5.6.12). Re-check `timeToReturn()` on the fitted (faster) sim:
   RETURN_SEC_PER_TILE and the margin were set on the slow sim. Measure real seconds per tile on the way home.
+- [x] **B7 (2026-10-19, fitted sim, numbers only):** neighbour order left before right: -0.8 +-3.8 / +3.1 +-3.8; right
+  before straight (right-hand wall follower): +1.0 +-3.6 / -2.5 +-3.6. No clear gain on the faster robot either (as on the
+  slow sim): exploring order isn't a lever. Nothing to decide.
 - [ ] **B7. Exploring order** (which open edge first) on the fitted sim. Earlier tries (left/straight/right,
   side-openings first, time-aware planner) gained nothing on the slow sim; the faster robot changes the trade-offs.
   **Strategy: report first.**

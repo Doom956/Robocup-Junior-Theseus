@@ -143,6 +143,12 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
 - **Sim 553492e** (wheel spread 5%, LoP restart facing a random direction): main -> robot-test +93.2 +-5.1 / +96.4 +-5.0,
   home 34% -> 83% / 33% -> 81%, time lost 56% -> 10%. robot-test steering gain 2 instead of 1: +3.1 +-3.8 / +1.4 +-4.0 (keep 1).
+- **Overnight 2026-10-18/19 (fast PC, SIM_WORKLIST):** B14 loose obstacles (no worse), whole branch vs known-good (no
+  regression; sim +80 / +75), B10 ramps (2l holds for every ramp; weakest: down a 1-tile ramp), B12 stairs and B1 blue
+  assessed (robot test first / ~2 points max), B5 the "no path" loop was the sim's captain (fixed in the sim), D2 where
+  points go, B8 black-tile LoPs from the colour read every 10th loop (candidate below), D1 robustness table, D3 portfolio,
+  B7 exploring order (no gain). Open, needing the robot: A1 speed profile (ms log), A2 stops in the maze, A3 maze size,
+  A4 ramp timing, B3 corner readings, B12 step test.
 - **Next robot-test candidate (held, robot-test frozen):** read the colour sensor every 3rd fwd() loop instead of every 10th
   (at the robot's real speed a black tile can be crossed between reads): sim restarts per run 0.60 -> 0.44, runs with a
   restart 45% -> 38% on both seed sets, score +2.6 / +2.0 (within noise). SIM_WORKLIST B8.
