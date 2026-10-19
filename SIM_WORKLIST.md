@@ -136,6 +136,13 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   280: 15 mm wider, 7.5 mm per side). That explains only part of the ~25-30 mm "short" the centring reads from a wall ahead
   (front sensors also read ~6 mm long at the bench). Model the practice maze (295 mm path) as a field option, check where
   the remaining ~10-20 mm comes from, and confirm robot-test is fine on both 280 and 295 (the competition uses 280).
+- [x] **A4 measured (2026-10-19, ms-stamped logs ramp.txt, ramp_down.txt, run1, run2):** practice ramp (13-15 deg, one
+  320 mm tile): 17 crossings 1.62-1.91 s on the slope (median ~1.75), 36-43 climb loops (~46 ms each), up (PWM 180) = down
+  (PWM 120); one climb 4.73 s / 131 loops (held back?). Sim with tileMm=320, 14 deg: 1.22 s, 20-21 loops (~58 ms each), up
+  = down. So the torque fit (up = down) holds, but on the slope the robot is ~30% slower (~190 vs ~270 mm/s) and loops
+  faster. Not explained (candidates, none measured: the climb loop's side-wall steering slowing one side, the BNO055 pitch
+  lagging/smoothing the start and end of the tilt, rolling resistance on the slope): no fit made. Matters little for
+  navigation (crossing time; 2l's stop distances were confirmed on the robot).
 - [ ] **A4. Ramp climb timing.** Real ramp climbs take ~38 fwd() loops, the sim's ~23 (NEXT_STEPS 1c). Find out why
   (motor torque on the slope, grip, loop timing) once a log with millisecond timestamps exists.
 - [x] **A5 result (2026-10-18):** bumps are modelled (comp fields ~6 bump tiles, 10 mm = the 3.4.1 maximum, never on
