@@ -217,6 +217,20 @@ waits) per run, victims driven past without a stop, and seconds spent in victim 
 
 ## D. Robustness and reporting
 
+- [x] **D1 (2026-10-19, robot-test 9205f12, sim c139143, 300 comp fields each, vs default 161.2):**
+
+  | Changed | Score | Home | Time lost |
+  |---|---|---|---|
+  | sensor noise x2 | +1.2 +-5.3 | 82 -> 83% | 10 -> 10% |
+  | floor reflection x2 | +0.7 +-5.5 | 82 -> 77% | 10 -> 11% |
+  | wheel spread 12% (worst case, double-counts motor A) | -7.7 +-6.4 | 82 -> 76% | 10 -> 13% |
+  | gyro drift 0.5 deg/min | +2.1 +-5.0 | 82 -> 84% | 10 -> 9% |
+  | walls 6 mm (wider path, like the practice maze) | +12.8 +-6.1 | 82 -> 88% | 10 -> 7% |
+  | walls 30 mm (27 cm path: narrower than rule 3.3.3's 28 cm) | -15.9 +-6.1 | 82 -> 78% | 10 -> 11% |
+  | all obstacles loose | +2.2 +-2.2 | 82 -> 82% | 10 -> 10% |
+
+  Robust to noise, floor, gyro drift and loose obstacles (2n fixed the noise/floor sensitivity of 2026-10-18). Sensitive to
+  uneven wheels (only the worst case tested) and to corridors narrower than the rules allow (not a competition case).
 - [ ] **D1.** After A1-A3: robustness sweep of robot-test (sensor noise x2, floor reflection x2, grip x3, gyro drift
   0.5 deg/min, walls 6 / 30 mm) and main vs robot-test on both seed sets. Write the table into NEXT_STEPS.md.
 - [x] **D2 (2026-10-19, robot-test 9205f12, sim 264ff9c, 600 comp):** score 160.3 of 227.7; losses per run: blue revisits
