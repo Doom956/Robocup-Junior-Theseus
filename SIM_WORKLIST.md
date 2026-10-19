@@ -400,9 +400,13 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   (2n/2o) should stop it and block the edge (treated like a wall: no points, no harm). **Robot test first** (bench, no
   maze): a 2 cm board across the path 15 cm ahead (M8 setup, board instead of box): does it stop with `[FWD] no progress`
   and back up cleanly, or climb, or get stuck? Then decide whether stairs are worth a routine (strategy).
-  **Robot (user, 2026-10-19): the stairs work for climbing.** Not yet recorded: firmware, step height, whether it drove up by
-  itself in a normal move and what the log printed, whether the map position / floor stayed right after, and going down.
-  Until then the "can't climb stairs" note (CLAUDE.md 2026-10-16) is out of date.
+  **Robot (user, 2026-10-19): it climbs 2 cm steps.** Put on the floor in front of the stairs, it drove up them by itself.
+  Not recorded yet:
+  - the firmware;
+  - the Serial log: does the code count the stairs as a ramp and change floor?
+  - whether the map position stayed right afterwards;
+  - going down.
+  Next: a run through the stairs with a log, up and down.
 - [ ] **B12. Stairs** (rules 3.4 and 5.6.10: 10 points up or down; not simulated). The real robot can be pushed up the competition-like
   step backwards and forwards (2026-10-17). Add stairs to the sim (dimensions from the rules) and see whether the current
   code climbs them, treats them as a wall, or gets lost. Only then think about a stair-climbing routine (strategy).
