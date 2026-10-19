@@ -1244,3 +1244,6 @@
 11:13:23.338 distance travelled: 19.85
 11:13:23.354 [FWD] exit=normal
 11:13:23.354 stop- end of fwd
+--- 11:16:08 disconnected (SerialException)
+--- 11:16:10 robot not plugged in
+--- connected on COM3 at 11:16:12
