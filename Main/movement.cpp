@@ -538,6 +538,8 @@ void fwd(double dist){ // in mm
     fwdShort = true;
     obstacleAhead = true;
     Serial.println("[FWD] blocked, backing up by the distance sensors");
+    // nose already over a blue tile: stand still 5 s first, as for an obstacle (RCJ 5.5.1)
+    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(5000); }
     unsigned long backStart = millis();
     while(millis() - backStart < 2000 && Pausemaze == false){
       int r = measure(1), l = measure(7), b = measure(4);
