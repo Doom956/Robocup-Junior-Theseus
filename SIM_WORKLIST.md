@@ -35,7 +35,9 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   sideways). In the sim this exact case is rare (19-43 per 200 runs), but one-sided obstacle alarms in general are false
   more often than real: 439 false vs 294 real per 200 runs on 300 mm tiles (false: 352 at move start, 73% with the robot
   30+ mm off-centre sideways, 62% with its true heading 3+ deg off while the gyro says square). Test: square up on the
-  walls (parallel()) before deciding at move start: false at start 352 -> 285, real still caught; A/B running.
+  walls (parallel()) before deciding at move start: false at start 352 -> 285, real still caught (start 148 -> 139, mid
+  146 -> 159); A/B on robot-test 703472e +1.4 +-2.6 / +0.8 +-2.7, home +2 / +1, time lost -1 / +1: no clear gain, held.
+  The ramp-top case itself is mostly the practice maze (320 mm tiles): watch it on 300 mm tiles.
 - [ ] **N3. False obstacle beside a ramp top.** Both runs on 2026-10-19 (logs/2026-10-19 run1.txt, run2.txt, run2b.txt):
   at the tile next to the top of a ramp (map 23,18 floor 2), facing the way down, the one-sided obstacle check fired:
   front-left out of range (8190, looking down the ramp), front-right 58 mm (mid-move, 17 mm in) / 84 mm (move start).
@@ -54,6 +56,9 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   are at most 25 deg. Logic fix candidate: in the climb loop, a pitch over ~35 deg is not a ramp (stop counting, or end
   the move), and/or cap the sections per ramp (B10's cap, held before because it changed nothing in the sim: real-robot
   evidence now). Logic bug -> main + robot-test if the A/B shows no harm.
+- [x] **N5 (2026-10-19):** held as asked. Numbers (B8, sim): reading every 3rd loop cuts restarts 0.60 -> 0.44 per run, runs
+  with a restart 45% -> 38% on both seed sets, score +2.6 / +2.0 (noise). The robot caught 3 of 3 starting from a tile
+  middle; the sim's misses also start from tile middles at full speed. Revisit if a robot run ever goes half onto black.
 - [ ] **N5. Black tile: colour read cadence (B8) — hold.** Real robot 3 of 3 caught black after 92-98 mm of the move (only
   a little onto the tile): the read every 10th loop lands just after the tile edge when moves start in the tile middle.
   Only test reading more often if the sim shows real cases starting off-centre (after avoidance / short moves) going half
