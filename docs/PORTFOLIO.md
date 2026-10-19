@@ -163,14 +163,22 @@ By the end of the day: **home in 3 of the last 4 runs**, the last runs clean.
 | 2 Oct (first fixes) | 107.6 | 124.1 |
 | 6 Oct (calibrated to the bench) | 122.4 | 148.2 (+25.8 +-4.5) |
 | 16 Oct (real weight) | 120.9 | **171.4 (+50.4 +-4.7)** |
+| 19 Oct (simulator fitted to the robot's speed, sensors and floor) | 67.8 | **161.2 (+93.3 +-5.0)** |
 
 On 16 Oct: runs where the robot lost its position 28% -> **8%**; runs ending home 64% -> **89%**.
+On 19 Oct (a stricter simulator: the real robot's speed, its replacement sensor, sensors that see the floor, the 2026 rule
+on how obstacles are placed): runs ending home 33% -> **82%**, time spent lost 56% -> **10%**. The original firmware has
+no correction for the replacement left-back sensor, which is a large part of its drop in this simulator.
 
 **Real robot (17 Oct):** every run lost in the morning -> home in **3 of the last 4** runs, about 2.5 min each, two ramps
 up and down, black and blue tiles handled. Turns within 2 deg; one-tile moves within about 2.5 cm.
 
-> Note: after the 17 Oct fixes the simulator shows a smaller lead (+10). The prime suspect is a calibration for the real
-> robot's replacement sensor that the simulator doesn't share; checking that is the next job (NEXT_STEPS.md, 1b item 0).
+> Note (resolved 18 Oct): after the 17 Oct fixes the simulator briefly showed a smaller lead (+10). The cause was a
+> calibration for the real robot's replacement sensor that the simulator didn't share: the simulator now models that
+> sensor, and the rule is that every real-robot calibration is mirrored in the simulator in the same change.
+>
+> These are simulator numbers. What the real robot has confirmed so far: the 17 Oct fixes (3 of 4 runs home) and the
+> 18 Oct run-clock fix; the 18 Oct navigation changes (2l-2o) are waiting for a maze session.
 
 ---
 

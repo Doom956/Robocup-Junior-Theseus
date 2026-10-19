@@ -224,6 +224,8 @@ waits) per run, victims driven past without a stop, and seconds spent in victim 
   of 600 runs): false obstacle alarm 21%, pushed obstacle 19%, real obstacle 18%, move 14%, ramp 12%, scraped wall 7%.
   Ended: home 499, no path 74, time 27.
 - [ ] **D2.** `lostcause.py` and `scoregap.py` on robot-test after each kept change: what loses most points now.
+- [x] **D3 (2026-10-19):** PORTFOLIO.md section 5: 19 Oct row (main 67.8 -> robot-test 161.2, +93.3 +-5.0), the +10 note
+  marked resolved, and what the robot has confirmed vs what's simulator-only.
 - [ ] **D3.** Update `docs/PORTFOLIO.md` section 5 (results table) with the newest main vs robot-test numbers.
 
 ## Not on this list (decided)
