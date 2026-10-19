@@ -9,6 +9,10 @@
 - Full runs home: 2.5 min and 1:53.
 Open, not a regression from 2l-2o: a false "obstacle" (one front sensor 58-84 mm, the other out of range) at the tile next
 to the top of the ramp (map 23,18 floor 2, facing the way down), both runs; it blocks that edge and still gets home.
+New since known-good-2026-10-19, not yet confirmed on the robot:
+- Ramp guard (logic fix, also on main): a pitch over 35 deg isn't a ramp, and a ramp counts at most 3 tiles. Test: lift the
+  robot mid-move (cameras off, logging): it must not log dozens of `1 section of the ramp climbed`; it logs
+  `pitch over 35 deg: not a ramp`. A normal ramp run still climbs as before.
 Run clock confirmed 2026-10-18.
 Last good maze version: tag `known-good-2026-10-19`.
 
