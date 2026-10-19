@@ -80,6 +80,11 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
 ## B. Navigation: points still being lost (biggest first)
 
+- [x] **B1 assessed (2026-10-18/19):** on the fitted sim, ~3 blue re-entries per run; only ~0.2 per run had another known
+  route (blueavoid.py: EXEC avoidable 0.16, RETURN 0.05 per run): at most ~2 points from routing around visited blue
+  tiles. The rest pass back out of areas behind a blue tile (the only way in/out). Earlier tries: routing around all blue
+  +0.6 +-0.6, planner weighting 3/6/10 tiles no effect. Not worth a strategy change now; exploring order (B7) is the only
+  lever left.
 - [ ] **B1. Blue tile revisits.** Rule 5.6.6: every revisit of the same blue tile costs 10 points, and each entry is a
   5 s stop. Real run 2026-10-17: 5 blue stops with 2 blue tiles. Measure how often the sim re-enters blue (scoregap.py)
   and try: (a) the planner prefers routes that avoid visited blue tiles when another way exists (the earlier try routed
@@ -153,6 +158,15 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 - [ ] **B11. Speed-sensitive settings** after A1: turn power 45 / gain 8, steering gain 1, minimum drive PWM 55,
   MAX_STEER_DEG 10, the no-progress thresholds (2j/2n): a quick sweep of each on the refitted sim. Keep only clear gains;
   these were checked once on the 2026-10-18 fit (keep all), redo only if A1 changes the motor model a lot.
+- [x] **B12 assessed (2026-10-19, no sim change):** rules 3.4.6-3.4.9: stairs as wide as the path, each step at most 2 cm,
+  top at least 15 cm long, incline under 25 deg, between walls, may change the floor level like a ramp; 10 points up or
+  down (5.6.10), +5 exit bonus each (5.6.12). Modelling them needs how this robot's wheels climb a 2 cm edge, which isn't
+  measured (CLAUDE.md 2026-10-16: the angled colour sensor limits front clearance, it can't climb stairs forward; the
+  team pushed it up a competition-like step by hand). A sim model now would be a guess. What the code would do: the front
+  sensors (106 mm up) don't see a 2 cm step, so fwd() drives into it; if the wheels can't climb, the no-progress check
+  (2n/2o) should stop it and block the edge (treated like a wall: no points, no harm). **Robot test first** (bench, no
+  maze): a 2 cm board across the path 15 cm ahead (M8 setup, board instead of box): does it stop with `[FWD] no progress`
+  and back up cleanly, or climb, or get stuck? Then decide whether stairs are worth a routine (strategy).
 - [ ] **B12. Stairs** (rules 3.4 and 5.6.10: 10 points up or down; not simulated). The real robot can be pushed up the competition-like
   step backwards and forwards (2026-10-17). Add stairs to the sim (dimensions from the rules) and see whether the current
   code climbs them, treats them as a wall, or gets lost. Only then think about a stair-climbing routine (strategy).
