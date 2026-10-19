@@ -40,6 +40,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   conflict with the tile time (1.1 s) is real and needs explaining (load model? encoder RPM maths? PWM-to-voltage?), not
   discarding. M8 with a loose (untaped) box: pushed it ~260 mm of a 300 mm move with no false stop (B14 data point).
   M3 move 1: 292 mm, 1.08 s. Log: logs/2026-10-18/move_tests6.txt.
+  Checked on the fast PC (2026-10-18): 145 RPM (friction 0.05) matches M7 at both powers (sim 131/146/125 and 74/83/71)
+  but makes a tile 1.35 s; a faster motor response (motorTau 0.02 / 0.01, assumed) doesn't help (1.36 / 1.42 s). The
+  robot's ~275 mm/s average over a tile needs a cruise close to its free-running speed (~320 mm/s at PWM 150), so it
+  loses much less time accelerating/slowing than the sim, or the timing reads differently: needs the speed profile within
+  a move. serial_log.py now stamps every line to the millisecond: the next M3 (and maze) log gives it. Fit kept at
+  170 RPM until then (it matches the moves the navigation depends on); the conflict is open, not explained away.
 - [ ] **A1. Motor speed from M7.** Move test M7 (2026-10-18, logs/2026-10-18/move_tests2.txt), wheels in the air:
   fw(255) **118 / 139 / 150 RPM** (wheels A / B / D), fw(150) **67 / 66 / 89**. The sim's fit is ~158 / ~90. Refit the
   motor model to these (per wheel if the model allows: wheel A is the weak one, as in bench test 4), then re-check that

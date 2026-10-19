@@ -30,7 +30,9 @@ while time.time() < end:
             while time.time() < end:
                 line = s.readline()
                 if line:
-                    out.write(time.strftime("%H:%M:%S ") + line.decode("utf-8", "replace").rstrip() + "\n")
+                    now = time.time()  # to the millisecond (as received by the PC), so speeds within a move can be read
+                    out.write(time.strftime("%H:%M:%S", time.localtime(now)) + f".{int(now * 1000) % 1000:03d} "
+                              + line.decode("utf-8", "replace").rstrip() + "\n")
     except Exception as e:
         print(f"{time.strftime('%H:%M:%S')} disconnected"); out.write(f"--- {time.strftime('%H:%M:%S')} disconnected ({type(e).__name__})\n")
         time.sleep(2)
