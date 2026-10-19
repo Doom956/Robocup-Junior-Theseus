@@ -15,6 +15,16 @@ New since known-good-2026-10-19:
   ramp` 6 times, no ramp tiles counted, floor unchanged. Side effects of being lifted (not changed): the wheels finished the
   move in the air and the colour sensor read black, so that tile was marked black. Not yet re-checked: a normal ramp
   climb with this firmware.
+- **Blue wait before backing off (logic fix, 2026-10-19, not yet on the robot).**
+  - Before: fwd() waited on blue only before the obstacle back-up, not before the no-progress back-up. And the 5 s started
+    at `fullstop()` while the robot was still braking: in the sim it stood still only 4.9 s, and the referee called lack of
+    progress.
+  - Now both back-ups wait 6 s (`BLUE_STOP_WAIT_MS`).
+  - Sim, TEST_PRIORITY test 7 with the obstacle in the blue tile's first half, 300 mm tiles: 8/20 -> 19/20. 600 comp fields:
+    -0.2 +-0.8 / +0.6 +-0.7 (no change).
+  - Still open: obstacle avoidance on the way home, driving through a blue tile, doesn't stop on it (seen on 320 mm tiles).
+  - **Test:** TEST_PRIORITY 7, obstacle in the first half of the blue tile. Expect `[FWD] on blue: waiting 5 s first`, the
+    robot standing still ~6 s, then backing up, and no lack of progress.
 Still never tested on purpose (TEST_PRIORITY.md on main, tests 2-7): obstacle strategy (section 1 a-e), relocalize
 (section 2 a) and the home check (2c).
 Run clock confirmed 2026-10-18.
