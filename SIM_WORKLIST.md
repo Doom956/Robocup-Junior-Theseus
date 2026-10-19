@@ -87,11 +87,26 @@ telling me first. Scenario code is sim-only (separate commit).
   - B2 / B5: that firmware printed no `[POS]` lines, so they can't be checked.
 - [x] **T3 result (2026-10-19):** `pitch over 35 deg` fired 0 times on 1200 comp fields (robot-test, seeds 1-1200, ramps up
   to 25 deg).
-- [ ] **Open from T1/T2 (your call):**
-  - Change TEST_PRIORITY tests 4 and 5 to the setups above.
-  - Blue wait on the no-progress back-up path: logic fix, needs a 600-field A/B first.
-  - Relocalize: it doesn't fix a wrong position in ~27% of firings and makes a right one wrong in ~8% (B9). Look at it
-    after the robot test.
+- [ ] **Open from T1/T2 (your call):** change TEST_PRIORITY tests 4 and 5 to the setups above.
+- [x] **Blue wait (2026-10-19, robot-test, logic fix, pushed with a ROBOT_TEST entry).**
+  - Before, the robot waited on blue only before the obstacle back-up, not before the no-progress back-up.
+  - Also, the 5 s started at `fullstop()` while the robot was still braking, so it stood still only 4.9 s.
+  - Now both back-ups wait 6 s.
+  - Sim, test 7 (obstacle in the blue tile's first half): 300 mm tiles 8/20 -> 19/20; 320 mm tiles 9/20 -> 9/20. On 320 mm,
+    the remaining calls are obstacle avoidance on the way home driving through the blue tile without stopping: open, not
+    fixed.
+  - Sim, 600 comp fields: -0.2 +-0.8 / +0.6 +-0.7. pio builds.
+- [x] **Relocalize (2026-10-19, sim, robot-test, B9): nothing to change yet.** Every correction on seeds 1-600, sorted by
+  what really happened:
+  - fixed: 154 of 215 (72%);
+  - was off by 2+ tiles: 24;
+  - corrected a right position because a tile was mapped wrong earlier: 13;
+  - on the wrong floor: 6;
+  - off by one but picked the wrong neighbour: ~16;
+  - walls misread: 4.
+  Tried: when no neighbour matches, a unique match two moves away. Score +0.8 +-1.0 / +0.3 +-0.6, home +2 +-1 / +1 +-1,
+  but it was right in only 31 of 204 of its own corrections (repeated wrong ones in a few runs). Dropped. The bigger gap is
+  that mistakes on new tiles can't be seen (T1, test 4).
 
 ## NEXT: tasks after the 2026-10-19 maze session (do these first, in order)
 
@@ -385,6 +400,9 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   (2n/2o) should stop it and block the edge (treated like a wall: no points, no harm). **Robot test first** (bench, no
   maze): a 2 cm board across the path 15 cm ahead (M8 setup, board instead of box): does it stop with `[FWD] no progress`
   and back up cleanly, or climb, or get stuck? Then decide whether stairs are worth a routine (strategy).
+  **Robot (user, 2026-10-19): the stairs work for climbing.** Not yet recorded: firmware, step height, whether it drove up by
+  itself in a normal move and what the log printed, whether the map position / floor stayed right after, and going down.
+  Until then the "can't climb stairs" note (CLAUDE.md 2026-10-16) is out of date.
 - [ ] **B12. Stairs** (rules 3.4 and 5.6.10: 10 points up or down; not simulated). The real robot can be pushed up the competition-like
   step backwards and forwards (2026-10-17). Add stairs to the sim (dimensions from the rules) and see whether the current
   code climbs them, treats them as a wall, or gets lost. Only then think about a stair-climbing routine (strategy).
