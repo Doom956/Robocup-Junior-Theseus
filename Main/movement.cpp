@@ -11,6 +11,10 @@
 // at the low end of the Scale ramp-down or a wheel caught on debris.
 #define FWD_TIMEOUT_US_PER_TILE 8000000.0
 #define CLIMB_TIMEOUT_US 15000000.0
+// Rules 3.1.5: ramps are at most 25 deg. Steeper than MAX_RAMP_PITCH_DEG = lifted or tipped, not a ramp; and no ramp is
+// longer than MAX_RAMP_TILES (RoboCup 2025 international fields: 1-3 tiles).
+#define MAX_RAMP_PITCH_DEG 35
+#define MAX_RAMP_TILES 3
 #define BACKUP_TIMEOUT_MS 2500
 // absoluteturn(): finished when within this many degrees of the target.
 #define TURN_DONE_DEG 2.0
@@ -278,9 +282,17 @@ void fwd(double dist){ // in mm
       double sectionPulses = pulses; // slope length of one tile at the current pitch
       timer climbTime;
       drivetrain.reset_encoderCount(true,true,true); // count ramp distance from the ramp start
+      bool steepTilt = false;
       while(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > RAMP_PITCH_DEG){
         if(Pausemaze == true) { drivetrain.fullstop(); moveInterrupted = true; break; }
         if(climbTime.getTime() > CLIMB_TIMEOUT_US) { Serial.println("climb timeout"); fwdExit = "climb-timeout"; break; }
+        // 2026-10-19: the robot picked up mid-run (pitch up to 55 deg) counted ~60 ramp sections in 3 s and the map ran out
+        if(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > MAX_RAMP_PITCH_DEG){
+          Serial.println("pitch over 35 deg: not a ramp (lifted or tipped?)");
+          steepTilt = true;
+          drivetrain.fullstop();
+          break;
+        }
         // PID centering
         double yaw = myGyro.heading()-init_yaw;
         if(yaw>180) yaw = yaw-360;
@@ -311,6 +323,8 @@ void fwd(double dist){ // in mm
       // occupies a tile if more than half of it was climbed; previously a ramp a
       // little shorter than one slope-length gave cnt = 0 and no floor change.
       if(moveInterrupted == false && avgEncoder() >= sectionPulses / 2.0) cnt++;
+      if(steepTilt) cnt = 0; // handled as a tilt that wasn't a ramp
+      if(cnt > MAX_RAMP_TILES){ Serial.print("ramp count "); Serial.print(cnt); Serial.println(" capped at 3"); cnt = MAX_RAMP_TILES; }
       int carried = 0; // tilted distance that still counts toward this tile
       if(cnt == 0){
         Serial.println("short tilt, not a ramp (bump/debris)");
