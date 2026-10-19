@@ -79,6 +79,10 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   **Question (2026-10-19):** "pushed obstacle 20%": loose obstacles (`obstacleMovableFrac`) are off by default, so which
   settings did this lostcause run use, and what does "pushed" count (an obstacle that moved, or the robot driving into a
   fixed one)? Say so next to the number.
+  **Answer:** default settings (`lostcause.py origin/robot-test --runs 600`, no `--set`), so every obstacle is fixed
+  (`obstacleMovableFrac` 0). The name is misleading: "move: pushed obstacle" is an ordinary move during which the robot
+  touched an obstacle the code hadn't seen (contact next to an obstacle, lostcause.py); the obstacle didn't move, the
+  wheels slipped and the encoders counted distance the robot didn't drive. Read it as "drove into an unseen obstacle".
 - [ ] **N6. Re-check robot-test vs `known-good-2026-10-19`** after N1-N4 (CLAUDE.md rule), and update D2 (what loses
   points now) and the PORTFOLIO.md results row.
 - Still open further down, after N1-N6: A2 (largely explained by the 320 mm practice tiles), A4 (ramp climb timing: the
