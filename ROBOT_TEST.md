@@ -6,7 +6,7 @@
 - 2n no-progress 80 mm window + end-of-move check (M6/M8 passed on the bench 2026-10-18; maze run still to do)
 - 2o no-progress check stays on after two stops at one edge (revert if the maze shows repeated stops at one edge with
   nothing there, as on 2026-10-17 partB8)
-- run clock starts at the first switch flip, not at power-on (logic fix; check the LCD time starts at 0 when the run starts)
+Confirmed 2026-10-18 (no maze): run clock starts at 0 at the first switch flip (switched on 2.5 min earlier; firmware 9cdce30).
 Last good maze version: tag `known-good-2026-10-17`.
 
 Changes on this branch depend on how real the simulator's motors, grip, turning, gyro or sensors are,
