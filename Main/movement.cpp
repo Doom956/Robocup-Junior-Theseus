@@ -89,6 +89,9 @@ static void handleAvoidanceResult(int prevdist){
   }
 }
 
+// Stop on a blue tile before backing off it: 6 s, not 5. The wait starts at fullstop() while the robot is still
+// braking (~0.3 s in the sim), and the referee counts 5 s from when it stands still (RCJ 5.5.1).
+#define BLUE_STOP_WAIT_MS 6000
 void fwd(double dist){ // in mm
   double pulses = dist/(wheel_diameter*M_PI)*wheel_cpr*gear_ratio; // easier to make a variable.
   bool black = false; // toggle for black tile
@@ -539,7 +542,7 @@ void fwd(double dist){ // in mm
     obstacleAhead = true;
     Serial.println("[FWD] blocked, backing up by the distance sensors");
     // nose already over a blue tile: stand still 5 s first, as for an obstacle (RCJ 5.5.1)
-    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(5000); }
+    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(BLUE_STOP_WAIT_MS); }
     unsigned long backStart = millis();
     while(millis() - backStart < 2000 && Pausemaze == false){
       int r = measure(1), l = measure(7), b = measure(4);
@@ -553,7 +556,7 @@ void fwd(double dist){ // in mm
     Serial.println("[FWD] obstacle, backing up to start tile");
     // Over a blue tile already (the colour sensor is ahead of the centre, so maybe more than half the
     // robot is on it): stand still 5 s before leaving it, or the referee calls lack of progress (RCJ 5.5.1).
-    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(5000); }
+    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(BLUE_STOP_WAIT_MS); }
     backUpToStart();
   }
   else if(climbed == false && black == false && moveInterrupted == false && avgEncoder() < pulses / 2.0){
