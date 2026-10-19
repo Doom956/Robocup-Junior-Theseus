@@ -9,6 +9,12 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19); robot-test is now `d5ed8aa`, tagged
 `known-good-2026-10-19`, and the "Not yet confirmed" list is empty (room for up to ~5 new robot-test changes).
 
+- [x] **N1 result (2026-10-19, sim, 300 mm tiles):** 9205f12 -> d5ed8aa: +0.0 +-2.5 / -1.1 +-2.2, home -2 / -1 pts, time
+  lost +0 / +0: no clear harm in the score. Stop after descents (at the next colour read): median -1/-1/+2 mm -> +1/+2/+10
+  mm for 1/2/3-tile ramps, but more than 30 mm past 4/2/1 -> 17/21/26 per ~150-185 descents (1-2% -> 10-18%); climbs
+  unchanged. The robot's 31-53 mm "short" was on 320 mm practice tiles (~20 mm of it is the longer tile): on 300 mm
+  competition tiles that is ~11-33 mm, so 180 likely over-corrects there (the sim says so). Kept on robot-test (real robot
+  beats sim); suggestion for the user: 165-170 as a compromise, or check descents on a 300 mm tile.
 - [ ] **N1. Sim-check the down-ramp change** that went straight onto robot-test from the robot (`d5ed8aa`:
   `RAMP_END_TO_MIDDLE_DOWN_MM` 180, up stays 155). Real evidence: 5 descents stopped 31-53 mm short, 4 after the change
   -23 / -16 mm or no centring needed. A/B `9205f12` vs `d5ed8aa` (both seed sets) and the stop position after descents
