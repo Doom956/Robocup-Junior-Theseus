@@ -8,6 +8,9 @@
 // ~20 deg one. Speed bumps (<=2 cm) only tilt this robot ~7 deg. Bench-tune.
 #define RAMP_PITCH_DEG 12
 #define RAMP_END_TO_MIDDLE_MM 155
+// Coming down stops shorter: on the robot (2026-10-19, 5 descents) the next centring said 31-53 mm short after a
+// descent, 10-22 after a climb (the practice maze reads ~20-30 mm "short" from a wall ahead everywhere).
+#define RAMP_END_TO_MIDDLE_DOWN_MM 180
 // fwd() gives up on a tile after this long (victim stops excluded): covers a stall
 // at the low end of the Scale ramp-down or a wheel caught on debris.
 #define FWD_TIMEOUT_US_PER_TILE 8000000.0
@@ -160,7 +163,7 @@ void fwd(double dist){ // in mm
   }
   // outside loop
     if(canCheckObstacle&&front_left<=OBSTACLE_DIST&&front_left!=-1&&front_right>=MIN_DIST&&front_right!=-1){ // trigger obstacleavoidance
-      Serial.println("obstacle left");
+      Serial.print("obstacle left: fl="); Serial.print(front_left); Serial.print(" fr="); Serial.println(front_right);
       if(secondTry){
         int prevdist = obstacleavoidance(1);
         drivetrain.fullstop();
@@ -188,7 +191,7 @@ void fwd(double dist){ // in mm
       return;
     }
     else if(canCheckObstacle&&front_right<=OBSTACLE_DIST&&front_right!=-1&&front_left>=MIN_DIST&&front_left!=-1){ // same rule as the left side (was >= OBSTACLE_DIST)
-      Serial.println("obstacle right");
+      Serial.print("obstacle right: fl="); Serial.print(front_left); Serial.print(" fr="); Serial.println(front_right);
       int prevdist = 0;
       if(secondTry){
         prevdist = obstacleavoidance(0);
@@ -332,7 +335,10 @@ void fwd(double dist){ // in mm
     if(canCheckObstacle && !secondTry && fabs(yawNow) <= 4.0 && avgEncoder() < pulsesForDistanceMm(250) &&
        ((front_left_current<=OBSTACLE_DIST&&front_left_current!=-1&&front_right_current>=MIN_DIST&&front_right_current!=-1) ||
         (front_right_current<=OBSTACLE_DIST&&front_right_current!=-1&&front_left_current>=MIN_DIST&&front_left_current!=-1))){
-      Serial.println("obstacle ahead during the move");
+      Serial.print("obstacle ahead during the move: fl=");
+      Serial.print(front_left_current); Serial.print(" fr="); Serial.print(front_right_current);
+      Serial.print(" at "); Serial.print(avgEncoder() / pulsesForDistanceMm(1), 0); Serial.print(" mm, yaw ");
+      Serial.println(yawNow, 1);
       lcdEvent("OBSTACLE (move)");
       drivetrain.fullstop();
       fwdExit = "obstacle-mid";
@@ -460,7 +466,7 @@ void fwd(double dist){ // in mm
       }
       else { // ramp crested: the pitch drops back under RAMP_PITCH_DEG with the robot's middle at about the end of
              // the ramp, so the middle of the tile after it is RAMP_END_TO_MIDDLE_MM ahead: drive exactly that
-        int left = (int)(pulses - pulsesForDistanceMm(RAMP_END_TO_MIDDLE_MM));
+        int left = (int)(pulses - pulsesForDistanceMm(upwards ? RAMP_END_TO_MIDDLE_MM : RAMP_END_TO_MIDDLE_DOWN_MM));
         drivetrain.set_encoderCountA(left);
         drivetrain.set_encoderCountB(left);
         drivetrain.set_encoderCountD(left);

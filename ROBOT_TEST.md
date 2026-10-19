@@ -1,14 +1,16 @@
 # Robot tests
 
-**Not yet confirmed on the robot** (keep this list current; at most ~5 before the next maze session):
-- 2l ramp exit (drive 155 mm from the ramp's end)
-- 2m centring: back sensor only for this tile's wall
-- 2n no-progress 80 mm window + end-of-move check (bench: M6/M8 caught 5 of 5, a loose box pushed without a false stop,
-  2026-10-18; still to do: count false stops in a maze run)
-- 2o no-progress check stays on after two stops at one edge (revert if the maze shows repeated stops at one edge with
-  nothing there, as on 2026-10-17 partB8)
-Confirmed 2026-10-18 (no maze): run clock starts at 0 at the first switch flip (switched on 2.5 min earlier; firmware 9cdce30).
-Last good maze version: tag `known-good-2026-10-17`.
+**Not yet confirmed on the robot:** nothing open from 2l-2o (maze session 2026-10-19, logs/2026-10-19, firmware 9205f12):
+- 2l ramps: up stops in the middle; down stopped 31-53 mm short (next centring from the wall ahead), so the descent now drives
+  180 mm instead of 155 (`RAMP_END_TO_MIDDLE_DOWN_MM`): 4 descents, centring -23 / -16 mm or none (the practice maze reads
+  ~20-30 mm "short" from a wall ahead everywhere).
+- 2m centring: stops in the middle and corrects itself (run 1).
+- 2n: 0 false `no progress` in 2 full runs (plus bench 5 of 5). 2o: no repeated stops at one edge.
+- Full runs home: 2.5 min and 1:53.
+Open, not a regression from 2l-2o: a false "obstacle" (one front sensor 58-84 mm, the other out of range) at the tile next
+to the top of the ramp (map 23,18 floor 2, facing the way down), both runs; it blocks that edge and still gets home.
+Run clock confirmed 2026-10-18.
+Last good maze version: tag `known-good-2026-10-19`.
 
 Changes on this branch depend on how real the simulator's motors, grip, turning, gyro or sensors are,
 so they stay off `main` until they pass on the real robot. Each one has a short test below: what to
