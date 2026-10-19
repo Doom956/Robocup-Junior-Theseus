@@ -143,6 +143,10 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
 - **Sim 553492e** (wheel spread 5%, LoP restart facing a random direction): main -> robot-test +93.2 +-5.1 / +96.4 +-5.0,
   home 34% -> 83% / 33% -> 81%, time lost 56% -> 10%. robot-test steering gain 2 instead of 1: +3.1 +-3.8 / +1.4 +-4.0 (keep 1).
+- **Whole-branch check (2026-10-18, sim f4ca397):** known-good-2026-10-17 (bc10a83) -> robot-test (2l-2o + run clock):
+  +80.5 +-4.9 / +75.4 +-5.0, home 52% -> 83% / 55% -> 81%, time lost 36% -> 10%. The simulator says so; the robot got
+  home in 3 of 4 maze runs with known-good, so the sim (floor seen by the back sensor, speed fit) likely exaggerates the
+  old version's weakness. Robot-confirmed so far: the run clock only. No sign of a regression.
 - Section 1b done (2026-10-18): 1 sim fitted + robot-test settings checked; 2 held; 3 floor/ramp seen (+ fix 2m); 4a/4b
   held/dropped; 5 mostly structural; 6 robustness (+ fix 2n); 7 not wanted. robot-test now 2l + 2m + 2n on top of 2k.
 
