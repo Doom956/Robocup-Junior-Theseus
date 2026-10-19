@@ -56,8 +56,8 @@ struct Params {
   double driverOhms = 0.5;        // TB6612FNG output ON resistance, upper + lower, typ (Toshiba datasheet); motor 12 V / 1.6 A = 7.5 ohm
   // wheelMu and skidFactor FITTED to the robot's bench mode (Main/bench.cpp, 3 runs on 2026-10-06): lowest
   // turnright() PWM that turns it 5 deg in 1 s 25/30/25 (sim 25), turnright(150) for 1 s 97/92/95 deg (sim 95).
-  // (Before: 0.8 and 1.3, assumed, gave 45 and 70.) wheelMu is the sideways drag when turning on the spot; it is
-  // also the grip for pushing a loose obstacle (off by default). Refitted to 0.17 for the weighed 1.955 kg (was 0.2
+  // (Before: 0.8 and 1.3, assumed, gave 45 and 70.) wheelMu is the sideways drag when turning on the spot (the grip for
+  // pushing a loose obstacle is pushGripMu since 2026-10-18). Refitted to 0.17 for the weighed 1.955 kg (was 0.2
   // with the 1.15 kg estimate): bench tests 2/3/4 in the sim 30 / 91.8 deg / 51.
   // Refitted 2026-10-18 to 0.071 with the 4.2 kg.cm stall torque (same drag as a fraction of it): bench tests 2/3/4 in the
   // sim 30 / 97.6 deg / 51, move test M1 90 deg in 1.1 s.
@@ -119,6 +119,10 @@ struct Params {
   // is loose, each with a mass between obstacleMassMinKg and obstacleMassMaxKg and floor friction
   // obstacleMu; the rest are fixed. 0 = all fixed (the default, as before).
   double obstacleMovableFrac = 0, obstacleMassMinKg = 0.5, obstacleMassMaxKg = 2.0, obstacleMu = 0.4;
+  // the wheels' grip on the floor when pushing a loose obstacle, assumed (0.8, the value wheelMu had before it was fitted
+  // to the turning tests; since 2026-10-18 wheelMu is only the sideways drag when turning, 0.071, far too low for this).
+  // Robot 2026-10-18 (M8, box not taped): pushed a loose box ~260 mm of a 300 mm move.
+  double pushGripMu = 0.8;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
   double lopAnyDirection = 1; // put back after a lack of progress facing a random direction (rules 5.5.2); 0 = start direction
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
@@ -145,7 +149,7 @@ static std::map<std::string, double *> paramTable() {
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
-    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
+    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"pushGripMu", &P.pushGripMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
     {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
@@ -450,7 +454,7 @@ static bool pushObstacle(double &nx, double &ny, double nh) {
   int k;
   collides(nx, ny, nh, false, &k);
   if (k < 0 || obstacleMass[k] <= 0) return false;                     // a fixed obstacle
-  double need = P.obstacleMu * obstacleMass[k] * 9.81, can = P.wheelMu * P.robotMassKg * 9.81;
+  double need = P.obstacleMu * obstacleMass[k] * 9.81, can = P.pushGripMu * P.robotMassKg * 9.81;
   if (need >= can) return false;                                        // too heavy for the wheels' grip
   double f = 1 - need / can, px = rx + (nx - rx) * f, py = ry + (ny - ry) * f;
   field::Obstacle before = W.obstacles[k];
