@@ -22,12 +22,76 @@ telling me first. Scenario code is sim-only (separate commit).
   - 7: an obstacle touching a side wall in the first half of the tile after a blue tile.
   For each, report: pass/fail by the TEST_PRIORITY criteria, the log lines it prints (so I know what to look for), and for
   any fail the cause from `--trace`.
-- [ ] **T2. Is relocalize right when it fires?** (B9) On 600 comp fields (both seed sets): how often `position corrected`
-  fires, how often it moves to the right tile, and how often it moves a correct position wrongly. Also the real logs
-  (2026-10-17 partB2/B5/B7/B8, 2026-10-19 run1/run2): for each `position corrected`, do the walls read afterwards keep
-  matching the map, or does it get lost soon after?
-- [ ] **T3. Ramp guard on competition ramps:** count `pitch over 35 deg` on 600 comp fields (ramps up to 25 deg). It
-  should be 0; if not, show where (pitch noise, bumps at the ramp foot).
+- [x] **T1 result (2026-10-19, sim only, robot-test 09fa442, 20 runs per case).** Sim commit 917e302 adds
+  `--scenario t2/t3/t6/t7` and the hand-carry events; see the README. Pass counts are for 300 / 320 mm tiles.
+  **Two tests can't pass as written; the code itself causes this, not the sim:**
+  - **Tests 4 and 5 use a pause.** On robot-test, resuming after a pause puts the code's position back on the last
+    checkpoint and turns the robot to the gyro's zero (PAUSE state).
+    - Test 4 as written (pause, carry back, resume): 0/20 and 0/20.
+    - Test 5 as written: 0/17 and 0/19, because comp fields have silver tiles. The code thinks it is on the last checkpoint,
+      not near the start.
+    - Test 5 with no checkpoint visited (`testNoCheckpoints`): 9/17 and 12/16. Put next to the start on the south side, it
+      passes every time (after resuming it faces north, so that tile is "behind"). On the other sides it passes ~60%; otherwise
+      it stops on the wrong tile (referee restart).
+    - **For the real test:** no silver tile visited yet, and carry it to the tile south of the start.
+  - **Relocalize only checks tiles it has visited before** (`checkTileMismatch` skips unvisited tiles). Carried back one
+    tile right after reaching a new tile, with no pause: 0/20 and 0/20. The old tile's walls get written onto the new tile.
+    - The same carry on a revisited tile: 9/20 and 12/20.
+    - The fails: the two tiles differ by fewer than 2 walls, or the correction picks another neighbour.
+    - Holding the robot still through one move: no `position corrected`, but the position stays right in 15/20 and 15/20,
+      because `[FWD] no progress` catches it.
+    - **For the real test:** do it while it drives back through tiles it has already seen. Hold it still for one move (a
+      hand on the robot) instead of a pause.
+  **Test 2, obstacle touching a side wall of the walled tile ahead** (first approach only: the field lets the robot come back
+  into that tile from the far side later, which isn't part of the test):
+  - near end: 20/20 and 16/20 (half block at the move start with `obstacle left/right: fl=.. fr=..`, half stop mid-move);
+  - middle: 14/20 and 8/20; far end: 14/20 and 11/20.
+  - The fails drive past it (2-6 per case) or touch it for 0.1-1.8 s, the obstacle at the robot's corner where neither front
+    beam sees it (B3); `[FWD] no progress` catches some.
+  - Look for: `obstacle ahead during the move: fl=.. fr=.. at N mm` -> `[FWD] obstacle, backing up to start tile` ->
+    `obstacle ahead: blocking edge`.
+  **Test 3, wall end, no obstacle:**
+  - 45 mm off-centre: 11/20 and 20/20.
+  - Also turned 10 deg: 8/20 and 12/20 (`one-sided reading while not square: squaring up and looking again`, then still
+    `obstacle left: fl=72-81 fr=600+` -> `blocking edge`).
+  - Switched on turned, so the gyro thinks it is square: 3/20 and 6/20.
+  - At 45 mm off on 300 mm tiles, the robot's side passes ~4 mm from the wall end, so the front-left sensor really sees it at
+    70-80 mm. On the 320 mm practice tiles there is room, which is why that case passes there.
+  **Test 6, dead end behind an obstacle:**
+  - walled corridor: 0-4/20 per position; open on the obstacle's free side (`testWide`): 0-5/20.
+  - It blocks the edge, clears it once nothing is left (`map looks finished early: cleared blocked edges`), then the
+    avoidance steps (`obstacle avoidance`, `turn step`, ...).
+  - It touches the obstacle and either never gets past it (4-13 per case) or gets past with the position wrong (1-9).
+  - So the sim expects test 6 to fail: avoidance in a corridor 280-300 mm wide isn't reliable.
+  **Test 7, obstacle on or after a blue tile:**
+  - after the blue tile: 18/20 and 15/20 (`[FWD] on blue: waiting 5 s first` before backing up).
+  - in the blue tile's first half: 8/20 and 9/20. 15 runs drew a referee call: "left a blue tile before 5 s".
+  - Cause: the `[FWD] no progress` back-up path (movement.cpp, `noProgress` branch) has no blue wait; only the obstacle
+    back-up path has it. Logic fix candidate, **not made** (needs your OK): the same `blueSeen` 5 s wait in the
+    no-progress branch. Note: TEST_PRIORITY 7 says "after a blue tile", ROBOT_TEST 1e says "in its first half"; both were run.
+  Per-run Serial lines: scratchpad `t1-out/` (not in the repo).
+- [x] **T2 result (2026-10-19).** Sim, robot-test, 600 comp fields per seed set:
+  - Seeds 1-600: `position corrected` fired 224 times in 148 runs (0.37 per run).
+    - 147 fixed a wrong position, 60 left it wrong, 17 made a right position wrong.
+    - Of the 147 fixed, 58 were still right on every tile read in the next 30 s, 28 went wrong again (the rest had no tile
+      read in that time: run over, or driving home).
+  - Seeds 601-1200: 163 firings in 123 runs (0.27 per run).
+    - 103 fixed, 46 left it wrong, 13 broke a right position, 1 changed nothing.
+    - Of the 104 fixed, 45 were still right after 30 s and 12 went wrong again.
+  - So ~65% help, ~27% don't help, ~8% do harm.
+  Real logs (the map rebuilt from the logged `[POS]` + wall reads; the firmware doesn't print mismatches):
+  - 2026-10-19 run1 10:48:13 and run2 10:53:42: no later read disagrees with the map. Run1 was home 27 s later.
+  - B8 15:21:34 and 15:44:51: no disagreements.
+  - B7 15:15:10 and B8 15:32:58 / 15:35:57: 1-3 later reads at the start tile (20,20) disagree with its first record
+    (2-3 walls). They came after a stop at the start and a restart, so it can't be told which record was wrong.
+  - B2 / B5: that firmware printed no `[POS]` lines, so they can't be checked.
+- [x] **T3 result (2026-10-19):** `pitch over 35 deg` fired 0 times on 1200 comp fields (robot-test, seeds 1-1200, ramps up
+  to 25 deg).
+- [ ] **Open from T1/T2 (your call):**
+  - Change TEST_PRIORITY tests 4 and 5 to the setups above.
+  - Blue wait on the no-progress back-up path: logic fix, needs a 600-field A/B first.
+  - Relocalize: it doesn't fix a wrong position in ~27% of firings and makes a right one wrong in ~8% (B9). Look at it
+    after the robot test.
 
 ## NEXT: tasks after the 2026-10-19 maze session (do these first, in order)
 
