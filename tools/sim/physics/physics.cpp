@@ -63,7 +63,11 @@ struct Params {
   // sim 30 / 97.6 deg / 51, move test M1 90 deg in 1.1 s.
   double wheelMu = 0.071;
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
-  double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
+  // per-motor speed difference (fraction), assumed. Move test M7 (2026-10-18, wheels in the air): A/B/D 118/139/150 RPM at
+  // fw(255), 67/66/89 at fw(150); most of that spread is motor A, which motorAExtraFriction already models, B vs D ~4-8%
+  // at full power: 0.05 (motor A's weakness stays in motorAExtraFriction). robot-test: 0.05 vs 0.03 -2.5 +-3.6; 0.12 (which
+  // double-counted motor A) -15.3 +-6.3.
+  double motorGainSigma = 0.05;
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
   // skid steering turns slower than the ideal track predicts. FITTED: bench test 3 (turnright(150) 1 s: 92-97 deg) gives
   // 2.5 with the 170 RPM motor (97.5 deg; move test M1: 90 deg in 1.1 s, robot 0.77-1.01 s). Was 1.1 with 72 RPM.
@@ -109,12 +113,14 @@ struct Params {
   double rampMinDeg = 15, rampMaxDeg = 25;
   // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
   double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
+  double obstacleRMinMm = 25, obstacleRMaxMm = 45; // obstacle radius: 5-9 cm across, assumed (rules 3.4.3: any shape, large heavy items, >= 15 cm tall)
   // RCJ 2026 3.4.3: obstacles are "large, heavy items" and "may be fixed to the floor"; 3.4.5: one that is
   // moved stays where it ends up. ASSUMED (the rules give no mass or material): this share of the obstacles
   // is loose, each with a mass between obstacleMassMinKg and obstacleMassMaxKg and floor friction
   // obstacleMu; the rest are fixed. 0 = all fixed (the default, as before).
   double obstacleMovableFrac = 0, obstacleMassMinKg = 0.5, obstacleMassMaxKg = 2.0, obstacleMu = 0.4;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
+  double lopAnyDirection = 1; // put back after a lack of progress facing a random direction (rules 5.5.2); 0 = start direction
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
   double oracleTile = 0;
@@ -139,8 +145,8 @@ static std::map<std::string, double *> paramTable() {
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
-    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
+    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -717,7 +723,8 @@ static void lackOfProgress(const char *why) {
   pauseUntilUs = tUs + P.lopPauseS * 1e6;
   rx = (cpX + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (cpY + 0.5) * field::TILE + gauss(P.placeSigmaMm);
-  rhead = wrap360(gauss(P.placeSigmaDeg)); // placed facing the start direction
+  // RCJ 2026 5.5.2: after a lack of progress "the robot can be installed in any direction"
+  rhead = wrap360((P.lopAnyDirection > 0 ? 90.0 * std::uniform_int_distribution<int>(0, 3)(rng) : 0.0) + gauss(P.placeSigmaDeg));
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
   curTile = W.id(cpX, cpY); stillUs = 0; blueStopped = false; lastStillX = rx; lastStillY = ry;
@@ -1141,6 +1148,27 @@ static int selfTest() {
       }
       (void)y0;
     }
+    // Move test M7: wheel speeds from the encoders, as Main/bench.cpp does it (robot 2026-10-18, wheels in the air:
+    // fw(150) A/B/D 67/66/89 RPM, fw(255) 118/139/150). The sim has no rolling load, so driving on the floor is the same.
+    {
+      W = field::World();
+      W.W = 7; W.H = 7;
+      W.wall.assign(49, {{false, false, false, false}});
+      W.type.assign(49, field::FLOOR); W.level.assign(49, 0);
+      for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      indexObstacles();
+      for (int pwm : {150, 255}) {
+        place(1050, 200, 0);
+        drivetrain.fw(pwm); delay(700);
+        drivetrain.reset_encoderCount(true, true, true);
+        delay(1000);
+        double a = drivetrain.encoderCountA, b = drivetrain.encoderCountB, d = drivetrain.encoderCountD;
+        drivetrain.fullstop(); delay(500);
+        std::printf("  M7 fw(%d): RPM A/B/D %.0f/%.0f/%.0f (robot %s)\n", pwm, a / 975 * 60, b / 975 * 60, d / 975 * 60,
+                    pwm == 150 ? "67/66/89" : "118/139/150");
+      }
+    }
     // Move test M0 on open floor: what each sensor reads with no wall near (robot: back 170-540 or 8190, front ~690
     // or 8190, sides ~470-760; logs/2026-10-16 move_tests2, 2026-10-17 sensor_check, ramp_sensors).
     {
@@ -1253,7 +1281,7 @@ int main(int argc, char **argv) {
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
   std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(sc - field::SCENARIOS));
   field::Extras ex;
-  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
+  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.obstacleRMin = P.obstacleRMinMm; ex.obstacleRMax = P.obstacleRMaxMm; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
   W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
   indexObstacles();
   rng.seed((unsigned)seed * 7919u + 4242u);

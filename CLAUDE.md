@@ -20,6 +20,7 @@
 - robot-test 2n (2026-10-18): no-progress 80 mm window only when the whole move is also < 60% behind (3 of 4 stops were false in the sim with the floor seen): +6.5 +-2.4 / +9.3 +-3.0, explored 87 -> 91%, time lost +0/+1 pts.
 - robot-test 2m (2026-10-18): centreAlong() uses the back sensor only for this tile's wall (<= 150 mm); it reads the floor at 170-540 mm with nothing behind (M0), which was taken as a wall one tile back and moved the robot (near the back of tiles on video). Sim with floor modelled +69.8 +-5.1 / +70.5 +-5.2, home 54 -> 82%; without floor -2.7 +-3.1.
 - robot-test 2l (2026-10-18, PHYSICS-DEPENDENT): after a ramp drive 155 mm from where the tilt drops (RAMP_END_TO_MIDDLE_MM), no timed fw(200) 300 ms push. Real logs: 15-70 mm past the middle after every ramp (centreAlong fixed it only because a wall was in reach). Fitted sim +13.1 +-3.4 / +8.9 +-3.6, time lost 15 -> 8%, home 77 -> 86%. Test in ROBOT_TEST.md 2l.
+- Run clock (2026-10-18, main + robot-test, logic fix): mazeTime starts at the first switch flip (run start), not at power-on; a robot switched on minutes early headed home early. Restarts must use the pause switch: cutting power resets the clock and loses the map. Sim no harm (-1.1 +-2.3).
 - Sim fitted to the robot (2026-10-18): motor 170 RPM / 4.2 kg.cm (was 72 / 10 from the BOM part; one tile 2.7 s -> 1.13 s, robot 1.1 s), skidFactor 2.5, wheelMu 0.071, tractionMean 1.0, replacement left-back sensor +30 mm (tofLeftBackExtraMm; without it robot-test's SENSOR_OFFSET_MM[5] = 30 made it square up crooked: all robot-test sim results since 2026-10-17 were too low). main -> robot-test +69.9 +-5.6 / +66.6 +-5.7. Details: NEXT_STEPS.md 1c.
 - Sim models the weak motor A (motorAExtraFriction 0.16, fitted to bench test 4): main 124.6 -> robot-test 144.8 (+20.1 +-4.4). Bench test 11 measures each distance sensor at 100 mm and prints SENSOR_OFFSET_MM.
 - Sensor calibration (2026-10-12): don't correct the side sensors. The one-wall steering target (80 mm) was tuned with side sensors reading ~10 mm long, as the real ones do. Sim bias sweep on robot-test (sim default 8 mm): 0 mm -7.8 +-5.9, 4 mm -0.9, 12 mm +2.8, 16 mm +1.5, 20 mm -0.5 (fine anywhere 4-20 mm long). Correcting only the sides: robot-test -10.0 +-6.1, main -4.5 +-7.2 (more time lost); front/back only: +0.8 / +0.9. Bench test 11's paste line now leaves the side sensors at 0. ab.py prints a second line on the bad runs: worst 10% score, runs under 120, runs ever lost, runs restarted (robot-test, seeds 1-200: 75.8, 11%, 26%, 24%).
@@ -46,4 +47,18 @@
 - The goal is the real robot; the sim is a tool and isn't perfect. Avoid real-life regressions: don't fully trust sim results unless they are conclusive or don't depend only on assumed values.
 - Keep ROBOT_WIDTH_MM as is (80 mm one-wall gap beat 49/59 mm).
 - Never add, pull from or push to my teammate's repo (Chrisyyyys/Robocup-Junoir-Theseus). My repo stays private.
+- Real robot beats simulator. When the sim and the real robot (logs, my observations) disagree, the sim is wrong until
+  shown otherwise: find out why before changing the robot's code to suit the sim.
+- Before removing or weakening a guard, check, threshold or "skip" rule, find out why it was added (git log, ROBOT_TEST.md,
+  CLAUDE.md, the robot logs it cites). Anything added because of a real-robot failure stays unless a real-robot test
+  shows it's no longer needed; say so explicitly in the A/B report.
+- Don't explain away a measurement with a guess (e.g. "the battery was probably low"): ask me how it was taken, or check
+  the log. A measurement that conflicts with others is a question for me, not something to discard.
+- Before adding or changing a simulator parameter, check whether an existing one already models the same effect (e.g.
+  motor A's weakness is motorAExtraFriction; a general wheel spread must not count it twice).
+- A calibration made for the real robot (sensor offsets, a replaced part) must be mirrored in the simulator in the same
+  change, or every sim result after it is wrong (2026-10-17: the left-back sensor offset made robot-test look ~60 points
+  worse for a day).
+- Changes are compared commit to commit; also re-check the whole branch vs the last known-good version
+  (tag known-good-2026-10-17) every few changes, so several small harmless-looking steps can't add up to a regression.
 - Answer simply and directly.

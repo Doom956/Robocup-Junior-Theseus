@@ -1,5 +1,7 @@
 # Next steps (updated 2026-10-17, evening)
 
+**Fast PC: the simulator to-do list is now [SIM_WORKLIST.md](SIM_WORKLIST.md)** (say "work through SIM_WORKLIST.md").
+
 ## 0. On the other PC: get today's work
 
 First time on that PC only (skip if it already has the project):
@@ -125,6 +127,24 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   of tiles. Fix on robot-test (2m): back sensor only for this tile's wall (<= 150 mm): +69.8 +-5.1 / +70.5 +-5.2, home
   54% -> 82%; on the sim without floor -2.7 +-3.1. Wall one tile out on the side still reads right (342-364 vs real peak
   375-400). Item 7 (camera wait): not wanted (user).
+- **Ramp count capped at 3 tiles** (a robot stuck tilted on the slope added 13-21 ramp tiles in 12 of 674 crossings):
+  +0.1 +-0.6 / -0.2 +-0.5 (those runs were already lost). Held.
+- **6. Robustness of robot-test** (300 comp fields each, vs the fitted sim): walls 6 mm (wider path, like the practice
+  maze) +11.5 +-5.5; walls 30 mm (narrower) -16.7 +-6.4 (home 84% -> 75%); 3x grip variation +3.4; gyro drift 0.5
+  deg/min -1.1; 2x sensor noise -26.3 +-7.0 and 2x floor reflection -32.4 +-6.1, both by exploring less (88% -> 75-78%),
+  not by getting lost: the no-progress check's 80 mm window fired on noise (3 of 4 stops false by default, 9 of 10 with
+  noise). Fixed on robot-test (2n): the window only counts when the whole move is also < 60% behind: +6.5 +-2.4 /
+  +9.3 +-3.0, explored 87% -> 91%. Re-check with 2n: 2x noise +4.3 +-5.3, 2x floor reflection -0.1 +-5.3 (both fixed);
+  walls 30 mm (270 mm path) still -17.8 +-6.2: probably the one-wall steering target (80 mm, ROBOT_WIDTH_MM, kept as is by
+  the user's rule) leaving the robot close to the far side. Only matters if competition walls are thicker than RCJ's 20 mm.
+- **2n gap (sim selftest "M8 box"):** a box between the front beams 200 mm ahead is missed with 2n (caught before);
+  checking more often catches it but 213 false stops; an end-of-move check catches it (false 20 -> 37) but +0.1 +-3.7 /
+  -1.8 +-3.8: held, written into ROBOT_TEST.md 2n c, to add if the robot's M8 drives into the box. New move tests on
+  robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
+- **Sim 553492e** (wheel spread 5%, LoP restart facing a random direction): main -> robot-test +93.2 +-5.1 / +96.4 +-5.0,
+  home 34% -> 83% / 33% -> 81%, time lost 56% -> 10%. robot-test steering gain 2 instead of 1: +3.1 +-3.8 / +1.4 +-4.0 (keep 1).
+- Section 1b done (2026-10-18): 1 sim fitted + robot-test settings checked; 2 held; 3 floor/ramp seen (+ fix 2m); 4a/4b
+  held/dropped; 5 mostly structural; 6 robustness (+ fix 2n); 7 not wanted. robot-test now 2l + 2m + 2n on top of 2k.
 
 ## 1b. Next simulator work (written 2026-10-18), in this order
 

@@ -20,6 +20,7 @@ struct Obstacle { double x, y, r; }; // upright cylinder, centre and radius in m
 struct Extras {
   double wallT = 20;        // wall thickness: two facing walls leave a 280 mm path (3.3.3)
   double obstacleRate = 0;  // obstacles per plain tile
+  double obstacleRMin = 25, obstacleRMax = 45; // obstacle radius, mm: 5-9 cm across, assumed (rules 3.4.3 give no size)
   double bumpRate = 0;      // speed bumps per plain tile
   double bumpH = 10;        // speed bump height, mm (3.4.1: at most 1 cm)
   double bumpW = 40;        // speed bump width across, mm
@@ -220,7 +221,7 @@ inline void addExtras(World &w, std::mt19937 &rng, const Extras &ex) {
   for (int i : rest) {
     if (obstacles <= 0) break;
     int tx = i % w.W, ty = i / w.W;
-    double r = uni(25, 45);
+    double r = uni(ex.obstacleRMin, ex.obstacleRMax);
     // in the open: at least 20 cm from every wall face
     double cx = (tx + 0.5) * S, cy = (ty + 0.5) * S;
     bool open = true;
