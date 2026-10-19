@@ -483,7 +483,9 @@ next centring said -10 to -22 mm after climbs and -31 to -53 mm after descents: 
 tile size (both on 320 mm tiles), so the descent gets its own 180 mm. After the change: 4 descents, -23 / -16 mm or no
 centring. The simulator's descent stop positions (SIM_WORKLIST N1: 10-18% more than 30 mm past on 300 mm tiles) are not
 trustworthy here: its slope speed is ~30% faster than the robot's (A4: 1.22 s vs 1.75 s on the practice ramp), so the
-robot's numbers decide (real robot beats sim). Re-check in the sim only after its slope speed is fitted to the A4 timings.
+robot's numbers decide (real robot beats sim). Re-checked with the slope speed fitted (`slopeDrag` 0.8, SIM_WORKLIST N1):
+the sim still stops ~40 mm shorter after ramps than the robot and shows no up/down difference, so it can't judge this
+setting. 180 stays; no further sim check planned.
 
 ## 2k. Fixes from the maze runs of 2026-10-17 (real robot; the last 3 not yet checked in the simulator)
 
