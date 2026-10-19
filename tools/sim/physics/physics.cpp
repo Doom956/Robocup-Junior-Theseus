@@ -125,6 +125,10 @@ struct Params {
   double pushGripMu = 0.8;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
   double lopAnyDirection = 1; // put back after a lack of progress facing a random direction (rules 5.5.2); 0 = start direction
+  // The captain gives up on a stuck robot: if it stops away from home again ("no path found" / home on the wrong tile)
+  // without having reached any new tile since the restart its last stop caused, the run ends there (that restart isn't
+  // called). Assumed (team behaviour); 0 = the captain restarts it every time (before 2026-10-19: ~17 restarts per such run).
+  double captainGivesUp = 1;
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
   double oracleTile = 0;
@@ -150,7 +154,7 @@ static std::map<std::string, double *> paramTable() {
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
     {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"pushGripMu", &P.pushGripMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -228,12 +232,15 @@ static std::string lopReasons;
 // doesn't respond (it ignores the pause switch), the run ends where it stopped, and that restart isn't
 // counted: a captain who saw it wouldn't bother.
 static double stopClaimUs = -1, stopLopUs = -1;
+static int visitedCount = 0, stopLopVisited = -1; // tiles visited so far; and when the last stop-caused restart came
 static std::string stopWhy, stopEnd, stopReasonsBefore;
 static int stopLopsBefore = 0;
 static double stopX = 0, stopY = 0, stopHead = 0;
 static bool movedSinceStopLop = false;
+
 static void stopClaim(const char *why, const char *end) {
   if (stopClaimUs >= 0) return; // already handling this stop
+  if (P.captainGivesUp > 0 && stopLopVisited >= 0 && visitedCount == stopLopVisited) throw SimEnd{end}; // same stop again: run over
   stopClaimUs = tUs; stopWhy = why; stopEnd = end;
 }
 static std::ofstream traceFile;
@@ -652,7 +659,7 @@ static void refereeTick() {
       if (tUs - stopClaimUs >= 2e6) { // the captain sees it standing still
         stopLopsBefore = lops; stopReasonsBefore = lopReasons; stopX = rx; stopY = ry; stopHead = rhead;
         lackOfProgress(stopWhy.c_str());
-        stopLopUs = tUs; movedSinceStopLop = false;
+        stopLopUs = tUs; movedSinceStopLop = false; stopLopVisited = visitedCount;
       }
     } else {
       if (!switchHigh)
@@ -683,6 +690,7 @@ static void refereeTick() {
       lastTileX = m % W.W; lastTileY = m / W.W; lastProgressUs = tUs;
       int t = W.type[m];
       if (t != field::RAMP_T) {
+        if (!visited[m]) visitedCount++;
         visited[m] = true;
         if (lastLevel >= 0 && W.level[m] != lastLevel) {
           rampCrossings++;
