@@ -13,8 +13,10 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   lost +0 / +0: no clear harm in the score. Stop after descents (at the next colour read): median -1/-1/+2 mm -> +1/+2/+10
   mm for 1/2/3-tile ramps, but more than 30 mm past 4/2/1 -> 17/21/26 per ~150-185 descents (1-2% -> 10-18%); climbs
   unchanged. The robot's 31-53 mm "short" was on 320 mm practice tiles (~20 mm of it is the longer tile): on 300 mm
-  competition tiles that is ~11-33 mm, so 180 likely over-corrects there (the sim says so). Kept on robot-test (real robot
-  beats sim); suggestion for the user: 165-170 as a compromise, or check descents on a 300 mm tile.
+  competition tiles that is ~11-33 mm, so 180 likely over-corrects there (the sim says so). **Corrected (user, 2026-10-19):**
+  the robot measured climbs (-10 to -22 mm) and descents (-31 to -53) on the same practice tiles, so the ~25 mm up/down
+  difference isn't the tile size; and the sim's slope speed is ~30% off (A4), so its descent stops aren't trustworthy.
+  180 stays (ROBOT_TEST.md 2l). Re-check after fitting the sim's slope speed to the A4 timings (below).
 - [ ] **N1. Sim-check the down-ramp change** that went straight onto robot-test from the robot (`d5ed8aa`:
   `RAMP_END_TO_MIDDLE_DOWN_MM` 180, up stays 155). Real evidence: 5 descents stopped 31-53 mm short, 4 after the change
   -23 / -16 mm or no centring needed. A/B `9205f12` vs `d5ed8aa` (both seed sets) and the stop position after descents
