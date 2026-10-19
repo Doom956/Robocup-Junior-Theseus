@@ -4,6 +4,46 @@
 **"work through SIM_WORKLIST.md"** (or name one item). Work top to bottom unless I say otherwise. Tick items off in this
 file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
+## NEXT: tasks after the 2026-10-19 maze session (do these first, in order)
+
+The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19); robot-test is now `d5ed8aa`, tagged
+`known-good-2026-10-19`, and the "Not yet confirmed" list is empty (room for up to ~5 new robot-test changes).
+
+- [ ] **N1. Sim-check the down-ramp change** that went straight onto robot-test from the robot (`d5ed8aa`:
+  `RAMP_END_TO_MIDDLE_DOWN_MM` 180, up stays 155). Real evidence: 5 descents stopped 31-53 mm short, 4 after the change
+  -23 / -16 mm or no centring needed. A/B `9205f12` vs `d5ed8aa` (both seed sets) and the stop position after descents
+  (stopcentre.py). Report only: it stays on robot-test unless the sim shows clear harm, and then tell me before changing it
+  (real robot beats sim).
+- [ ] **N2. Practice maze in the sim (A3).** The practice maze has 320 mm tiles, walls on the joints, ~300 mm path (CLAUDE.md;
+  the robot's moves are 300 mm). Add it as a field option and run robot-test on it, so practice-maze logs can be compared
+  with the sim: centring readings ("short" ~25-30 mm from a wall ahead), how often it gets lost, how it gets home.
+  Also check robot-test on 300 mm tiles stays as before (the competition size).
+- [ ] **N3. False obstacle beside a ramp top.** Both runs on 2026-10-19 (logs/2026-10-19 run1.txt, run2.txt, run2b.txt):
+  at the tile next to the top of a ramp (map 23,18 floor 2), facing the way down, the one-sided obstacle check fired:
+  front-left out of range (8190, looking down the ramp), front-right 58 mm (mid-move, 17 mm in) / 84 mm (move start).
+  The robot blocked that edge and turned around; it still explored everything and got home. It didn't happen on
+  2026-10-17. Suspects: the robot ends that tile a bit south of its middle (it came north from the ramp top, 2m no longer
+  centres on a wall one tile behind, the practice maze is 20 mm longer per tile), so the front-right sensor catches the
+  end of the wall beside the ramp. Reproduce in the sim (ramp approached from the side; practice-maze tiles too), then
+  try: on a one-sided reading at about the distance of the tile edge (40-90 mm), square up / re-centre along before
+  deciding, as the start-of-move check already does for turns > 3 deg. Physics-dependent: robot-test with a ROBOT_TEST entry.
+- [ ] **N4. Lifted robot counts dozens of ramp tiles** (logs/2026-10-19 ramp.txt, 11:07:32-35: the robot was picked up
+  while running, pitch up to 55 deg, ~60 "1 section of the ramp climbed" in 3 s, the map ran out). Rules 3.3.5: ramps
+  are at most 25 deg. Logic fix candidate: in the climb loop, a pitch over ~35 deg is not a ramp (stop counting, or end
+  the move), and/or cap the sections per ramp (B10's cap, held before because it changed nothing in the sim: real-robot
+  evidence now). Logic bug -> main + robot-test if the A/B shows no harm.
+- [ ] **N5. Black tile: colour read cadence (B8) — hold.** Real robot 3 of 3 caught black after 92-98 mm of the move (only
+  a little onto the tile): the read every 10th loop lands just after the tile edge when moves start in the tile middle.
+  Only test reading more often if the sim shows real cases starting off-centre (after avoidance / short moves) going half
+  onto black. Report numbers, no change unless clear.
+- [ ] **N6. Re-check robot-test vs `known-good-2026-10-19`** after N1-N4 (CLAUDE.md rule), and update D2 (what loses
+  points now) and the PORTFOLIO.md results row.
+- Still open further down, after N1-N6: A2 (largely explained by the 320 mm practice tiles), A4 (ramp climb timing: the
+  new logs have millisecond timestamps), B2 (obstacles between the front beams), B3 (corner obstacles: needs the M4+box
+  robot test first), B11 (speed-sensitive settings, only if A1/N2 change the motor model a lot).
+
+---
+
 ## Rules for every item (from CLAUDE.md)
 
 - A/B with `tools/sim/physics/ab.py` on **600 comp fields, both seed sets** (`--start 1` and `--start 601`). Report score,
