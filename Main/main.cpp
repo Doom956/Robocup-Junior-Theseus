@@ -917,7 +917,10 @@ void loop(){
         Pausemaze = false;
         // the run starts: the robot stands on the start tile (white). Later restarts are on a checkpoint (silver).
         static bool whiteTaken = false;
-        if(!whiteTaken){ takeWhiteReference(); whiteTaken = true; lcdEvent(clear < 1000 ? "WHITE REF LOW!" : "RUNNING"); }
+        // The run clock starts here, when the run starts, not at power-on: a robot switched on minutes before its run
+        // (setup, calibration) thought those minutes were used and headed home early. Restarts after a lack of progress
+        // come back here too and keep the clock running; cutting the power would reset it (and lose the map).
+        if(!whiteTaken){ mazeTime = timer(); takeWhiteReference(); whiteTaken = true; lcdEvent(clear < 1000 ? "WHITE REF LOW!" : "RUNNING"); }
         else lcdEvent("RESTART");
         // Restore the checkpoint's FLOOR as well as its tile. Save the grid we were
         // working on back into its floor slot, then load the checkpoint floor's grid

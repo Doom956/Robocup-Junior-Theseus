@@ -363,6 +363,19 @@ and counted a tile it never drove.
 **Robot test:** with M8 (box 15 cm ahead): run fwd() at it 3 times in a row (or let the maze run hit the same box): every
 try should stop with `[FWD] no progress`, never `exit=normal` against the box.
 
+**Revert 2o if:** the maze run shows repeated `[FWD] no progress` stops at one edge with nothing there. That is what
+happened on 2026-10-17 (logs/2026-10-17 partB8.txt, 15:44:57 on: no-progress again and again on the move home from 26,22
+to 26,21, distance sensors 29-70 mm for ~200 mm of encoders), and why the "check off after 2 stops" rule existed. With
+2o, the 4th failure writes a wall there, which can cut the way home ("no path found"). Count the stops per edge in the
+log (test 2n a) before trusting 2o.
+
+## Run clock (2026-10-18, also on main)
+
+`mazeTime` (RUN_TIME_S, the way-home timing) now starts at the first switch flip (run start), not at power-on: a robot
+switched on minutes early during setup thought those minutes were used and headed home early. Restarts after a lack of
+progress must use the pause switch (the clock keeps running); cutting the power resets the clock and loses the map.
+**Robot test:** switch on, wait 2 minutes, start the run: the LCD run time should start from 0 at the switch flip.
+
 ## 2n. No-progress check: the 80 mm window only when the whole move is behind too (2026-10-18)
 
 **Robot, 2026-10-18 (logs/2026-10-18):** M6 (box 10 cm) caught. M8 (box 15 cm) drove into the box and reported a normal
