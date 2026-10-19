@@ -114,6 +114,11 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   keep blocks made in the last 60 s (-20, explores less) and keep while something else is open (-1.0 / +2.3). Try:
   keep a block until the robot has explored N more tiles, or clear only blocks made more than 2 min ago. **Strategy:
   report, don't keep without my yes.**
+- [x] **B5 (2026-10-19):** the loop was mostly the sim's captain: after "no path found" it called a LoP, the robot's turn
+  after the restart counted as "carrying on", and it claimed "no path" again from the same spot (~17 restarts per such run,
+  2.6 per run overall). A real captain ends the run after one useless restart: sim now does that (captainGivesUp 1,
+  assumed; sim-only commit). robot-test +0.9 +-0.3 / +1.1 +-0.3, restarts 2.57 -> 0.60 per run. The 74 of 600 runs that end
+  "no path" are lost runs (position wrong); the fix is not getting lost (B2, 2l-2o), not the loop.
 - [ ] **B5. "no path found" loop** in badly-lost runs (robot-test: 2.6 restarts per run at one point; worst 10% of
   runs). Tried: drop guard walls when no path (-0.6/-0.7), write the wall only when the tile matches (no effect). Try:
   after "no path found", relocalize from the last checkpoint's map, or head for the last checkpoint and ask for a LoP
@@ -205,6 +210,10 @@ waits) per run, victims driven past without a stop, and seconds spent in victim 
 
 - [ ] **D1.** After A1-A3: robustness sweep of robot-test (sensor noise x2, floor reflection x2, grip x3, gyro drift
   0.5 deg/min, walls 6 / 30 mm) and main vs robot-test on both seed sets. Write the table into NEXT_STEPS.md.
+- [x] **D2 (2026-10-19, robot-test 9205f12, sim 264ff9c, 600 comp):** score 160.3 of 227.7; losses per run: blue revisits
+  -27.9, unexplored -26.3, restarts -8.2 (mostly the captain loop, B5: now ~-2), not home -5.0. First wrong position (289
+  of 600 runs): false obstacle alarm 21%, pushed obstacle 19%, real obstacle 18%, move 14%, ramp 12%, scraped wall 7%.
+  Ended: home 499, no path 74, time 27.
 - [ ] **D2.** `lostcause.py` and `scoregap.py` on robot-test after each kept change: what loses most points now.
 - [ ] **D3.** Update `docs/PORTFOLIO.md` section 5 (results table) with the newest main vs robot-test numbers.
 
