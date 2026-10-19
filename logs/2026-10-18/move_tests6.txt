@@ -440,3 +440,21 @@
 20:56:34 [BENCH] M0 9.7 s: front 8190/8190 right 645/630 back 8190 left 746/424
 20:56:34 [BENCH] M0 back sensor over 10 s: never a reading under 8000 (nothing behind it should read 8190 or -1; a steady reading under 400 = it sees the floor or the cable)
 20:56:34 [BENCH] done. Flip the pause switch on and off to print every result again.
+--- 21:00:02 disconnected (SerialException)
+--- 21:00:04 robot not plugged in
+--- 21:01:04 robot not plugged in
+--- 21:02:05 robot not plugged in
+--- 21:03:05 robot not plugged in
+--- 21:04:06 robot not plugged in
+--- 21:05:06 robot not plugged in
+--- 21:06:07 robot not plugged in
+--- 21:07:07 robot not plugged in
+--- 21:08:08 robot not plugged in
+--- 21:09:08 robot not plugged in
+--- 21:10:09 robot not plugged in
+--- 21:11:09 robot not plugged in
+--- 21:12:10 robot not plugged in
+--- 21:13:11 robot not plugged in
+--- 21:14:11 robot not plugged in
+--- 21:15:12 robot not plugged in
+--- 21:16:12 robot not plugged in

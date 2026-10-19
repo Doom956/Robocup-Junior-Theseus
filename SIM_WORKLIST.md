@@ -28,7 +28,7 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   try: on a one-sided reading at about the distance of the tile edge (40-90 mm), square up / re-centre along before
   deciding, as the start-of-move check already does for turns > 3 deg. Physics-dependent: robot-test with a ROBOT_TEST entry.
 - [ ] **N4. Lifted robot counts dozens of ramp tiles** (logs/2026-10-19 ramp.txt, 11:07:32-35: the robot was picked up
-  while running, pitch up to 55 deg, ~60 "1 section of the ramp climbed" in 3 s, the map ran out). Rules 3.3.5: ramps
+  while running, pitch up to 55 deg, ~60 "1 section of the ramp climbed" in 3 s, the map ran out). Rules 3.1.5: ramps
   are at most 25 deg. Logic fix candidate: in the climb loop, a pitch over ~35 deg is not a ramp (stop counting, or end
   the move), and/or cap the sections per ramp (B10's cap, held before because it changed nothing in the sim: real-robot
   evidence now). Logic bug -> main + robot-test if the A/B shows no harm.
