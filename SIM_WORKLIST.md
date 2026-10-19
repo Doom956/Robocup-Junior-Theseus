@@ -55,7 +55,8 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   `tools/robot_log.py` ("stops along the tile") and compare with `stopcentre.py` on the sim. Fit if they differ.
 - [ ] **A3. Practice maze size.** When I measure it (inner wall faces across a tile, wall thickness), add it as a field
   option and re-run robot-test on it. The robot_log centring numbers suggested walls ~25-30 mm further than RCJ's.
-  **Tile pitch measured 2026-10-19 (user): about 320 mm** (RCJ 2026 rule 3.1.2: exactly 30 x 30 cm, 28 cm path; the old
+  **Measured 2026-10-19 (user): a bare floor tile is 320 x 320 mm; with walls, 295 mm between wall faces + 20 mm walls
+  = ~315 mm pitch (depends on how the walls sit on the joints)** (RCJ 2026 rule 3.1.2: exactly 30 x 30 cm, 28 cm path; the old
   +-10% tile size allowance was removed). So every 300 mm move comes up ~20 mm short on the practice maze: this is most of
   the "stops near the back of tiles" and the ~25-30 mm "short" centring readings. Not a competition problem. Run robot-test
   in the sim on 320 mm tiles too (practice maze), so practice-maze logs can be compared with the sim.
