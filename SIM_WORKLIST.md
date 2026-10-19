@@ -63,6 +63,11 @@ The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19
   a little onto the tile): the read every 10th loop lands just after the tile edge when moves start in the tile middle.
   Only test reading more often if the sim shows real cases starting off-centre (after avoidance / short moves) going half
   onto black. Report numbers, no change unless clear.
+- [x] **N6 (2026-10-19, sim 3253949+, robot-test 703472e):** known-good-2026-10-19 -> robot-test (+ ramp guard): -1.3 +-2.9 /
+  +0.8 +-2.7, home +0 / +0, time lost +1 / -1: no regression. main -> robot-test +91.1 +-4.9 / +93.0 +-5.3, home 28% -> 80%
+  / 30% -> 80%. D2 now: score 159.9 of 227.7; blue revisits -28.1, unexplored -25.7, restarts -7.8 (0.67 per run), not
+  home -6.2 per run; first wrong position: false obstacle alarm 23%, pushed obstacle 20%, real obstacle 20%, move 15%,
+  ramp 11%, scraped wall 5%. Ended home 490, no path 86, time 24 (of 600). PORTFOLIO.md row updated.
 - [ ] **N6. Re-check robot-test vs `known-good-2026-10-19`** after N1-N4 (CLAUDE.md rule), and update D2 (what loses
   points now) and the PORTFOLIO.md results row.
 - Still open further down, after N1-N6: A2 (largely explained by the 320 mm practice tiles), A4 (ramp climb timing: the

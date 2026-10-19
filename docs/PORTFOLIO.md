@@ -164,6 +164,7 @@ By the end of the day: **home in 3 of the last 4 runs**, the last runs clean.
 | 6 Oct (calibrated to the bench) | 122.4 | 148.2 (+25.8 +-4.5) |
 | 16 Oct (real weight) | 120.9 | **171.4 (+50.4 +-4.7)** |
 | 19 Oct (simulator fitted to the robot's speed, sensors and floor) | 67.8 | **161.2 (+93.3 +-5.0)** |
+| 19 Oct, after the maze session (descent fix, ramp guard) | 64.8-68.8 | **157.8-159.9 (+91 to +93, +-5)** |
 
 On 16 Oct: runs where the robot lost its position 28% -> **8%**; runs ending home 64% -> **89%**.
 On 19 Oct (a stricter simulator: the real robot's speed, its replacement sensor, sensors that see the floor, the 2026 rule
@@ -178,7 +179,8 @@ up and down, black and blue tiles handled. Turns within 2 deg; one-tile moves wi
 > sensor, and the rule is that every real-robot calibration is mirrored in the simulator in the same change.
 >
 > These are simulator numbers. What the real robot has confirmed so far: the 17 Oct fixes (3 of 4 runs home) and the
-> 18 Oct run-clock fix; the 18 Oct navigation changes (2l-2o) are waiting for a maze session.
+> 18 Oct run-clock fix; on 19 Oct the 18 Oct navigation changes (2l-2o) passed in the maze: two full runs home (2.5 min
+> and 1:53), no false "no progress" stops, stops in the middle of tiles.
 
 ---
 
