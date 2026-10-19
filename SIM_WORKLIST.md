@@ -141,6 +141,10 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
   2l-2o) is worth more. Diagnostic patch and script: scratch pdiag_reloc.py / relocdiag.py (session of 2026-10-18).
 - [ ] **B9. Relocalize** (robot-test 2): measure how often it fires in the sim and how often it's right; tune or extend
   (e.g. check two tiles back) only if it's often wrong or often missing a real one-tile error.
+- [x] **B10 (2026-10-18, sim):** 2l holds for both directions and all lengths (robot-test, 300 comp fields, stop at the next
+  colour read): up 1/2/3 tiles median +1/+2/+3 mm, down -1/-1/+2 mm; more than 30 mm off in 1-8% per case, worst coming
+  down a 1-tile ramp (12 of 173 more than 30 mm short): that's the practice-maze ramp, watch it in the 2l robot test.
+  The stuck-on-the-slope over-count (13-21 ramp tiles, 1.8% of crossings) stays held (those runs are lost already).
 - [ ] **B10. Ramps:** a robot stuck tilted on the slope added 13-21 ramp tiles (12 of 674 crossings); the cap was held
   because those runs were lost anyway. Look for what gets it stuck (A4) and whether 2l (drive 155 mm after the ramp)
   holds for both ramp directions and lengths.
