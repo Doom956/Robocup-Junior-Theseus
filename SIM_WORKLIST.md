@@ -4,6 +4,31 @@
 **"work through SIM_WORKLIST.md"** (or name one item). Work top to bottom unless I say otherwise. Tick items off in this
 file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
+## NOW: rehearse the next robot tests in the sim (added 2026-10-19 evening, do these first, in order)
+
+The ramp guard passed on the robot (logs/2026-10-19/lift.txt, robot-test 09fa442). The next maze session runs
+TEST_PRIORITY.md tests 2-7: the obstacle strategy and relocalize have never been tested on purpose on the robot. Rehearse
+them in the sim first, so robot time isn't spent on a test the code can't pass. Report only: no firmware changes without
+telling me first. Scenario code is sim-only (separate commit).
+
+- [ ] **T1. The TEST_PRIORITY tests as sim scenarios** (robot-test, 300 mm and 320 mm tiles, ~20 runs each with placement
+  noise). Set up each one exactly as written in TEST_PRIORITY.md:
+  - 2: obstacle (5-9 cm, touching a side wall, at most ~9 cm into the path) at the near end, middle and far end of the
+    tile ahead;
+  - 3: robot 40-50 mm off-centre toward an open side at a wall end, then also turned ~10 deg;
+  - 4: after 3-4 tiles, carry the robot back one tile (same heading) and resume;
+  - 5: on the way home, carry it one tile away from the start and resume;
+  - 6: a dead end whose only way out passes an obstacle;
+  - 7: an obstacle touching a side wall in the first half of the tile after a blue tile.
+  For each, report: pass/fail by the TEST_PRIORITY criteria, the log lines it prints (so I know what to look for), and for
+  any fail the cause from `--trace`.
+- [ ] **T2. Is relocalize right when it fires?** (B9) On 600 comp fields (both seed sets): how often `position corrected`
+  fires, how often it moves to the right tile, and how often it moves a correct position wrongly. Also the real logs
+  (2026-10-17 partB2/B5/B7/B8, 2026-10-19 run1/run2): for each `position corrected`, do the walls read afterwards keep
+  matching the map, or does it get lost soon after?
+- [ ] **T3. Ramp guard on competition ramps:** count `pitch over 35 deg` on 600 comp fields (ramps up to 25 deg). It
+  should be 0; if not, show where (pitch noise, bumps at the ramp foot).
+
 ## NEXT: tasks after the 2026-10-19 maze session (do these first, in order)
 
 The robot passed 2l-2o in the maze (ROBOT_TEST.md on robot-test, logs/2026-10-19); robot-test is now `d5ed8aa`, tagged
