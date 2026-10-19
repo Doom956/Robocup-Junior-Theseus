@@ -133,6 +133,15 @@ file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 - [ ] **B7. Exploring order** (which open edge first) on the fitted sim. Earlier tries (left/straight/right,
   side-openings first, time-aware planner) gained nothing on the slow sim; the faster robot changes the trade-offs.
   **Strategy: report first.**
+- [x] **B8 (2026-10-19, sim, robot-test 9205f12):** LoPs over 600 comp fields after the captain fix (B5): home on the wrong
+  tile 123, drove onto a black tile 87, left a blue tile early 62, stuck 41. The black ones are normal moves with no black
+  seen: fwd() reads the colour sensor only every 10th loop (~400 ms, ~120 mm at the robot's ~300 mm/s), and the sensor is
+  93 mm ahead of the middle, so a read can come too late (seed 15: sensor over black from 16.92 s, next read 17.14 s).
+  Reading every 5th / 3rd loop: +4.1 +-3.9 / +0.1 +-3.7 and +2.6 +-3.6 / +2.0 +-3.8; restarts per run 0.60 -> 0.44-0.54,
+  runs with a restart 45% -> 36-38% (3rd: both seed sets, 46% -> 38%). **Candidate for robot-test after the next maze
+  session** (frozen now; PHYSICS-DEPENDENT: speed and read time): `(_fwd_tick % 10)` -> `% 3` in fwd(). Robot test: from
+  two tiles away, drive straight at a black tile 3-4 times: every time `black` and a stop before half the robot is on it.
+  The real logs so far (2026-10-17) show black seen and backed off 8 times in B8, none missed (not counted how close).
 - [ ] **B8. Lack of progress costs:** each LoP is -15 in the reliability bonus (5.6.7) plus the restart time. Count LoP
   causes (lostcause) and see which are avoidable: e.g. stopping 5 s on blue before backing off, black tile handling,
   stuck on ramps.

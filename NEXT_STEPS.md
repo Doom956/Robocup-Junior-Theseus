@@ -143,6 +143,9 @@ and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
   robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
 - **Sim 553492e** (wheel spread 5%, LoP restart facing a random direction): main -> robot-test +93.2 +-5.1 / +96.4 +-5.0,
   home 34% -> 83% / 33% -> 81%, time lost 56% -> 10%. robot-test steering gain 2 instead of 1: +3.1 +-3.8 / +1.4 +-4.0 (keep 1).
+- **Next robot-test candidate (held, robot-test frozen):** read the colour sensor every 3rd fwd() loop instead of every 10th
+  (at the robot's real speed a black tile can be crossed between reads): sim restarts per run 0.60 -> 0.44, runs with a
+  restart 45% -> 38% on both seed sets, score +2.6 / +2.0 (within noise). SIM_WORKLIST B8.
 - **Sim with the captain giving up (2026-10-19):** main -> robot-test +93.3 +-5.0 / +94.1 +-5.2, home 33% -> 82% / 30% -> 81%,
   restarts per run 0.6 (robot-test). See SIM_WORKLIST B5/D2.
 - **Whole-branch check (2026-10-18, sim f4ca397):** known-good-2026-10-17 (bc10a83) -> robot-test (2l-2o + run clock):
