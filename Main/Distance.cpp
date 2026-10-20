@@ -782,6 +782,10 @@ static int obstacleavoidanceSteps(int leftright){
         
         Serial.println("fwd step");
         if(blackDuringAvoidance()){ steps = TURN; return -3; }
+        // Square to the tile direction first: the front reading below is how far the robot got, and read while still
+        // turned 10-15 deg (a corridor leaves no room to straighten), it hit a side wall close by and the move counted as
+        // done (sim: 0 mm driven, the map one tile ahead of the robot).
+        absoluteturn(turnNeededDeg(currentDir));
         parallel();
         drivetrain.reset_encoderCount(true,true,true);
         delay(200);
