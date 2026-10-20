@@ -101,6 +101,9 @@ struct Params {
   // between two walls (MEASURED, robot-test sets SENSOR_OFFSET_MM[5] = 30 for it). Added to that sensor's offset so the
   // firmware's correction matches; 0 = the original sensor.
   double tofLeftBackExtraMm = 30;
+  // Analysis only: an extra reading offset for one sensor (code numbers 1-7: front-right, right-front, right-back, back,
+  // left-back, left-front, front-left), on top of the ones above. Shows which sensors' calibration matters. 0 by default.
+  double tofExtraMm[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   // How strongly the floor / a ramp's slope returns light into the cone (0 = sensors only see walls, as before). FITTED
   // 2026-10-18 to move test M0 on open floor: robot back 266-373 mm, front 685-702, sides 669-763; the sim with 3 reads
   // back ~340, front ~770, sides ~750 (selftest "M0 open floor"). The robot's back sensor sometimes reads 8190 instead.
@@ -167,7 +170,9 @@ static std::map<std::string, double *> paramTable() {
     {"gyroMagnetic", &P.gyroMagnetic}, {"magErrorDeg", &P.magErrorDeg}, {"driverOhms", &P.driverOhms}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
     {"tofMinReliableMm", &P.tofMinReliableMm},
     {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
-    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofLeftBackExtraMm", &P.tofLeftBackExtraMm}, {"tofFloorGain", &P.tofFloorGain}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
+    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofLeftBackExtraMm", &P.tofLeftBackExtraMm},
+    {"tofExtraMm1", &P.tofExtraMm[1]}, {"tofExtraMm2", &P.tofExtraMm[2]}, {"tofExtraMm3", &P.tofExtraMm[3]}, {"tofExtraMm4", &P.tofExtraMm[4]},
+    {"tofExtraMm5", &P.tofExtraMm[5]}, {"tofExtraMm6", &P.tofExtraMm[6]}, {"tofExtraMm7", &P.tofExtraMm[7]}, {"tofFloorGain", &P.tofFloorGain}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
@@ -1408,6 +1413,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
     for (int i = 1; i <= 7; i++) tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma);
     tof[5].offset += P.tofLeftBackExtraMm;
+    for (int i = 1; i <= 7; i++) tof[i].offset += P.tofExtraMm[i];
     return selfTest();
   }
 
@@ -1436,6 +1442,7 @@ int main(int argc, char **argv) {
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
   for (int i = 1; i <= 7; i++) { tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
   tof[5].offset += P.tofLeftBackExtraMm;
+  for (int i = 1; i <= 7; i++) tof[i].offset += P.tofExtraMm[i];
   gyroBiasDegPerUs = gauss(P.gyroDriftSigmaDegPerMin) / 60e6;
   magOffsetDeg = P.gyroMagneticOffsetDeg >= 0 ? P.gyroMagneticOffsetDeg : std::uniform_real_distribution<double>(0, 360)(rng);
   for (double &ph : magPhase) ph = std::uniform_real_distribution<double>(0, 2 * M_PI)(rng);
