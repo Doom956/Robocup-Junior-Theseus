@@ -1025,15 +1025,24 @@ static bool magneticMode() {                   // NDOF, NDOF_FMC_OFF, COMPASS, M
   if (P.gyroMagnetic >= 0) return P.gyroMagnetic > 0;
   return bnoMode == OPERATION_MODE_NDOF || bnoMode == OPERATION_MODE_NDOF_FMC_OFF || bnoMode == OPERATION_MODE_COMPASS || bnoMode == OPERATION_MODE_M4G;
 }
+// The BNO055's fusion output updates at 100 Hz (datasheet, "Fusion" output data rate): reads within one 10 ms period
+// return the same sample, so averaging back-to-back reads averages one value. Before 2026-10-19 each read here was a
+// fresh sample with fresh noise.
+static double bnoSampleUs = -1e18, bnoHeading = 0, bnoPitch = 0;
 bool Adafruit_BNO055::getEvent(sensors_event_t *e) {
   simAdvance(900);
-  bool magnetic = magneticMode() && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
-  // magnetic heading: no gyro drift, but the frame is magnetic north and local distortion bends it a little
-  double magErr = P.magErrorDeg * std::sin(2 * M_PI * rx / 900 + magPhase[0]) * std::cos(2 * M_PI * ry / 1100 + magPhase[1]);
-  e->orientation.x = (float)wrap360(rhead + (magnetic ? magOffsetDeg + magErr : gyroBiasDegPerUs * tUs - gyroZeroDeg) + gauss(P.gyroNoiseDeg));
+  if (tUs - bnoSampleUs >= 10000) {
+    bnoSampleUs = std::floor(tUs / 10000) * 10000;
+    bool magnetic = magneticMode() && (runStarted ? (tUs - runStartUs) / 1e6 >= P.gyroMagneticAfterS : P.gyroMagneticAfterS <= 0);
+    // magnetic heading: no gyro drift, but the frame is magnetic north and local distortion bends it a little
+    double magErr = P.magErrorDeg * std::sin(2 * M_PI * rx / 900 + magPhase[0]) * std::cos(2 * M_PI * ry / 1100 + magPhase[1]);
+    bnoHeading = wrap360(rhead + (magnetic ? magOffsetDeg + magErr : gyroBiasDegPerUs * tUs - gyroZeroDeg) + gauss(P.gyroNoiseDeg));
+    bnoPitch = rpitch + gauss(P.pitchNoiseDeg);
+  }
+  e->orientation.x = (float)bnoHeading;
   gyroLast = e->orientation.x;
   e->orientation.y = 0;
-  e->orientation.z = (float)(rpitch + gauss(P.pitchNoiseDeg));
+  e->orientation.z = (float)bnoPitch;
   return true;
 }
 
