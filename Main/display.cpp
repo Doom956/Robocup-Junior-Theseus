@@ -22,6 +22,7 @@ static void writeLine(int row, const char *text){
 }
 
 void lcdStatus(){
+  tftMinimapUpdate(); // the screen's minimap (does nothing with the old LCD)
   static const char dirs[4] = {'N', 'E', 'S', 'W'};
   char buf[17];
   snprintf(buf, sizeof(buf), "%d,%d F%d %c %4lus", x_pos - MAP_SIZE / 2, y_pos - MAP_SIZE / 2, currentFloor,

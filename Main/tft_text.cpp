@@ -85,6 +85,123 @@ static void drawCell(int col, int row, char ch, uint16_t fg){
   }
 }
 
+// ---- Minimap: the robot's map around it, under the text (text rows end at y 187) ----
+// 40 x 6 tiles of 8 x 8 px at y 190-237, north up. A tile: dark grey = visited, darker = seen but not visited, blue,
+// silver (checkpoint), red (black tile), orange (ramp), green (the start tile); white lines = walls, red lines = edges
+// blocked for an obstacle; the robot is a yellow square with a nub toward the way it faces.
+#define MCELL 8
+#define MCOLS 40
+#define MROWS 6
+#define MX0 ((TFT_W - MCOLS * MCELL) / 2)
+#define MY0 190
+// one tile as drawn: 0 = nothing (outside the map or never seen)
+#define M_WALLS     0x0000F   // bits 0-3: walls N E S W
+#define M_OBST      0x000F0   // bits 4-7: obstacle edges N E S W
+#define M_VISITED   0x00100
+#define M_SEEN      0x00200
+#define M_TYPE_SH   10        // bits 10-11: TileTypes
+#define M_RAMP      0x01000
+#define M_ROBOT     0x02000
+#define M_DIR_SH    14        // bits 14-15: the robot's direction
+#define M_START     0x10000
+static rtos::Mutex mapMutex;          // guards mapSnap / mapValid (held for a copy only)
+static uint32_t mapSnap[MROWS][MCOLS]; // written by the main loop, read by the screen thread
+static bool mapValid = false;
+
+// One map tile as a code. Reads only, and only inside the map (0 for anything outside).
+static uint32_t mapCode(int mx, int my, int rx, int ry, int dir, int floor){
+  if(mx < 0 || my < 0 || mx >= MAP_SIZE || my >= MAP_SIZE) return 0;
+  Tile &t = mapGrid[mx][my];
+  uint32_t c = 0;
+  int type = (int)t.getType() & 3;
+  bool visited = t.getVisited(), seen = t.getDiscovered() || type == BLACK;
+  if(visited || seen){
+    for(int d = 0; d < 4; d++){
+      if(t.getWall(d)) c |= 1u << d;
+      if(t.getObstacle(d)) c |= 1u << (4 + d);
+    }
+    if(visited) c |= M_VISITED;
+    if(seen) c |= M_SEEN;
+    c |= (uint32_t)type << M_TYPE_SH;
+    if(t.getElevate() || t.getDescend()) c |= M_RAMP;
+  }
+  if(mx == MAP_SIZE / 2 && my == MAP_SIZE / 2 && floor == START_FLOOR) c |= M_START;
+  if(mx == rx && my == ry) c |= M_ROBOT | ((uint32_t)(dir & 3) << M_DIR_SH);
+  return c;
+}
+
+// Main loop: copy the window around the robot. The window only moves when the robot gets near its edge (or changes
+// floor), so a move usually changes two tiles and the screen thread redraws just those.
+void tftMinimapUpdate(){
+  static uint32_t snap[MROWS][MCOLS];
+  static int ox = 0, oy = 0, of = -1000;
+  int rx = x_pos, ry = y_pos, f = currentFloor, dir = (int)currentDir;
+  if(f != of || rx - ox < 4 || rx - ox > MCOLS - 5 || ry - oy < 1 || ry - oy > MROWS - 2){
+    ox = rx - MCOLS / 2; oy = ry - MROWS / 2; of = f;
+  }
+  for(int r = 0; r < MROWS; r++)
+    for(int c = 0; c < MCOLS; c++)
+      snap[r][c] = mapCode(ox + c, oy + (MROWS - 1 - r), rx, ry, dir, f); // screen row 0 = the north edge
+  if(!mapMutex.trylock()) return; // the screen thread is copying: next tile
+  memcpy(mapSnap, snap, sizeof(mapSnap));
+  mapValid = true;
+  mapMutex.unlock();
+}
+
+static void drawMapCell(int r, int c, uint32_t code){
+  uint16_t px[MCELL][MCELL];
+  uint16_t bg = COL_BLACK;
+  if(code & (M_VISITED | M_SEEN)){
+    int type = (code >> M_TYPE_SH) & 3;
+    bg = (code & M_VISITED) ? 0x4208 : 0x2104;              // dark grey / darker grey
+    if(code & M_START) bg = 0x03E0;                           // green
+    if(code & M_RAMP) bg = 0xFC00;                            // orange
+    if(type == BLUE) bg = 0x001F;
+    else if(type == CHECKPOINT) bg = 0xC618;                  // silver
+    else if(type == BLACK) bg = 0x8000;                       // dark red
+  }
+  for(int y = 0; y < MCELL; y++) for(int x = 0; x < MCELL; x++) px[y][x] = bg;
+  for(int d = 0; d < 4; d++){
+    uint16_t col = (code & (1u << (4 + d))) ? COL_RED : (code & (1u << d)) ? COL_WHITE : 0;
+    if(!col) continue;
+    for(int i = 0; i < MCELL; i++){
+      if(d == 0) px[0][i] = col;              // north: top row
+      if(d == 1) px[i][MCELL - 1] = col;      // east: right column
+      if(d == 2) px[MCELL - 1][i] = col;      // south: bottom row
+      if(d == 3) px[i][0] = col;              // west: left column
+    }
+  }
+  if(code & M_ROBOT){
+    for(int y = 2; y < 6; y++) for(int x = 2; x < 6; x++) px[y][x] = COL_YELLOW;
+    int d = (code >> M_DIR_SH) & 3;
+    for(int i = 3; i < 5; i++){
+      if(d == 0) px[1][i] = COL_YELLOW;
+      if(d == 1) px[i][6] = COL_YELLOW;
+      if(d == 2) px[6][i] = COL_YELLOW;
+      if(d == 3) px[i][1] = COL_YELLOW;
+    }
+  }
+  int x0 = MX0 + c * MCELL, y0 = MY0 + r * MCELL;
+  window(x0, y0, x0 + MCELL - 1, y0 + MCELL - 1);
+  for(int y = 0; y < MCELL; y++) for(int x = 0; x < MCELL; x++){ dat(px[y][x] >> 8); dat(px[y][x]); }
+}
+
+// Screen thread: draw the tiles that changed since the last pass.
+static void drawMinimap(){
+  static uint32_t want[MROWS][MCOLS];
+  static uint32_t shown[MROWS][MCOLS];
+  static bool any = false, first = true;
+  if(mapMutex.trylock()){
+    if(mapValid){ memcpy(want, mapSnap, sizeof(want)); any = true; }
+    mapMutex.unlock();
+  }
+  if(!any) return;
+  for(int r = 0; r < MROWS; r++)
+    for(int c = 0; c < MCOLS; c++)
+      if(first || want[r][c] != shown[r][c]){ drawMapCell(r, c, want[r][c]); shown[r][c] = want[r][c]; }
+  first = false;
+}
+
 static void tftLoop(){
   unsigned long t0 = millis();
   fill(0, 0, TFT_W, TFT_H, COL_BLACK);
@@ -104,6 +221,7 @@ static void tftLoop(){
       }
       shownFg[r] = fg;
     }
+    drawMinimap();
     rtos::ThisThread::sleep_for(std::chrono::milliseconds(30));
   }
 }
