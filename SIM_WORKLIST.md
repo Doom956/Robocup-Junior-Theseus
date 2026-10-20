@@ -457,8 +457,45 @@ waits) per run, victims driven past without a stop, and seconds spent in victim 
 
   Robust to noise, floor, gyro drift and loose obstacles (2n fixed the noise/floor sensitivity of 2026-10-18). Sensitive to
   uneven wheels (only the worst case tested) and to corridors narrower than the rules allow (not a competition case).
-- [ ] **D1.** After A1-A3: robustness sweep of robot-test (sensor noise x2, floor reflection x2, grip x3, gyro drift
-  0.5 deg/min, walls 6 / 30 mm) and main vs robot-test on both seed sets. Write the table into NEXT_STEPS.md.
+- [x] **D1 result (2026-10-19, sim, robot-test 09fa442+blue fix, 600 comp, seeds 1-600, each paired with the defaults).**
+  Fine (within the noise, +-4): distance noise x2, floor reflection x2, turning drag x2 or /2, weak motor A x2, battery
+  11.0 / 12.4 V, gyro drift 0.5 deg/min, gyro noise 1 deg, colour noise x2, sloppy placement, half the obstacles loose,
+  pitch noise 1 deg (normal ramps).
+  Hurts:
+  - sensor offset spread x2: **-34.3 +-4.9**. By sensor, +-10 mm on one sensor:
+    - right-front (2): -23 both ways; left-front (6) -10 mm: -20; right-back (3): -8 / -10;
+    - left-back (5), front (1, 7) and back (4): within +-6.
+    - parallel() squares up on the difference within a side pair, the right pair (2, 3) first. A mismatch inside a pair
+      leaves the robot crooked after every squaring. The robot's right pair was within 1-4 mm (2026-10-17).
+    - So: re-check the side pairs with bench test 11 every session and after a sensor is knocked or replaced. The pair
+      difference matters, not the absolute offset.
+  - obstacles 2x as common: -23.5; walls 30 mm thick: -16.6 (the rules say 20).
+  - sensors all reading true (0 mm long): -9.1 (the code is tuned to the ~8-10 mm long readings); traction 0.9: -7.6;
+    motor spread x2: -6.3.
+  - **pitch noise 2 deg: home -15 +-4, time lost +8.** Ramp losses go from 11% to 38% of the lost runs: one reading under
+    12 deg ends a climb early.
+  - **ramps 13-15 deg (like the practice ramp): home -24 +-5, time lost +20**; with pitch noise 1 deg: home -46.
+  - **ramps 10-12 deg: time lost +39.** They are under the 12 deg trigger, so the floor never changes.
+  Robot logs: the tilt when a climb starts is 13-15 deg on the practice ramp (whole degrees, 1-3 over the trigger), and no
+  climb ended early. The robot is fine on that ramp today, but with little margin. Ramp fix candidates: next item.
+- [x] **Ramp detection under noise / shallow ramps (2026-10-19, sim, robot-test, PHYSICS-DEPENDENT).** Score / home per
+  ramp condition, 600 comp fields, seeds 1-600:
+
+  | Option | normal | 13-15 deg | 10-12 deg | 13-15 deg + 1 deg noise |
+  |---|---|---|---|---|
+  | A: flat reference averaged over 3 readings; the climb ends only after 3 readings in a row under 12; distance driven since the first of them credited back | +1.7 / +2 | +15.8 / +19 | -0.5 / -3 | +28.4 / +35 |
+  | B: trigger 9 deg | -0.6 / 0 | +22.5 / +26 | **-11.7 / -21** | +40.1 / +48 |
+  | C: A + B | +3.1 / +3 | +22.6 / +29 | +3.0 / -4 | +42.1 / +51 |
+  | **D: like C, but where the ramp ended is still measured from the last drop under 12 deg** | +3.5 / +3 | +22.3 / +30 | -0.4 / -8 | +39.7 / +50 |
+
+  - Why D: C moved the first centring after a ramp 15-30 mm further on, because the 9 deg crossing comes later than 12.
+    That would undo 2l, tuned on the robot. D keeps it: 13-15 deg ramps up -40 -> -39 mm, down -19 -> -20.
+  - D on seeds 601-1200: normal -1.3 +-3.6, 13-15 deg +17.5 / home +23, with noise +37.0 / +48, 10-12 deg -4.0 / home -7.
+  - On 10-12 deg ramps the floor is now right (time lost 51% -> 20%), but home -7 / -8: the pitch hovers 1-3 deg over the
+    9 deg trigger (the same thin margin 13-15 deg ramps have with 12), so climbs there sometimes count extra sections or
+    time out.
+  - **D pushed to robot-test with a ROBOT_TEST entry (2p).** Robot test: practice ramp up and down 3x each, the stops
+    after it as before (2l); a speed bump: `short tilt, not a ramp`, nothing added to the map.
 - [x] **D2 (2026-10-19, robot-test 9205f12, sim 264ff9c, 600 comp):** score 160.3 of 227.7; losses per run: blue revisits
   -27.9, unexplored -26.3, restarts -8.2 (mostly the captain loop, B5: now ~-2), not home -5.0. First wrong position (289
   of 600 runs): false obstacle alarm 21%, pushed obstacle 19%, real obstacle 18%, move 14%, ramp 12%, scraped wall 7%.
