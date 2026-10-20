@@ -60,7 +60,12 @@ extern Adafruit_DCMotor *motorB;
 extern Adafruit_DCMotor *motorC;
 extern Adafruit_DCMotor *motorD;
 extern motors drivetrain;
+#include "tft_text.h" // DISPLAY_TFT / USE_TFT: which display `lcd` is
+#if USE_TFT
+extern TftText lcd;
+#else
 extern LiquidCrystal lcd;
+#endif
 extern Stepper myStepper;
 
 // ============================================================

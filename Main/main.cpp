@@ -10,6 +10,7 @@
 
 #include <Stepper.h>
 #include <LiquidCrystal.h> // lcd screen
+#include "tft_text.h"      // or the Waveshare 2inch screen (DISPLAY_TFT)
 #include <array> // std::array (Grid type for multi-floor maps)
 #include <deque>
 #include <vector>
@@ -123,8 +124,12 @@ const int steps_per_revolution = 2048;
 Stepper myStepper = Stepper(steps_per_revolution, 8, 9,10,11); 
 // create lcd object
 int en = 25; int rs = 27; int d4 = 23; int d5 = 53; int d6 = 29; int d7 = 31;
+#if USE_TFT
+TftText lcd; // Waveshare 2inch screen on the same pins (tft_text.h)
+#else
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-// map grids 
+#endif
+// map grids
 // MAP_SIZE and Grid are defined in MazeTile.h
 Grid mapGrid; // active floor's tiles
 Grid m1;      // floor storage ("basement"/floor 0)
