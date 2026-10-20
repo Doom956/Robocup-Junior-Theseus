@@ -15,6 +15,13 @@ New since known-good-2026-10-19 (5 changes not yet confirmed in the maze: ramp g
   ramp` 6 times, no ramp tiles counted, floor unchanged. Side effects of being lifted (not changed): the wheels finished the
   move in the air and the colour sensor read black, so that tile was marked black. Not yet re-checked: a normal ramp
   climb with this firmware.
+- **2s. No checkpoint from a silver reading during a ramp move (fix for a robot failure, 2026-10-20).** The angled colour
+  sensor reads bright while the robot tips onto the slope (r 1071 on the practice ramp, white ~720-790, silver > 800), so
+  the white tile at the top became a checkpoint (logs/2026-10-20/ramp.txt run 3; also after ramps in 2026-10-17/19 logs).
+  A wrong checkpoint means the robot restarts believing it is there after a lack of progress. Now a ramp move clears
+  `silverDuringMove`; the tile after the ramp is judged only by `finishTileMove()`'s reading on the flat. Log:
+  `silver during a ramp move ignored`. **Test:** practice ramp up and down 3x: no `checkpoint recorded` at the top
+  (white). Not checked in the sim yet.
 - **Blue wait before backing off (logic fix, 2026-10-19, not yet on the robot).**
   - Before: fwd() waited on blue only before the obstacle back-up, not before the no-progress back-up. And the 5 s started
     at `fullstop()` while the robot was still braking: in the sim it stood still only 4.9 s, and the referee called lack of
