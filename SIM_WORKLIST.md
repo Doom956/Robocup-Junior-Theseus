@@ -32,8 +32,10 @@ All numbers on the current sim (9904879 + 71f1e4f), 600 comp fields, seeds 1-600
   - Main gets stuck on ramps more (no 2l ramp fixes), so its home number moves.
   - The real robot has never logged a `climb timeout` (all logs 2026-10-17/19), and in the lift test the 35 deg check
     alone handled it. robot-test: no home drop on 3 seed sets.
-- [ ] **Obstacle avoidance in a 280-300 mm corridor (T1 tests 6 and 2): proposed P2 + P3, NOT applied, waiting for the
-  user's decision.**
+- [x] **Obstacle avoidance in a 280-300 mm corridor (T1 tests 6 and 2): P2 + P3 applied (user yes, 2026-10-20).** P3 on
+  main (9c6757f; main alone -0.6 +-3.3 / -0.3 +-3.4, no harm) and robot-test (d55e55d, 2q); P2 on robot-test only (09b5fe7,
+  2r). ROBOT_TEST 2q/2r: robot test = TEST_PRIORITY 6, watch the 300 ms lurch. robot-test now has 5 unconfirmed changes:
+  no more firmware changes until a maze session confirms some.
   - Why test 6 fails (traced, sim): the drive-around (`obstacleavoidanceSteps()` in Distance.cpp, the same on main and
     robot-test) is: turn away until the far front sensor is clear; full power for 300 ms; line up on the side sensors
     (PARALLEL); then FWD: `parallel()`, read the front sensor, `fwd(TILE_MM - (front before - front now))`.
