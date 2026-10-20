@@ -4,6 +4,76 @@
 **"work through SIM_WORKLIST.md"** (or name one item). Work top to bottom unless I say otherwise. Tick items off in this
 file (`[x]` plus a one-line result) and push, so both PCs see the progress.
 
+## 2026-10-20: regression check, two sim fixes, avoidance in a corridor (P2 / P3, waiting for the user's decision)
+
+All numbers on the current sim (9904879 + 71f1e4f), 600 comp fields, seeds 1-600 / 601-1200, +- = 95% interval.
+
+- [x] **Sim fix: the BNO055 updates at 100 Hz** (9904879). Reads within 10 ms return the same sample; before, every read
+  had fresh noise. robot-test score -0.7 +-3.3, home -1 +-4, bench/turn numbers the same.
+- [x] **Sim fix: a run starts with the pause switch flipped** (71f1e4f, `startPauseS` 0.5).
+  - The robot starts every run from PAUSE (white reference on the start tile, run clock, heading zero). The sim didn't, so
+    the code's first PAUSE was a referee restart.
+  - Since 68e0c47 that restarted the run clock mid-run. Main's home rate looked 5 pts worse for 68e0c47; with the fix it is
+    +1 / +3. Also, the white reference had been taken on a checkpoint.
+- [x] **Regression check: robot-test (fa2636b: ramp guard, blue wait, 2p) vs the known-good versions.**
+  - vs `known-good-2026-10-19`: score +1.8 +-3.0 / -0.2 +-2.8 / +0.5 +-2.8 (third set: seeds 1201-1800), home -3 +-3 /
+    -2 +-3 / 0 +-3, time lost 0 / +1 / -1. No measurable regression.
+  - vs `known-good-2026-10-17`: +81.8 / +78.5, home +28 / +24, time lost -25 / -24.
+- [x] **main vs its 2026-10-17 build (a04df32): home -6 +-5 / -6 +-5** (score -0.3 / +2.3, time lost -7 / -9). Step by step:
+  - 6a9f87e (the 2026-10-17 robot fixes): home -4 +-5 / -8 +-5, time lost -10 / -8.
+  - 357f049 (ramp guard): home -6 +-3 / -2 +-3.
+  - Others within +-2 (68e0c47 neutral once the sim start was fixed).
+  - Both were added after real failures and stay (user, 2026-10-20). Main is lost 56% of the time in the sim; the robot
+    runs robot-test.
+- [x] **When the ramp cap (3 tiles) fires** (300 runs each):
+  - main 123 times, robot-test 37 times. Every time but one, a `climb timeout` happened in the same move: the sim robot was
+    stuck on the slope and the wheels counted 13-25 "ramp tiles". The cap only changes which wrong count a stuck robot
+    keeps.
+  - Main gets stuck on ramps more (no 2l ramp fixes), so its home number moves.
+  - The real robot has never logged a `climb timeout` (all logs 2026-10-17/19), and in the lift test the 35 deg check
+    alone handled it. robot-test: no home drop on 3 seed sets.
+- [ ] **Obstacle avoidance in a 280-300 mm corridor (T1 tests 6 and 2): proposed P2 + P3, NOT applied, waiting for the
+  user's decision.**
+  - Why test 6 fails (traced, sim): the drive-around (`obstacleavoidanceSteps()` in Distance.cpp, the same on main and
+    robot-test) is: turn away until the far front sensor is clear; full power for 300 ms; line up on the side sensors
+    (PARALLEL); then FWD: `parallel()`, read the front sensor, `fwd(TILE_MM - (front before - front now))`.
+    - **a. FWD reads the front sensor while the robot is still turned 10-15 deg.** In a corridor there's no room to
+      straighten. That ray hits a side wall close by, so "front before - front now" comes out at a tile or more, the
+      robot drives 0 mm, and the code counts the tile. From then on the map is one tile ahead (seeds 2 and 3: `[POS]
+      20,22` with the robot still in tile 21).
+    - **b. PARALLEL has no limit on rotation.** It lines up on whatever the side sensors see. Seed 3 turned 120 deg into
+      the next tile before driving on.
+    - c. The 300 ms full-power lurch throws the robot 100-200 mm. Not changed.
+  - **P3** (logic fix, main and robot-test): in FWD, `absoluteturn(turnNeededDeg(currentDir))` before `parallel()` and
+    the front reading. Why it's wrong on any robot: a distance sensor turned by an angle measures along its own ray, not
+    along the tile. Even with no wall in the way, that's longer by 1/cos(angle), and in a corridor the ray reaches a side
+    wall first. Subtracting two readings taken at different angles doesn't give the distance driven, whatever the motors,
+    grip or sensors are like.
+  - **P2** (PHYSICS-DEPENDENT, robot-test): in PARALLEL, if the gyro heading is more than 35 deg
+    (`PARALLEL_MAX_OFF_DEG`) off the tile direction, `fullstop()`, `absoluteturn()` back to it, and go to FWD.
+  - A/B on robot-test fa2636b (score / time lost / home):
+
+    | | seeds 1-600 | seeds 601-1200 |
+    |---|---|---|
+    | P3 | +1.0 +-2.2 / -0 / +2 +-3 | +2.7 +-2.4 / -1 / -0 +-3 |
+    | P2 | +2.7 +-2.1 / -1 / +2 +-3 (restarts 0.63 -> 0.58) | **+4.5 +-2.3** / -1 / +2 +-3 (0.62 -> 0.54) |
+    | P2+P3 | **+3.1 +-1.9** / -1 / +3 +-3 (0.63 -> 0.57) | **+4.0 +-2.5** / -1 / +2 +-3 (0.62 -> 0.54) |
+    | P2+P3 on main | +1.0 +-3.5 / -0 / +1 +-4 | +2.0 +-3.5 / -3 / -1 +-4 |
+
+  - T1 passes (20 runs per case), before / P3 / P2 / P2+P3:
+    - test 6 on 300 mm tiles, 6 cases: 51 / 53 / 65 / 71 of 120. By case (corridor near, open near, corridor middle,
+      open middle, corridor far, open far): before 4 8 6 11 7 15, P2+P3 5 12 10 16 13 15.
+    - test 6 on 320 mm tiles, 5 cases: 29 / 30 / 34 / 35 of 100. The open-side far-end case on 320 mm tiles is left out:
+      it shows 0/20 every time, but the robot drives round through the open side and explores everything; the judging
+      wants a "cleared blocked edges" that isn't needed there.
+    - test 2: unchanged by all of them (300 mm: 19 / 17 / 14; 320 mm: 16 / 9 / 12, near / middle / far). Its fails are
+      detection, not avoidance: the obstacle is at the robot's corner (B3; needs M4 with a box on the robot).
+  - Read: P2 carries most of it (clear on both seed sets). P3 alone is not clear in the score (both intervals include
+    zero) and adds little to test 6 (+2 / +1). It is still a geometry bug. Also tried: P1, hug the far wall during the
+    closing drive: +0.3 / -0.9, nothing on top of P3 in test 6, dropped.
+- [x] **Blue wait refinement** (wait only when the robot's middle is past the blue tile's edge): skipped (user, 2026-10-20).
+  Test 7 passes 19/20 with the 6 s wait; an extra wait is cheaper than a wrong lack-of-progress call.
+
 ## NOW: rehearse the next robot tests in the sim (added 2026-10-19 evening, do these first, in order)
 
 The ramp guard passed on the robot (logs/2026-10-19/lift.txt, robot-test 09fa442). The next maze session runs
@@ -87,7 +157,7 @@ telling me first. Scenario code is sim-only (separate commit).
   - B2 / B5: that firmware printed no `[POS]` lines, so they can't be checked.
 - [x] **T3 result (2026-10-19):** `pitch over 35 deg` fired 0 times on 1200 comp fields (robot-test, seeds 1-1200, ramps up
   to 25 deg).
-- [ ] **Open from T1/T2 (your call):** change TEST_PRIORITY tests 4 and 5 to the setups above.
+- [x] **Open from T1/T2:** TEST_PRIORITY tests 4 and 5 changed to the setups above (user, 5471a1f).
 - [x] **Blue wait (2026-10-19, robot-test, logic fix, pushed with a ROBOT_TEST entry).**
   - Before, the robot waited on blue only before the obstacle back-up, not before the no-progress back-up.
   - Also, the 5 s started at `fullstop()` while the robot was still braking, so it stood still only 4.9 s.
@@ -494,8 +564,18 @@ waits) per run, victims driven past without a stop, and seconds spent in victim 
   - On 10-12 deg ramps the floor is now right (time lost 51% -> 20%), but home -7 / -8: the pitch hovers 1-3 deg over the
     9 deg trigger (the same thin margin 13-15 deg ramps have with 12), so climbs there sometimes count extra sections or
     time out.
-  - **D pushed to robot-test with a ROBOT_TEST entry (2p).** Robot test: practice ramp up and down 3x each, the stops
-    after it as before (2l); a speed bump: `short tilt, not a ramp`, nothing added to the map.
+  - D was pushed to robot-test (2p, 39acc1f), then **reworked on 2026-10-20 (fa2636b)**: the climb starts over 12 deg
+    again and only the end changed (3 readings in a row under 12, distance since credited back).
+    - The 9 deg start made 2 cm bumps start climbs: 100 flat fields with 2 cm bumps, 959 climbs started and 7 false ramp
+      tiles, vs 59 and 1 at 12 deg (the same as before 2p).
+    - The 3-reading flat reference was dropped: `pitch_heading()` returns 0 under 5 deg, and back-to-back reads get the
+      same 100 Hz BNO055 sample.
+    - The robot never showed the problem 2p guards against: 0 `short tilt` in ~70 real ramp crossings.
+    - fa2636b vs robot-test before 2p (d390f9c), 600 comp, seeds 1-600 / 601-1200: normal ramps +0.8 / +1.9; 13-15 deg
+      +14.4 / +16.5, home +16 / +20; 13-15 deg with 1 deg pitch noise +26.2 / +26.2, home +26 / +35; 10-12 deg +0.3 / +0.3.
+      pio builds.
+    - Robot test (ROBOT_TEST 2p): practice ramp up and down 3x, stops as in 2l; a 2 cm step and a speed bump: no
+      `climbing`, nothing added to the map.
 - [x] **D2 (2026-10-19, robot-test 9205f12, sim 264ff9c, 600 comp):** score 160.3 of 227.7; losses per run: blue revisits
   -27.9, unexplored -26.3, restarts -8.2 (mostly the captain loop, B5: now ~-2), not home -5.0. First wrong position (289
   of 600 runs): false obstacle alarm 21%, pushed obstacle 19%, real obstacle 18%, move 14%, ramp 12%, scraped wall 7%.
