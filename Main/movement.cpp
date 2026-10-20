@@ -19,11 +19,9 @@
 // longer than MAX_RAMP_TILES (RoboCup 2025 international fields: 1-3 tiles).
 #define MAX_RAMP_PITCH_DEG 35
 #define MAX_RAMP_TILES 3
-// A climb starts above RAMP_ENTRY_DEG (shallow ramps: the rules give no minimum, 3.1.5) and ends after RAMP_END_READINGS
-// readings in a row at or under it (one noisy reading mid-slope used to end it early). Where the ramp ended is still
-// measured as before, from the last time the pitch dropped under RAMP_PITCH_DEG (12, what RAMP_END_TO_MIDDLE_MM was
-// tuned to on the robot); only a ramp that never went over 12 uses the RAMP_ENTRY_DEG crossing.
-#define RAMP_ENTRY_DEG 9
+// A climb ends after RAMP_END_READINGS pitch readings in a row at or under RAMP_PITCH_DEG, not the first one (in the
+// sim, 1-2 deg of pitch noise or a 13-15 deg ramp ended climbs halfway). The distance driven since the first of them is
+// credited back, so the stop after the ramp (RAMP_END_TO_MIDDLE_MM) is measured from the same point as before.
 #define RAMP_END_READINGS 3
 #define BACKUP_TIMEOUT_MS 2500
 // absoluteturn(): finished when within this many degrees of the target.
@@ -128,9 +126,7 @@ void fwd(double dist){ // in mm
   obstacleAhead = false;
   silverDuringMove = false;
   const double fwdTimeoutUs = max(2000000.0, FWD_TIMEOUT_US_PER_TILE * dist / TILE_MM);
-  // flat reference for the ramp check: the average of 3 readings, so one noisy reading can't shift it
-  int init_pitch = (myGyro.modulus((int)myGyro.pitch_heading()) + myGyro.modulus((int)myGyro.pitch_heading())
-                    + myGyro.modulus((int)myGyro.pitch_heading())) / 3;
+  int init_pitch = myGyro.modulus((int)myGyro.pitch_heading());
   int init_yaw = turnNeededDeg(myGyro.headingToCardinal(myGyro.heading()));
   Serial.println("init_yaw");
   Serial.println(init_yaw);
@@ -422,7 +418,7 @@ void fwd(double dist){ // in mm
     // again, and with the pitch just past the threshold (noise, whole degrees) that second reading could
     // miss it, so an up-ramp was taken as a down-ramp: descend() instead of elevation(), wrong floor.
     int tilt = myGyro.modulus(myGyro.pitch_heading()) - init_pitch;
-    if(abs(tilt) > RAMP_ENTRY_DEG){
+    if(abs(tilt) > RAMP_PITCH_DEG){
       Serial.println("climbing");
       int _encoderCountA = drivetrain.encoderCountA; // save values before ramp
       int _encoderCountB = drivetrain.encoderCountB;
@@ -436,16 +432,11 @@ void fwd(double dist){ // in mm
       timer climbTime;
       drivetrain.reset_encoderCount(true,true,true); // count ramp distance from the ramp start
       bool steepTilt = false;
-      int below = 0;              // readings in a row at or under RAMP_ENTRY_DEG
-      double encAtEntryEnd = 0;   // encoder at the first of them
-      bool over12 = false;        // the pitch went over RAMP_PITCH_DEG on this ramp
-      double encAt12 = -1;        // encoder when it last dropped under RAMP_PITCH_DEG (-1 = above it now)
+      int below = 0;           // readings in a row at or under RAMP_PITCH_DEG
+      double encAtCrest = 0;   // encoder at the first of them
       while(true){
-        int p = abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch);
-        if(p > RAMP_PITCH_DEG){ over12 = true; encAt12 = -1; }
-        else if(over12 && encAt12 < 0) encAt12 = avgEncoder();
-        if(p <= RAMP_ENTRY_DEG){
-          if(below == 0) encAtEntryEnd = avgEncoder();
+        if(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) <= RAMP_PITCH_DEG){
+          if(below == 0) encAtCrest = avgEncoder();
           if(++below >= RAMP_END_READINGS) break;
         }
         else below = 0;
@@ -481,8 +472,7 @@ void fwd(double dist){ // in mm
         if(avgEncoder() >= sectionPulses){
           Serial.println("1 section of the ramp climbed");
           cnt++;
-          if(below > 0) encAtEntryEnd -= avgEncoder();
-          if(encAt12 >= 0) encAt12 -= avgEncoder();
+          if(below > 0) encAtCrest -= avgEncoder();
           drivetrain.reset_encoderCount(true,true,true);
         } // track tiles
       }
@@ -490,7 +480,7 @@ void fwd(double dist){ // in mm
       // occupies a tile if more than half of it was climbed; previously a ramp a
       // little shorter than one slope-length gave cnt = 0 and no floor change.
       // distance driven since the ramp ended (credited back so the stop after it is measured from the same point)
-      double sinceCrest = below < RAMP_END_READINGS ? 0 : avgEncoder() - (over12 && encAt12 >= 0 ? encAt12 : encAtEntryEnd);
+      double sinceCrest = below >= RAMP_END_READINGS ? avgEncoder() - encAtCrest : 0;
       if(moveInterrupted == false && avgEncoder() - sinceCrest >= sectionPulses / 2.0) cnt++;
       if(steepTilt) cnt = 0; // handled as a tilt that wasn't a ramp
       if(cnt > MAX_RAMP_TILES){ Serial.print("ramp count "); Serial.print(cnt); Serial.println(" capped at 3"); cnt = MAX_RAMP_TILES; }

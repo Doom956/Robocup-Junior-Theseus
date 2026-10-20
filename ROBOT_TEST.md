@@ -25,26 +25,30 @@ New since known-good-2026-10-19:
   - Still open: obstacle avoidance on the way home, driving through a blue tile, doesn't stop on it (seen on 320 mm tiles).
   - **Test:** TEST_PRIORITY 7, obstacle in the first half of the blue tile. Expect `[FWD] on blue: waiting 5 s first`, the
     robot standing still ~6 s, then backing up, and no lack of progress.
-- **2p. Ramp detection that survives a noisy pitch and shallow ramps (PHYSICS-DEPENDENT, 2026-10-19, not yet on the robot).**
-  - Before: one pitch reading at the move start was the flat reference, a climb started over 12 deg, and it ended at the
-    first reading under 12. On the practice ramp the robot reads 13-15 deg (logs 2026-10-17/19), only 1-3 over the
-    trigger. In the sim, 1-2 deg of pitch noise or 13-15 deg ramps ended climbs halfway and lost the floor.
-  - Now: the flat reference is the average of 3 readings; a climb starts over 9 deg (`RAMP_ENTRY_DEG`) and ends after 3
-    readings in a row at or under 9 (`RAMP_END_READINGS`).
-  - Where the ramp ended is still taken from the last drop under 12 deg, with the distance driven since credited back, so
-    the 2l stops (155 up / 180 down) are measured from the same point as before. Sim stops on 13-15 deg ramps: up -40 ->
-    -39 mm, down -19 -> -20.
-  - Sim (600 comp, seeds 1-600 / 601-1200):
-    - normal 15-25 deg ramps: +3.5 / -1.3 (no change);
-    - 13-15 deg ramps: +22.3 / +17.5, home +30 / +23, time lost -23 / -23;
-    - with 1 deg pitch noise: +39.7 / +37.0, home +50 / +48.
-    - Weak spot: 10-12 deg ramps, home -8 / -7. The floor is now tracked (time lost 51% -> 20%), but the pitch hovers just
-      over 9.
-  - **Test:** the practice ramp, up and down 3 times each, logging. Expect `climbing` near the bottom, the same `adding
-    ramp to map` count as before, and the first `centring along` after the ramp like 2l (up -10 to -22, down within ~25 mm).
-    Also drive over a speed bump (or a 1 cm strip): `short tilt, not a ramp`, nothing added to the map. Bad: `climb
-    timeout`, `ramp count .. capped`, a floor change on flat ground, or stops after the ramp clearly different from 2l.
-    If bad, revert 2p (one commit).
+- **2p. A climb ends only after 3 pitch readings in a row under 12 deg (PHYSICS-DEPENDENT, 2026-10-19, not yet on the robot).**
+  - Before, the first reading under 12 deg ended a climb. The robot reads 13-15 deg on the practice ramp (logs
+    2026-10-17/19), only 1-3 deg over. In the sim, 1-2 deg of pitch noise or a 13-15 deg ramp ended climbs halfway and the
+    floor was lost. **The robot has never shown this:** 0 `short tilt` in ~70 real ramp crossings (2026-10-17/19). So 2p
+    guards against a ramp or pitch reading worse than the practice one. It doesn't fix a seen failure.
+  - Now: the climb ends after `RAMP_END_READINGS` (3) readings in a row at or under 12 deg. The distance driven since the
+    first of them is credited back, so the 2l stops (155 up / 180 down) are measured from the same point as before.
+  - The climb still starts over 12 deg.
+    - Starting at 9 deg was tried and dropped. In the sim (100 flat fields, 2 cm bumps) it started 959 climbs and added 7
+      false ramp tiles; at 12 deg it was 59 and 1, the same as before 2p.
+    - A 3-reading average for the flat reference was also dropped: `pitch_heading()` returns 0 under 5 deg, and
+      back-to-back reads get the same 100 Hz BNO055 sample (the sim now models that).
+  - Sim, 600 comp fields, seeds 1-600 / 601-1200, robot-test before 2p -> with 2p:
+    - normal 15-25 deg ramps: +0.8 / +1.9;
+    - 13-15 deg ramps: +14.4 / +16.5, home +16 / +20;
+    - with 1 deg pitch noise: +26.2 / +26.2, home +26 / +35;
+    - 10-12 deg ramps: +0.3 / +0.3, unchanged (under the trigger, as before).
+  - **Test:**
+    - The practice ramp, up and down 3 times each, logging. Expect the same `adding ramp to map` count as before, and the
+      first `centring along` after the ramp like 2l (up -10 to -22, down within ~25 mm).
+    - Then drive over a **2 cm step** and a **speed bump**. Expect no `climbing` and nothing added to the map (no `adding
+      ramp to map`, `[POS]` floor unchanged).
+    - Bad: `climb timeout`, `ramp count .. capped`, a floor change on flat ground, or stops after the ramp clearly
+      different from 2l. If bad, revert 2p (two commits).
 Still never tested on purpose (TEST_PRIORITY.md on main, tests 2-7): obstacle strategy (section 1 a-e), relocalize
 (section 2 a) and the home check (2c).
 Run clock confirmed 2026-10-18.
