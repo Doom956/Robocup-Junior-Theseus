@@ -19,6 +19,12 @@
 // longer than MAX_RAMP_TILES (RoboCup 2025 international fields: 1-3 tiles).
 #define MAX_RAMP_PITCH_DEG 35
 #define MAX_RAMP_TILES 3
+// A climb starts above RAMP_ENTRY_DEG (shallow ramps: the rules give no minimum, 3.1.5) and ends after RAMP_END_READINGS
+// readings in a row at or under it (one noisy reading mid-slope used to end it early). Where the ramp ended is still
+// measured as before, from the last time the pitch dropped under RAMP_PITCH_DEG (12, what RAMP_END_TO_MIDDLE_MM was
+// tuned to on the robot); only a ramp that never went over 12 uses the RAMP_ENTRY_DEG crossing.
+#define RAMP_ENTRY_DEG 9
+#define RAMP_END_READINGS 3
 #define BACKUP_TIMEOUT_MS 2500
 // absoluteturn(): finished when within this many degrees of the target.
 #define TURN_DONE_DEG 2.0
@@ -122,7 +128,9 @@ void fwd(double dist){ // in mm
   obstacleAhead = false;
   silverDuringMove = false;
   const double fwdTimeoutUs = max(2000000.0, FWD_TIMEOUT_US_PER_TILE * dist / TILE_MM);
-  int init_pitch = myGyro.modulus((int)myGyro.pitch_heading());
+  // flat reference for the ramp check: the average of 3 readings, so one noisy reading can't shift it
+  int init_pitch = (myGyro.modulus((int)myGyro.pitch_heading()) + myGyro.modulus((int)myGyro.pitch_heading())
+                    + myGyro.modulus((int)myGyro.pitch_heading())) / 3;
   int init_yaw = turnNeededDeg(myGyro.headingToCardinal(myGyro.heading()));
   Serial.println("init_yaw");
   Serial.println(init_yaw);
@@ -414,7 +422,7 @@ void fwd(double dist){ // in mm
     // again, and with the pitch just past the threshold (noise, whole degrees) that second reading could
     // miss it, so an up-ramp was taken as a down-ramp: descend() instead of elevation(), wrong floor.
     int tilt = myGyro.modulus(myGyro.pitch_heading()) - init_pitch;
-    if(abs(tilt) > RAMP_PITCH_DEG){
+    if(abs(tilt) > RAMP_ENTRY_DEG){
       Serial.println("climbing");
       int _encoderCountA = drivetrain.encoderCountA; // save values before ramp
       int _encoderCountB = drivetrain.encoderCountB;
@@ -428,7 +436,19 @@ void fwd(double dist){ // in mm
       timer climbTime;
       drivetrain.reset_encoderCount(true,true,true); // count ramp distance from the ramp start
       bool steepTilt = false;
-      while(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > RAMP_PITCH_DEG){
+      int below = 0;              // readings in a row at or under RAMP_ENTRY_DEG
+      double encAtEntryEnd = 0;   // encoder at the first of them
+      bool over12 = false;        // the pitch went over RAMP_PITCH_DEG on this ramp
+      double encAt12 = -1;        // encoder when it last dropped under RAMP_PITCH_DEG (-1 = above it now)
+      while(true){
+        int p = abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch);
+        if(p > RAMP_PITCH_DEG){ over12 = true; encAt12 = -1; }
+        else if(over12 && encAt12 < 0) encAt12 = avgEncoder();
+        if(p <= RAMP_ENTRY_DEG){
+          if(below == 0) encAtEntryEnd = avgEncoder();
+          if(++below >= RAMP_END_READINGS) break;
+        }
+        else below = 0;
         if(Pausemaze == true) { drivetrain.fullstop(); moveInterrupted = true; break; }
         if(climbTime.getTime() > CLIMB_TIMEOUT_US) { Serial.println("climb timeout"); fwdExit = "climb-timeout"; break; }
         // 2026-10-19: the robot picked up mid-run (pitch up to 55 deg) counted ~60 ramp sections in 3 s and the map ran out
@@ -461,13 +481,17 @@ void fwd(double dist){ // in mm
         if(avgEncoder() >= sectionPulses){
           Serial.println("1 section of the ramp climbed");
           cnt++;
+          if(below > 0) encAtEntryEnd -= avgEncoder();
+          if(encAt12 >= 0) encAt12 -= avgEncoder();
           drivetrain.reset_encoderCount(true,true,true);
         } // track tiles
       }
       // A ramp section left partly counted (the encoder resets above discard it) still
       // occupies a tile if more than half of it was climbed; previously a ramp a
       // little shorter than one slope-length gave cnt = 0 and no floor change.
-      if(moveInterrupted == false && avgEncoder() >= sectionPulses / 2.0) cnt++;
+      // distance driven since the ramp ended (credited back so the stop after it is measured from the same point)
+      double sinceCrest = below < RAMP_END_READINGS ? 0 : avgEncoder() - (over12 && encAt12 >= 0 ? encAt12 : encAtEntryEnd);
+      if(moveInterrupted == false && avgEncoder() - sinceCrest >= sectionPulses / 2.0) cnt++;
       if(steepTilt) cnt = 0; // handled as a tilt that wasn't a ramp
       if(cnt > MAX_RAMP_TILES){ Serial.print("ramp count "); Serial.print(cnt); Serial.println(" capped at 3"); cnt = MAX_RAMP_TILES; }
       int carried = 0; // tilted distance that still counts toward this tile
@@ -483,7 +507,7 @@ void fwd(double dist){ // in mm
       }
       else { // ramp crested: the pitch drops back under RAMP_PITCH_DEG with the robot's middle at about the end of
              // the ramp, so the middle of the tile after it is RAMP_END_TO_MIDDLE_MM ahead: drive exactly that
-        int left = (int)(pulses - pulsesForDistanceMm(upwards ? RAMP_END_TO_MIDDLE_MM : RAMP_END_TO_MIDDLE_DOWN_MM));
+        int left = (int)(pulses - pulsesForDistanceMm(upwards ? RAMP_END_TO_MIDDLE_MM : RAMP_END_TO_MIDDLE_DOWN_MM) + sinceCrest);
         drivetrain.set_encoderCountA(left);
         drivetrain.set_encoderCountB(left);
         drivetrain.set_encoderCountD(left);
