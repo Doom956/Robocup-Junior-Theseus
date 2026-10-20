@@ -9,7 +9,7 @@
 - Full runs home: 2.5 min and 1:53.
 Open, not a regression from 2l-2o: a false "obstacle" (one front sensor 58-84 mm, the other out of range) at the tile next
 to the top of the ramp (map 23,18 floor 2, facing the way down), both runs; it blocks that edge and still gets home.
-New since known-good-2026-10-19:
+New since known-good-2026-10-19 (5 changes not yet confirmed in the maze: ramp guard on a real ramp, blue wait, 2p, P3, P2. **No more firmware changes on robot-test until a maze session confirms some**, user 2026-10-20):
 - Ramp guard (logic fix, also on main): a pitch over 35 deg isn't a ramp, and a ramp counts at most 3 tiles. **Confirmed
   2026-10-19** (logs/2026-10-19/lift.txt, firmware 09fa442): lifted mid-move, pitch 40-48 deg, `pitch over 35 deg: not a
   ramp` 6 times, no ramp tiles counted, floor unchanged. Side effects of being lifted (not changed): the wheels finished the
@@ -49,6 +49,32 @@ New since known-good-2026-10-19:
       ramp to map`, `[POS]` floor unchanged).
     - Bad: `climb timeout`, `ramp count .. capped`, a floor change on flat ground, or stops after the ramp clearly
       different from 2l. If bad, revert 2p (two commits).
+- **2q (P3). Obstacle avoidance squares up before measuring the distance left (logic fix, also on main, 2026-10-20, not yet on
+  the robot).**
+  - The closing drive's length was "front reading before - front reading now". The second reading was taken while the
+    robot was still turned 10-15 deg: in a corridor there's no room to straighten. A turned sensor measures along its own
+    ray, and in a corridor that ray hits a side wall. So the robot drove 0 mm and the code counted the tile (sim test 6,
+    seeds 2/3: map one tile ahead from then on).
+  - Now the FWD step turns to the tile direction (`absoluteturn`) before `parallel()` and the reading.
+  - Sim, 600 comp: main -0.6 +-3.3 / -0.3 +-3.4 (no harm); robot-test alone +1.0 +-2.2 / +2.7 +-2.4.
+- **2r (P2). Avoidance's line-up (PARALLEL) stops 35 deg off the tile direction (PHYSICS-DEPENDENT, 2026-10-20, not yet on
+  the robot).**
+  - Lining up on the side sensors had no limit on rotation and followed whatever they saw. Sim seed 3 turned 120 deg into
+    the next tile before driving on.
+  - Now: more than 35 deg (`PARALLEL_MAX_OFF_DEG`) off the tile direction by the gyro -> stop, turn back square, go to FWD.
+  - Sim, 600 comp, robot-test: +2.7 +-2.1 / +4.5 +-2.3. With 2q: +3.1 +-1.9 / +4.0 +-2.5, home +3 / +2, restarts
+    0.63 -> 0.57 / 0.62 -> 0.54.
+  - T1 test 6 (dead end behind an obstacle), 300 mm tiles: 51 -> 71 of 120 with 2q+2r. Test 2 is unchanged (its fails
+    are detection: the obstacle at the robot's corner).
+- **Test for 2q + 2r: TEST_PRIORITY 6** (dead end whose only way out passes the obstacle), cameras off, logging.
+  - Corridor first (walls both sides of the obstacle's tile), then with that tile open on the far side if you can.
+  - Expect `obstacle avoidance`, `turn step`, `paralleling step`(s), `fwd step`, and the LCD / `[POS]` position right on
+    the next tile.
+  - Watch the **300 ms full-power lurch** after `turn step`. It isn't changed, and in the sim it throws the robot 100-200
+    mm, into the far wall or past the obstacle. Note if the robot hits a wall or the obstacle there.
+  - Bad (2q): after `fwd step` the robot barely moves but `[POS]` jumps a tile.
+  - Bad (2r): a turn of more than ~45 deg during `paralleling step`, or it ends facing the wrong way.
+  - If 2r misbehaves, revert it (one commit). 2q is also on main.
 Still never tested on purpose (TEST_PRIORITY.md on main, tests 2-7): obstacle strategy (section 1 a-e), relocalize
 (section 2 a) and the home check (2c).
 Run clock confirmed 2026-10-18.
