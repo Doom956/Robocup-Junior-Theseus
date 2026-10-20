@@ -1,0 +1,26 @@
+﻿<!doctype html><html><head><meta charset="utf-8"><title>Display stands</title>
+<style>body{margin:0;background:#eee;font:14px sans-serif}#l{position:absolute;top:8px;left:8px}</style></head><body>
+<div id="l">left: flat &nbsp; right: tilted 60&deg; &nbsp; (green = the screen board) &nbsp; drag to turn, scroll to zoom</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const r = new THREE.WebGLRenderer({antialias:true}); r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+const s = new THREE.Scene(); s.background = new THREE.Color(0xeeeeee);
+const c = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, 1, 2000); c.up.set(0,0,1);
+c.position.set(-60, 210, 120);
+s.add(new THREE.AmbientLight(0xffffff,0.5)); const l = new THREE.DirectionalLight(0xffffff,0.8); l.position.set(60,120,150); s.add(l);
+const mat = new THREE.MeshStandardMaterial({color:0x3b82f6});
+const ld = new THREE.STLLoader();
+const board = (x, y, z, rx) => { const m = new THREE.Mesh(new THREE.BoxGeometry(58, 35, 3.8), new THREE.MeshStandardMaterial({color:0x22aa55, transparent:true, opacity:0.55}));
+  m.position.set(x, y, z); m.rotation.x = rx; s.add(m); };
+ld.load('DisplayStand_tilted.stl', g => { const m = new THREE.Mesh(g, mat); m.position.x = -45; s.add(m); });
+ld.load('DisplayStand_flat.stl', g => { const m = new THREE.Mesh(g, mat); m.position.x = 45; s.add(m); });
+// boards on the posts: tilted plate frame v up the plate (60 deg), board centre at v = 18.5, w = 3 + 8 + 1.9
+const th = Math.PI/3, v = 18.5, w = 12.9;
+board(-45, -v*Math.cos(th) + w*Math.sin(th), 3 + v*Math.sin(th) + w*Math.cos(th), -th);
+board(45, -18.5, 12.9, 0);
+const ctl = new THREE.OrbitControls(c, r.domElement); ctl.target.set(0, -10, 10); ctl.update();
+(function a(){ requestAnimationFrame(a); r.render(s, c); })();
+</script></body></html>
+

@@ -1,0 +1,81 @@
+--- connected on COM3 at 18:14:58
+--- 18:16:24 disconnected (SerialException)
+--- 18:16:27 robot not plugged in
+--- connected on COM3 at 18:16:31
+18:16:33 [CAL] sensor 2  meanRaw=1240.8mm  true=80mm  valid=81/100  -> SENSOR_OFFSET_MM[2] = 1161
+18:16:33 Port 0: 0x28 0x30 0x60 0x70
+18:16:33 Port 1: 0x28 0x30 0x60 0x70
+18:16:33 Port 2: 0x28 0x30 0x60 0x70
+18:16:33 Port 3: 0x28 0x30 0x60 0x70
+18:16:33 Port 4: 0x28 0x30 0x60 0x70
+18:16:33 Port 5: 0x28 0x30 0x60 0x70
+18:16:33 Port 6: 0x28 0x30 0x60 0x70
+18:16:33 Port 7: 0x28 0x29 0x60 0x70
+18:16:33 Found tcs34725 sensor
+18:16:34 clear value
+18:16:34 63.00
+18:16:34 motor shield found
+18:16:35 gyro found
+18:16:36 paralleling
+18:16:36 centring along: -34 mm off (back wall)
+18:16:36 [POS] 20,20 floor 1 facing 0
+18:16:36 reading walls
+18:16:36 0
+18:16:36 0
+18:16:36 0
+18:16:36 1
+18:16:36 pause
+--- 18:16:41 disconnected (SerialException)
+--- 18:16:43 robot not plugged in
+--- connected on COM3 at 18:16:57
+18:16:57 calibrateSensor: sensor 2 returned no valid readings
+18:16:57 Port 0: 0x28 0x60 0x70
+18:16:57 Port 1: 0x28 0x30 0x60 0x70
+18:16:57 Port 2: 0x28 0x30 0x60 0x70
+18:16:57 Port 3: 0x28 0x30 0x60 0x70
+18:16:57 Port 4: 0x28 0x30 0x60 0x70
+18:16:58 Port 5: 0x28 0x30 0x60 0x70
+18:16:58 Port 6: 0x28 0x30 0x60 0x70
+18:16:58 Port 7: 0x28 0x29 0x60 0x70
+18:16:58 Found tcs34725 sensor
+18:16:58 clear value
+18:16:58 65.00
+18:16:58 motor shield found
+18:16:59 gyro found
+18:16:59 distance sensor 2 (RF) is not answering
+18:17:00 paralleling
+18:17:00 centring along: -33 mm off (back wall)
+18:17:00 [POS] 20,20 floor 1 facing 0
+18:17:00 reading walls
+18:17:00 0
+18:17:00 0
+18:17:00 0
+18:17:00 1
+18:17:00 pause
+--- 18:17:08 disconnected (SerialException)
+--- 18:17:10 robot not plugged in
+--- connected on COM3 at 18:17:34
+18:17:35 calibrateSensor: sensor 2 returned no valid readings
+18:17:35 Port 0: 0x60 0x70
+18:17:35 Port 1: 0x30 0x60 0x70
+18:17:35 Port 2: 0x30 0x60 0x70
+18:17:35 Port 3: 0x30 0x60 0x70
+18:17:35 Port 4: 0x30 0x60 0x70
+18:17:35 Port 5: 0x30 0x60 0x70
+18:17:35 Port 6: 0x30 0x60 0x70
+18:17:35 Port 7: 0x29 0x60 0x70
+18:17:35 Found tcs34725 sensor
+18:17:36 clear value
+18:17:36 66.00
+18:17:36 motor shield found
+18:17:37 can't find gyro
+18:17:37 distance sensor 2 (RF) is not answering
+18:17:38 paralleling
+18:17:38 centring along: -35 mm off (back wall)
+18:17:38 [POS] 20,20 floor 1 facing 0
+18:17:38 reading walls
+18:17:38 0
+18:17:38 0
+18:17:38 0
+18:17:38 1
+18:17:38 pause
