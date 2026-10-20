@@ -699,6 +699,11 @@ static int obstacleavoidanceSteps(int leftright){
       }
       case PARALLEL:{
         PID pid(1,0,0.1);
+        // Lining up on the side sensors can follow whatever they see (an open tile, a far wall) round and round
+        // (sim: 120 deg into the next tile). More than PARALLEL_MAX_OFF_DEG off the tile direction: turn back square and drive.
+        const double PARALLEL_MAX_OFF_DEG = 35;
+        const double tileHdg = turnNeededDeg(currentDir);
+        auto tooFarOff = [&](){ double o = myGyro.heading() - tileHdg; if(o > 180) o -= 360; if(o < -180) o += 360; return fabs(o) > PARALLEL_MAX_OFF_DEG; };
         if(leftright == 1){
           int a = measure(2); int b = measure(3);
           while(true){
@@ -708,6 +713,7 @@ static int obstacleavoidanceSteps(int leftright){
             }
             if(avoidTimer.getTime() > AVOID_TIMEOUT_US) break;
             a=measure(2); b = measure(3);
+            if(tooFarOff()){ drivetrain.fullstop(); absoluteturn(tileHdg); steps = FWD; goto end; }
             if(a<=30) break;
             Serial.println("paralleling step");
             double increment = pid.getPID(a-b); // signed error: positive turns one way, negative the other
@@ -733,6 +739,7 @@ static int obstacleavoidanceSteps(int leftright){
             }
             if(avoidTimer.getTime() > AVOID_TIMEOUT_US) break;
             int a = measure(6); int b = measure(5);
+            if(tooFarOff()){ drivetrain.fullstop(); absoluteturn(tileHdg); steps = FWD; goto end; }
             if(a<=30) break;
             double increment = pid.getPID(a-b); // signed error: positive turns one way, negative the other
             drivetrain.drive(constrain(100-increment,50,170),constrain(100-increment,50,170),constrain(100+increment,50,170),constrain(100+increment,50,170));
