@@ -130,6 +130,11 @@ struct Params {
   // Robot 2026-10-18 (M8, box not taped): pushed a loose box ~260 mm of a 300 mm move.
   double pushGripMu = 0.8;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
+  // The run starts as on the robot: the pause switch is on at power-on and flipped to run after this many seconds
+  // (PAUSE state: white reference, run clock, heading zero). Before 2026-10-19 the sim started without it, so the code's
+  // first PAUSE was a referee restart, which restarted its run clock mid-run (since 68e0c47) and took the white reference
+  // on a checkpoint. 0 = the old start.
+  double startPauseS = 0.5;
   double lopAnyDirection = 1; // put back after a lack of progress facing a random direction (rules 5.5.2); 0 = start direction
   // The captain gives up on a stuck robot: if it stops away from home again ("no path found" / home on the wrong tile)
   // without having reached any new tile since the restart its last stop caused, the run ends there (that restart isn't
@@ -178,7 +183,7 @@ static std::map<std::string, double *> paramTable() {
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"tileMm", &P.tileMm}, {"obstacleRate", &P.obstacleRate},
     {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"pushGripMu", &P.pushGripMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"slopeDrag", &P.slopeDrag}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre},
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"slopeDrag", &P.slopeDrag}, {"startPauseS", &P.startPauseS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre},
     {"testPos", &P.testPos}, {"testOffsetMm", &P.testOffsetMm}, {"testTurnDeg", &P.testTurnDeg}, {"testGyroZero", &P.testGyroZero},
     {"carryTest", &P.carryTest}, {"carryAfterTiles", &P.carryAfterTiles}, {"homeCarry", &P.homeCarry},
     {"carryOnRevisit", &P.carryOnRevisit}, {"testNoCheckpoints", &P.testNoCheckpoints}, {"testWide", &P.testWide}};
@@ -1496,6 +1501,7 @@ int main(int argc, char **argv) {
   simReady = true;
   try {
     setup();
+    if (P.startPauseS > 0) { switchHigh = true; pauseUntilUs = tUs + P.startPauseS * 1e6; }
     runStarted = true;
     runStartUs = tUs;
     if (live) liveRebase();
