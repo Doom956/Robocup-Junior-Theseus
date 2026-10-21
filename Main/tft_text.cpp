@@ -239,19 +239,12 @@ static int rowLen(const char *r){ int n = 40; while(n > 0 && r[n - 1] == ' ') n-
 static void tftLoop(){
   // No Serial here: on the battery alone (no USB host) a print from this thread may never return.
   fill(0, 0, TFT_W, TFT_H, COL_BLACK);
-  int hardInits = 0;
   char shown[2][40]; memset(shown, 0, sizeof(shown)); // 0 never matches: everything is drawn once
   uint16_t shownFg[2] = {0, 0};
   int shownScale[2] = {0, 0};
   unsigned long lastRefresh = millis(), lastWake = millis();
   while(true){
     bool all = false;
-    // On the battery alone everything powers up together and the panel may miss the first set-up: set it up fully again
-    // (with a hardware reset) 3 s and 8 s after start-up, then redraw everything.
-    if(hardInits < 2 && millis() > (hardInits == 0 ? 3000UL : 8000UL)){
-      panelInit(true); fill(0, 0, TFT_W, TFT_H, COL_BLACK); hardInits++; all = true;
-      memset(shownScale, 0, sizeof(shownScale));
-    }
     if(millis() - lastWake >= WAKE_MS){ panelInit(false); lastWake = millis(); } // a few bytes: sleep out, display on
     if(millis() - lastRefresh >= REFRESH_MS){ lastRefresh = millis(); all = true; } // redraw everything
     char snap[2][40];
