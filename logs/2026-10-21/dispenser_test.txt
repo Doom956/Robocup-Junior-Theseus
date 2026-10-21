@@ -1,0 +1,35 @@
+--- connected on COM3 at 13:35:32
+13:36:00.979 [BENCH] dropped; kits left in the code's count: 6
+13:36:00.981 [BENCH] next: right H (2 kits)
+--- 13:36:16 disconnected (SerialException)
+--- 13:36:18 robot not plugged in
+--- connected on COM3 at 13:36:30
+13:36:30.753 [CAL] sensor 2  meanRaw=7817.0mm  true=80mm  valid=87/100  -> SENSOR_OFFSET_MM[2] = 7737
+13:36:30.786 Port 0: 0x28 0x30 0x60 0x70
+13:36:30.820 Port 1: 0x28 0x30 0x60 0x70
+13:36:30.856 Port 2: 0x28 0x30 0x60 0x70
+13:36:30.891 Port 3: 0x28 0x30 0x60 0x70
+13:36:30.922 Port 4: 0x28 0x30 0x60 0x70
+13:36:30.955 Port 5: 0x28 0x30 0x60 0x70
+13:36:30.996 Port 6: 0x28 0x30 0x60 0x70
+13:36:31.030 Port 7: 0x28 0x29 0x60 0x70
+13:36:31.065 Found tcs34725 sensor
+13:36:31.771 clear value
+13:36:31.771 102.00
+13:36:31.788 motor shield found
+13:36:32.463 gyro found
+13:36:32.527 firmware 04f9791+ robot-test
+13:36:33.315 [BENCH] dispenser test: load all 8 kits, then flip the pause switch on and off for each drop
+13:36:33.317 [BENCH] next: left H (2 kits)
+13:36:46.555 [BENCH] dropped; kits left in the code's count: 6
+13:36:46.555 [BENCH] next: right H (2 kits)
+13:37:04.534 [BENCH] dropped; kits left in the code's count: 4
+13:37:04.534 [BENCH] next: left S (1 kits)
+13:37:17.121 [BENCH] dropped; kits left in the code's count: 3
+13:37:17.123 [BENCH] next: right S (1 kits)
+13:37:31.965 [BENCH] dropped; kits left in the code's count: 2
+13:37:31.967 [BENCH] next: left S (1 kits)
+13:37:44.098 [BENCH] dropped; kits left in the code's count: 1
+13:37:44.098 [BENCH] next: right S (1 kits)
+13:37:52.550 [BENCH] dropped; kits left in the code's count: 0
+13:37:52.550 [BENCH] dispenser test finished (all 8 should be out)

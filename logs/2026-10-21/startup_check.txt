@@ -1,0 +1,283 @@
+--- connected on COM3 at 10:29:40
+--- 10:30:12 disconnected (SerialException)
+--- connected on COM3 at 10:30:14
+10:30:17.435 [CAL] sensor 2  meanRaw=211.6mm  true=80mm  valid=100/100  -> SENSOR_OFFSET_MM[2] = 132
+10:30:17.468 Port 0: 0x28 0x30 0x60 0x70
+10:30:17.502 Port 1: 0x28 0x30 0x60 0x70
+10:30:17.544 Port 2: 0x28 0x30 0x60 0x70
+10:30:17.578 Port 3: 0x28 0x30 0x60 0x70
+10:30:17.615 Port 4: 0x28 0x30 0x60 0x70
+10:30:17.647 Port 5: 0x28 0x30 0x60 0x70
+10:30:17.680 Port 6: 0x28 0x30 0x60 0x70
+10:30:17.722 Port 7: 0x28 0x29 0x60 0x70
+10:30:17.756 Found tcs34725 sensor
+10:30:18.462 clear value
+10:30:18.465 1146.00
+10:30:18.480 motor shield found
+10:30:19.151 gyro found
+10:30:19.218 firmware 6aef226 robot-test
+10:30:19.986 paralleling
+10:30:20.019 centring along: 16 mm off (back wall)
+10:30:20.151 [POS] 20,20 floor 1 facing 0
+10:30:20.164 reading walls
+10:30:20.184 0
+10:30:20.184 0
+10:30:20.184 1
+10:30:20.184 0
+10:30:20.184 updating tile
+10:30:20.186 victim detect
+10:30:20.186 plan next
+10:30:20.186 0
+10:30:20.266 paralleling
+10:30:20.307 turn target=0.00, actual=0.00, err=0.00
+10:30:20.307 forwarding
+10:30:20.307 init_yaw
+10:30:20.307 0
+10:30:20.313 [FWD] entry hdg=0.1 init_yaw=0 offset=0.1
+10:30:20.356 distance travelled: -0.86
+10:30:20.388 455 368 371 c=1176 ratio=1.03
+10:30:20.388 color
+10:30:20.388 0
+10:30:20.397 distance travelled: -0.86
+10:30:20.432 distance travelled: 1.98
+10:30:20.458 distance travelled: 7.39
+10:30:20.490 distance travelled: 14.69
+10:30:20.537 [CENTER] m2(front)=199 m3(back)=-1 err=0.8 adj=0.8
+10:30:20.545 distance travelled: 28.61
+10:30:20.586 distance travelled: 39.61
+10:30:20.614 distance travelled: 49.15
+10:30:20.644 distance travelled: 59.55
+10:30:20.677 distance travelled: 68.74
+10:30:20.734 [CENTER] m2(front)=131 m3(back)=-1 err=51.0 adj=51.0
+10:30:20.734 distance travelled: 85.15
+10:30:20.759 438 356 362 c=1138 ratio=0.99
+10:30:20.759 color
+10:30:20.759 0
+10:30:20.775 distance travelled: 96.84
+10:30:20.809 distance travelled: 104.66
+10:30:20.841 distance travelled: 112.22
+10:30:20.870 distance travelled: 118.75
+10:30:20.926 [CENTER] m2(front)=146 m3(back)=201 err=-1.6 adj=-1.6
+10:30:20.928 distance travelled: 128.71
+10:30:20.965 distance travelled: 137.99
+10:30:21.002 distance travelled: 145.90
+10:30:21.033 distance travelled: 153.80
+10:30:21.064 distance travelled: 163.08
+10:30:21.117 [CENTER] m2(front)=-1 m3(back)=204 err=-5.6 adj=-5.7
+10:30:21.121 distance travelled: 178.38
+10:30:21.149 398 316 322 c=1019 ratio=0.89
+10:30:21.149 color
+10:30:21.149 0
+10:30:21.162 distance travelled: 189.72
+10:30:21.195 distance travelled: 198.40
+10:30:21.222 distance travelled: 206.48
+10:30:21.252 climbing
+10:30:21.252 14
+10:30:21.276 climbing
+10:30:21.276 -6.88
+10:30:21.312 climbing
+10:30:21.312 -5.87
+10:30:21.342 climbing
+10:30:21.342 -4.87
+10:30:21.374 climbing
+10:30:21.374 -3.75
+10:30:21.407 climbing
+10:30:21.407 -2.75
+10:30:21.440 climbing
+10:30:21.440 -1.50
+10:30:21.473 climbing
+10:30:21.473 0.13
+10:30:21.504 climbing
+10:30:21.504 2.38
+10:30:21.531 climbing
+10:30:21.531 5.00
+10:30:21.564 climbing
+10:30:21.564 7.75
+10:30:21.599 climbing
+10:30:21.599 11.75
+10:30:21.633 climbing
+10:30:21.633 14.38
+10:30:21.655 climbing
+10:30:21.663 17.00
+10:30:21.688 climbing
+10:30:21.688 19.88
+10:30:21.720 climbing
+10:30:21.720 22.75
+10:30:21.733 short tilt, not a ramp (bump/debris)
+10:30:21.733 [FWD] exit=normal
+10:30:21.733 stop- end of fwd
+10:30:21.762 47 37 31 c=112 ratio=0.10
+10:30:21.849 paralleling
+10:30:21.864 [POS] 20,21 floor 1 facing 0
+10:30:21.872 reading walls
+10:30:21.899 0
+10:30:21.901 0
+10:30:21.901 0
+10:30:21.901 0
+10:30:21.901 updating tile
+10:30:21.901 victim detect
+10:30:21.901 plan next
+10:30:21.901 0
+10:30:21.982 paralleling
+10:30:22.023 turn target=0.00, actual=14.38, err=14.38
+10:30:22.023 forwarding
+10:30:22.023 init_yaw
+10:30:22.023 0
+10:30:22.032 [FWD] entry hdg=14.4 init_yaw=0 offset=14.4
+10:30:22.099 distance travelled: 9.02
+10:30:22.130 41 31 24 c=93 ratio=0.08
+10:30:22.131 color
+10:30:22.131 -1
+10:30:22.234 black
+10:30:22.294 [FWD] exit=black
+10:30:22.294 stop- end of fwd
+10:30:22.499 paralleling
+10:30:22.510 plan next
+10:30:22.510 90
+10:30:22.513 [TURN] target=90.00 hdg=11.3 init_diff=78.7
+10:30:24.262 finished turning
+10:30:24.352 paralleling
+10:30:24.397 turn target=90.00, actual=13.19, err=76.81
+10:30:24.397 botched turn detected, snapping to cardinal
+10:30:24.401 [TURN] target=0.00 hdg=13.3 init_diff=13.3
+10:30:25.405 finished turning
+10:30:25.553 paralleling
+10:30:25.673 [TURN] target=90.00 hdg=15.8 init_diff=74.2
+10:30:27.320 finished turning
+10:30:27.410 paralleling
+10:30:27.453 turn target=90.00, actual=14.44, err=75.56
+10:30:27.453 botched turn detected, snapping to cardinal
+10:30:27.453 [TURN] target=0.00 hdg=14.4 init_diff=14.4
+10:30:28.460 finished turning
+10:30:28.616 paralleling
+10:30:28.731 [TURN] target=90.00 hdg=14.1 init_diff=75.9
+10:30:30.411 finished turning
+10:30:30.501 paralleling
+10:30:30.546 turn target=90.00, actual=6.75, err=83.25
+10:30:30.546 botched turn detected, snapping to cardinal
+10:30:30.546 [TURN] target=0.00 hdg=6.7 init_diff=6.7
+10:30:31.551 finished turning
+10:30:31.706 paralleling
+10:30:31.815 max botched-turn retries reached, re-planning
+10:30:31.815 plan next
+10:30:31.815 90
+10:30:31.821 [TURN] target=90.00 hdg=6.6 init_diff=83.2
+10:30:33.669 finished turning
+10:30:33.751 paralleling
+10:30:33.800 turn target=90.00, actual=4.12, err=85.87
+10:30:33.802 botched turn detected, snapping to cardinal
+10:30:33.802 [TURN] target=0.00 hdg=4.1 init_diff=4.1
+10:30:34.802 finished turning
+10:30:34.962 paralleling
+10:30:35.077 [TURN] target=90.00 hdg=4.9 init_diff=85.1
+10:30:36.970 finished turning
+10:30:37.057 paralleling
+10:30:37.100 turn target=90.00, actual=5.56, err=84.44
+10:30:37.102 botched turn detected, snapping to cardinal
+10:30:37.106 [TURN] target=0.00 hdg=5.6 init_diff=5.6
+10:30:38.108 finished turning
+10:30:38.261 paralleling
+10:30:38.374 [TURN] target=90.00 hdg=6.1 init_diff=83.9
+10:30:40.243 finished turning
+10:30:40.331 paralleling
+10:30:40.372 turn target=90.00, actual=4.50, err=85.50
+10:30:40.377 botched turn detected, snapping to cardinal
+10:30:40.377 [TURN] target=0.00 hdg=4.4 init_diff=4.4
+10:30:41.344 finished turning
+10:30:41.504 paralleling
+10:30:41.616 max botched-turn retries reached, re-planning
+10:30:41.618 plan next
+10:30:41.618 90
+10:30:41.620 [TURN] target=90.00 hdg=1.1 init_diff=88.8
+10:30:42.637 finished turning
+10:30:42.723 paralleling
+10:30:43.022 turn target=90.00, actual=80.81, err=9.19
+10:30:43.022 forwarding
+10:30:43.028 init_yaw
+10:30:43.028 90
+10:30:43.031 [FWD] entry hdg=80.8 init_yaw=90 offset=-9.2
+10:30:43.098 distance travelled: 0.09
+10:30:43.122 399 330 338 c=1051 ratio=0.92
+10:30:43.122 color
+10:30:43.122 0
+10:30:43.141 distance travelled: 0.09
+10:30:43.163 distance travelled: 3.27
+10:30:43.196 distance travelled: 10.57
+10:30:43.233 distance travelled: 18.30
+10:30:43.287 [CENTER] m2(front)=490 m3(back)=77 err=-8.6 adj=-8.6
+10:30:43.289 distance travelled: 34.03
+10:30:43.328 distance travelled: 45.88
+10:30:43.352 climbing
+10:30:43.360 13
+10:30:43.381 climbing
+10:30:43.385 -13.75
+10:30:43.416 climbing
+10:30:43.416 -9.87
+10:30:43.448 climbing
+10:30:43.448 -5.50
+10:30:43.479 climbing
+10:30:43.479 -1.37
+10:30:43.511 climbing
+10:30:43.511 3.38
+10:30:43.536 climbing
+10:30:43.544 -32.00
+10:30:43.576 climbing
+10:30:43.578 8.75
+10:30:43.607 climbing
+10:30:43.607 10.63
+10:30:43.614 short tilt, not a ramp (bump/debris)
+10:30:43.614 distance travelled: 142.55
+10:30:43.644 distance travelled: 153.89
+10:30:43.679 distance travelled: 164.46
+10:30:43.734 [CENTER] m2(front)=358 m3(back)=343 err=4.8 adj=4.8
+10:30:43.737 distance travelled: 181.64
+10:30:43.762 37 28 21 c=84 ratio=0.07
+10:30:43.762 color
+10:30:43.762 -1
+10:30:43.868 black
+10:30:44.383 [FWD] exit=black
+10:30:44.383 stop- end of fwd
+10:30:44.594 paralleling
+10:30:44.637 plan next
+10:30:44.637 270
+10:30:44.644 [TURN] target=270.00 hdg=97.7 init_diff=172.3
+10:30:48.478 finished turning
+10:30:48.559 paralleling
+10:30:49.069 parallel: timeout, aborting correction
+10:30:49.110 turn target=270.00, actual=107.19, err=162.81
+10:30:49.110 botched turn detected, snapping to cardinal
+10:30:49.118 [TURN] target=90.00 hdg=107.2 init_diff=17.2
+10:30:50.125 finished turning
+10:30:50.275 paralleling
+10:30:50.784 parallel: timeout, aborting correction
+10:30:50.900 [TURN] target=270.00 hdg=101.6 init_diff=168.4
+10:30:54.650 finished turning
+10:30:54.733 paralleling
+10:30:55.244 parallel: timeout, aborting correction
+10:30:55.291 turn target=270.00, actual=107.44, err=162.56
+10:30:55.291 botched turn detected, snapping to cardinal
+10:30:55.291 [TURN] target=90.00 hdg=107.4 init_diff=17.4
+10:30:56.302 finished turning
+10:30:56.459 paralleling
+10:30:56.958 parallel: timeout, aborting correction
+10:30:57.074 [TURN] target=270.00 hdg=107.1 init_diff=162.9
+10:31:00.702 finished turning
+10:31:00.787 paralleling
+10:31:01.320 parallel: timeout, aborting correction
+10:31:01.366 turn target=270.00, actual=106.94, err=163.06
+10:31:01.370 botched turn detected, snapping to cardinal
+10:31:01.372 [TURN] target=90.00 hdg=106.9 init_diff=16.9
+10:31:02.375 finished turning
+10:31:02.531 paralleling
+10:31:03.042 parallel: timeout, aborting correction
+10:31:03.153 max botched-turn retries reached, re-planning
+10:31:03.153 plan next
+10:31:03.153 270
+10:31:03.153 [TURN] target=270.00 hdg=106.6 init_diff=163.4
+10:31:06.753 finished turning
+10:31:06.837 paralleling
+10:31:06.894 turn target=270.00, actual=105.75, err=164.25
+--- 10:32:50 disconnected (SerialException)
+--- 10:32:52 robot not plugged in
+--- 10:37:47 robot not plugged in
+--- 11:05:14 robot not plugged in
