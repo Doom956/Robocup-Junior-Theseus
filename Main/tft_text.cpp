@@ -3,20 +3,20 @@
 #if USE_TFT
 #include <mbed.h>
 
-// Layout, landscape 320 x 240: 2 rows of 16 characters, each a 5x7 font scaled 3 wide and 6 tall (18 x 48 px cell,
-// letters ~5.4 mm tall, like the old LCD's).
+// Layout, landscape 320 x 240: two text bands of 48 px at the top, the minimap below. The text is a 5x7 font scaled
+// to fit the line: up to 17 characters at 3 x 6 (letters ~5.4 mm tall, like the old LCD's), 26 at 2 x 4, 52 at 1 x 2.
 #define TFT_W 320
 #define TFT_H 240
-#define SX 3
-#define SY 6
-#define CW (6 * SX)
-#define CH (8 * SY)
-#define X0 ((TFT_W - 16 * CW) / 2)
-static const int Y0[2] = {52, 140};
+#define TEXT_X 4
+#define BAND_H 48
+static const int Y0[2] = {4, 56};
 #define COL_BLACK  0x0000
 #define COL_WHITE  0xFFFF
 #define COL_YELLOW 0xFFE0
 #define COL_RED    0xF800
+#define COL_GREEN  0x07E0
+#define WAKE_MS 1000     // wake the panel up again this often (motor noise on the RST/power wires blanks it while driving)
+#define REFRESH_MS 10000 // and redraw everything this often, in case its memory was lost too
 
 static const uint8_t FONT[95][5] = { // classic 5x7, ASCII 32-126, one byte per column, bit 0 at the top
   {0x00,0x00,0x00,0x00,0x00},{0x00,0x00,0x5F,0x00,0x00},{0x00,0x07,0x00,0x07,0x00},{0x14,0x7F,0x14,0x7F,0x14},
@@ -45,6 +45,7 @@ static const uint8_t FONT[95][5] = { // classic 5x7, ASCII 32-126, one byte per 
   {0x00,0x00,0x7F,0x00,0x00},{0x00,0x41,0x36,0x08,0x00},{0x08,0x04,0x08,0x10,0x08}};
 
 static mbed::DigitalOut *pDin, *pClk, *pCs, *pDc, *pRst, *pBl;
+// Below normal: it only draws while the main loop sleeps, so the screen never slows navigation.
 static rtos::Thread tftThread(osPriorityBelowNormal, 4096);
 
 // What the callers wrote: 2 rows of 40, like the HD44780's memory (only the first 16 are visible), so code written
@@ -70,15 +71,28 @@ static void fill(int x, int y, int w, int h, uint16_t c){
   window(x, y, x + w - 1, y + h - 1);
   for(long n = (long)w * h; n > 0; n--){ dat(c >> 8); dat(c); }
 }
-static void drawCell(int col, int row, char ch, uint16_t fg){
+// Set the panel up: hardware reset (start-up only), sleep out, 16-bit colour, landscape, inversion, display on. The
+// sequence that worked on the robot (2026-10-20 wiring finder); a software reset (0x01) first left this module dark.
+static void panelInit(bool hardReset){
+  if(hardReset){ pRst->write(0); delay(5); pRst->write(1); delay(10); }
+  pCs->write(0); // the only device on these pins: selected for good
+  cmd(0x11); delay(10);                  // sleep out
+  cmd(0x3A); dat(0x55);                  // 16-bit colour
+  cmd(0x36); dat(TFT_ROTATION == 3 ? 0xA0 : 0x60); // landscape (MV + MX or MY)
+  cmd(0x21);                             // inversion on (IPS panel)
+  cmd(0x13);                             // normal display
+  cmd(0x29);                             // display on
+}
+// one character at (x, y), the font scaled sx wide and sy tall (cell 6sx x 8sy)
+static void drawCell(int x, int y, char ch, uint16_t fg, int sx, int sy){
   if(ch < 32 || ch > 126) ch = ' ';
   const uint8_t *g = FONT[ch - 32];
-  int x = X0 + col * CW, y = Y0[row];
-  window(x, y, x + CW - 1, y + CH - 1);
-  for(int py = 0; py < CH; py++){
-    int fy = py / SY;
-    for(int px = 0; px < CW; px++){
-      int fx = px / SX;
+  int cw = 6 * sx, chh = 8 * sy;
+  window(x, y, x + cw - 1, y + chh - 1);
+  for(int py = 0; py < chh; py++){
+    int fy = py / sy;
+    for(int px = 0; px < cw; px++){
+      int fx = px / sx;
       uint16_t c = (fx < 5 && fy < 7 && ((g[fx] >> fy) & 1)) ? fg : COL_BLACK;
       dat(c >> 8); dat(c);
     }
@@ -86,14 +100,14 @@ static void drawCell(int col, int row, char ch, uint16_t fg){
 }
 
 // ---- Minimap: the robot's map around it, under the text (text rows end at y 187) ----
-// 40 x 6 tiles of 8 x 8 px at y 190-237, north up, in the simulator's map colours (MC_ below): white = visited (pale
+// 26 x 10 tiles of 12 x 12 px at y 108-227, north up, in the simulator's map colours (MC_ below): white = visited (pale
 // blue on an upper floor), off-white = seen, grey = unknown, blue, silver, black, sand = ramp, a ring = the start tile;
 // dark lines = walls, amber lines = edges blocked for an obstacle; the robot is an orange square with a nub ahead.
-#define MCELL 8
-#define MCOLS 40
-#define MROWS 6
+#define MCELL 12
+#define MCOLS 26
+#define MROWS 10
 #define MX0 ((TFT_W - MCOLS * MCELL) / 2)
-#define MY0 190
+#define MY0 108
 // one tile as drawn: 0 = nothing (outside the map or never seen)
 #define M_WALLS     0x0000F   // bits 0-3: walls N E S W
 #define M_OBST      0x000F0   // bits 4-7: obstacle edges N E S W
@@ -138,7 +152,7 @@ void tftMinimapUpdate(){
   static uint32_t snap[MROWS][MCOLS];
   static int ox = 0, oy = 0, of = -1000;
   int rx = x_pos, ry = y_pos, f = currentFloor, dir = (int)currentDir;
-  if(f != of || rx - ox < 4 || rx - ox > MCOLS - 5 || ry - oy < 1 || ry - oy > MROWS - 2){
+  if(f != of || rx - ox < 4 || rx - ox > MCOLS - 5 || ry - oy < 2 || ry - oy > MROWS - 3){
     ox = rx - MCOLS / 2; oy = ry - MROWS / 2; of = f;
   }
   for(int r = 0; r < MROWS; r++)
@@ -176,26 +190,26 @@ static void drawMapCell(int r, int c, uint32_t code){
   }
   for(int y = 0; y < MCELL; y++) for(int x = 0; x < MCELL; x++) px[y][x] = bg;
   if(code & M_START){ // the start tile: a dark ring inside the tile
-    for(int i = 2; i < 6; i++){ px[2][i] = MC_WALL; px[5][i] = MC_WALL; px[i][2] = MC_WALL; px[i][5] = MC_WALL; }
+    for(int i = 3; i < 9; i++){ px[3][i] = MC_WALL; px[8][i] = MC_WALL; px[i][3] = MC_WALL; px[i][8] = MC_WALL; }
   }
   for(int d = 0; d < 4; d++){
     uint16_t col = (code & (1u << (4 + d))) ? MC_BLOCKED : (code & (1u << d)) ? MC_WALL : 0;
     if(!col) continue;
-    for(int i = 0; i < MCELL; i++){
-      if(d == 0) px[0][i] = col;              // north: top row
-      if(d == 1) px[i][MCELL - 1] = col;      // east: right column
-      if(d == 2) px[MCELL - 1][i] = col;      // south: bottom row
-      if(d == 3) px[i][0] = col;              // west: left column
+    for(int i = 0; i < MCELL; i++) for(int t = 0; t < 2; t++){ // 2 px lines
+      if(d == 0) px[t][i] = col;              // north: top rows
+      if(d == 1) px[i][MCELL - 1 - t] = col;  // east: right columns
+      if(d == 2) px[MCELL - 1 - t][i] = col;  // south: bottom rows
+      if(d == 3) px[i][t] = col;              // west: left columns
     }
   }
   if(code & M_ROBOT){
-    for(int y = 2; y < 6; y++) for(int x = 2; x < 6; x++) px[y][x] = MC_ROBOT;
+    for(int y = 3; y < 9; y++) for(int x = 3; x < 9; x++) px[y][x] = MC_ROBOT;
     int d = (code >> M_DIR_SH) & 3;
-    for(int i = 3; i < 5; i++){
-      if(d == 0) px[1][i] = MC_ROBOT;
-      if(d == 1) px[i][6] = MC_ROBOT;
-      if(d == 2) px[6][i] = MC_ROBOT;
-      if(d == 3) px[i][1] = MC_ROBOT;
+    for(int i = 5; i < 7; i++) for(int t = 1; t < 3; t++){ // nub toward the way it faces
+      if(d == 0) px[t][i] = MC_ROBOT;
+      if(d == 1) px[i][MCELL - 1 - t] = MC_ROBOT;
+      if(d == 2) px[MCELL - 1 - t][i] = MC_ROBOT;
+      if(d == 3) px[i][t] = MC_ROBOT;
     }
   }
   int x0 = MX0 + c * MCELL, y0 = MY0 + r * MCELL;
@@ -204,10 +218,11 @@ static void drawMapCell(int r, int c, uint32_t code){
 }
 
 // Screen thread: draw the tiles that changed since the last pass.
-static void drawMinimap(){
+static void drawMinimap(bool all){
   static uint32_t want[MROWS][MCOLS];
   static uint32_t shown[MROWS][MCOLS];
   static bool any = false, first = true;
+  if(all) first = true;
   if(mapMutex.trylock()){
     if(mapValid){ memcpy(want, mapSnap, sizeof(want)); any = true; }
     mapMutex.unlock();
@@ -219,26 +234,48 @@ static void drawMinimap(){
   first = false;
 }
 
+static int rowLen(const char *r){ int n = 40; while(n > 0 && r[n - 1] == ' ') n--; return n; }
+
 static void tftLoop(){
-  unsigned long t0 = millis();
+  // No Serial here: on the battery alone (no USB host) a print from this thread may never return.
   fill(0, 0, TFT_W, TFT_H, COL_BLACK);
-  Serial.print("[TFT] screen cleared in "); Serial.print(millis() - t0); Serial.println(" ms");
-  char shown[2][16]; memset(shown, 0, sizeof(shown)); // 0 never matches: everything is drawn once
+  int hardInits = 0;
+  char shown[2][40]; memset(shown, 0, sizeof(shown)); // 0 never matches: everything is drawn once
   uint16_t shownFg[2] = {0, 0};
+  int shownScale[2] = {0, 0};
+  unsigned long lastRefresh = millis(), lastWake = millis();
   while(true){
-    char snap[2][16];
-    if(lcdMutex.trylock()){ for(int r = 0; r < 2; r++) memcpy(snap[r], text[r], 16); lcdMutex.unlock(); }
+    bool all = false;
+    // On the battery alone everything powers up together and the panel may miss the first set-up: set it up fully again
+    // (with a hardware reset) 3 s and 8 s after start-up, then redraw everything.
+    if(hardInits < 2 && millis() > (hardInits == 0 ? 3000UL : 8000UL)){
+      panelInit(true); fill(0, 0, TFT_W, TFT_H, COL_BLACK); hardInits++; all = true;
+      memset(shownScale, 0, sizeof(shownScale));
+    }
+    if(millis() - lastWake >= WAKE_MS){ panelInit(false); lastWake = millis(); } // a few bytes: sleep out, display on
+    if(millis() - lastRefresh >= REFRESH_MS){ lastRefresh = millis(); all = true; } // redraw everything
+    char snap[2][40];
+    if(lcdMutex.trylock()){ memcpy(snap, text, sizeof(snap)); lcdMutex.unlock(); }
     else { rtos::ThisThread::sleep_for(std::chrono::milliseconds(20)); continue; }
     for(int r = 0; r < 2; r++){
-      // a warning ("!GYRO ...") in red, the position line white, the event line yellow
-      uint16_t fg = snap[r][0] == '!' ? COL_RED : (r == 0 ? COL_WHITE : COL_YELLOW);
-      bool all = fg != shownFg[r];
-      for(int c = 0; c < 16; c++){
-        if(all || snap[r][c] != shown[r][c]){ drawCell(c, r, snap[r][c], fg); shown[r][c] = snap[r][c]; }
+      // red for a warning ("!GYRO ..."), green for READY, else white (position line) / yellow (event line)
+      uint16_t fg = snap[r][0] == '!' ? COL_RED : (r == 1 && strncmp(snap[r], "READY", 5) == 0) ? COL_GREEN
+                    : (r == 0 ? COL_WHITE : COL_YELLOW);
+      int len = rowLen(snap[r]);
+      int sc = len <= 17 ? 3 : len <= 26 ? 2 : 1;               // shrink the font to fit the line
+      int cols = (TFT_W - 2 * TEXT_X) / (6 * sc); if(cols > 40) cols = 40;
+      int y = Y0[r] + (BAND_H - 8 * 2 * sc) / 2;
+      bool redo = all || fg != shownFg[r] || sc != shownScale[r];
+      if(sc != shownScale[r]) fill(0, Y0[r], TFT_W, BAND_H, COL_BLACK); // (not on the refresh: no flicker)
+      for(int c = 0; c < cols; c++){
+        if(redo || snap[r][c] != shown[r][c]){
+          drawCell(TEXT_X + c * 6 * sc, y, snap[r][c], fg, sc, 2 * sc);
+          shown[r][c] = snap[r][c];
+        }
       }
-      shownFg[r] = fg;
+      shownFg[r] = fg; shownScale[r] = sc;
     }
-    drawMinimap();
+    drawMinimap(all);
     rtos::ThisThread::sleep_for(std::chrono::milliseconds(30));
   }
 }
@@ -254,16 +291,7 @@ void TftText::begin(uint8_t, uint8_t){
   pDc  = new mbed::DigitalOut(digitalPinToPinName(TFT_PIN_DC), 1);
   pRst = new mbed::DigitalOut(digitalPinToPinName(TFT_PIN_RST), 1);
   pBl  = new mbed::DigitalOut(digitalPinToPinName(TFT_PIN_BL), 1);  // backlight on
-  // The sequence that worked on the robot (2026-10-20 wiring finder): hardware reset, then sleep out and settings.
-  // A software reset (0x01) first left this module dark.
-  pRst->write(0); delay(5); pRst->write(1); delay(10);
-  pCs->write(0); // the only device on these pins: selected for good
-  cmd(0x11); delay(10);                  // sleep out
-  cmd(0x3A); dat(0x55);                  // 16-bit colour
-  cmd(0x36); dat(TFT_ROTATION == 3 ? 0xA0 : 0x60); // landscape (MV + MX or MY)
-  cmd(0x21);                             // inversion on (IPS panel)
-  cmd(0x13);                             // normal display
-  cmd(0x29);                             // display on
+  panelInit(true);
   tftThread.start(tftLoop);
 }
 

@@ -11,12 +11,18 @@ extern timer mazeTime; // main.cpp
 #define FW_VERSION "unknown" // set by tools/fw_version.py when built with PlatformIO
 #endif
 
-static char eventLine[17] = "";
-static char problemLine[17] = ""; // a start-up problem: shown instead of events until the next power-on
+// Characters per line: 16 on the character LCD; the 2inch screen shrinks the font for longer lines (up to 32).
+#if USE_TFT
+#define LINE_W 32
+#else
+#define LINE_W 16
+#endif
+static char eventLine[LINE_W + 1] = "";
+static char problemLine[LINE_W + 1] = ""; // a start-up problem: shown instead of events until the next power-on
 
 static void writeLine(int row, const char *text){
-  char buf[17];
-  snprintf(buf, sizeof(buf), "%-16s", text);
+  char buf[LINE_W + 1];
+  snprintf(buf, sizeof(buf), "%-*s", LINE_W, text);
   lcd.setCursor(0, row);
   lcd.print(buf);
 }
@@ -24,7 +30,7 @@ static void writeLine(int row, const char *text){
 void lcdStatus(){
   tftMinimapUpdate(); // the screen's minimap (does nothing with the old LCD)
   static const char dirs[4] = {'N', 'E', 'S', 'W'};
-  char buf[17];
+  char buf[LINE_W + 1];
   snprintf(buf, sizeof(buf), "%d,%d F%d %c %4lus", x_pos - MAP_SIZE / 2, y_pos - MAP_SIZE / 2, currentFloor,
            dirs[((int)currentDir) & 3], (unsigned long)(mazeTime.getTime() / 1000000.0));
   // Never wait for the LCD: the camera code holds it for 1 s while it shows a victim. Skipped now, shown next tile.
