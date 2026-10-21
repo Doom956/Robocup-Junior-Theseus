@@ -85,86 +85,86 @@ solid kit
  endfacet
  facet normal 0.00000 0.00000 1.00000
   outer loop
-   vertex 2.0000 2.0000 2.0000
-   vertex 8.4000 8.4000 2.0000
-   vertex 2.0000 8.4000 2.0000
+   vertex 1.2000 1.2000 1.2000
+   vertex 9.2000 9.2000 1.2000
+   vertex 1.2000 9.2000 1.2000
   endloop
  endfacet
  facet normal 0.00000 0.00000 1.00000
   outer loop
-   vertex 2.0000 2.0000 2.0000
-   vertex 8.4000 2.0000 2.0000
-   vertex 8.4000 8.4000 2.0000
+   vertex 1.2000 1.2000 1.2000
+   vertex 9.2000 1.2000 1.2000
+   vertex 9.2000 9.2000 1.2000
   endloop
  endfacet
  facet normal 0.00000 0.00000 -1.00000
   outer loop
-   vertex 2.0000 2.0000 8.4000
-   vertex 8.4000 8.4000 8.4000
-   vertex 8.4000 2.0000 8.4000
+   vertex 1.2000 1.2000 9.2000
+   vertex 9.2000 9.2000 9.2000
+   vertex 9.2000 1.2000 9.2000
   endloop
  endfacet
  facet normal 0.00000 0.00000 -1.00000
   outer loop
-   vertex 2.0000 2.0000 8.4000
-   vertex 2.0000 8.4000 8.4000
-   vertex 8.4000 8.4000 8.4000
+   vertex 1.2000 1.2000 9.2000
+   vertex 1.2000 9.2000 9.2000
+   vertex 9.2000 9.2000 9.2000
   endloop
  endfacet
  facet normal 0.00000 1.00000 0.00000
   outer loop
-   vertex 2.0000 2.0000 2.0000
-   vertex 8.4000 2.0000 8.4000
-   vertex 8.4000 2.0000 2.0000
+   vertex 1.2000 1.2000 1.2000
+   vertex 9.2000 1.2000 9.2000
+   vertex 9.2000 1.2000 1.2000
   endloop
  endfacet
  facet normal 0.00000 1.00000 0.00000
   outer loop
-   vertex 2.0000 2.0000 2.0000
-   vertex 2.0000 2.0000 8.4000
-   vertex 8.4000 2.0000 8.4000
+   vertex 1.2000 1.2000 1.2000
+   vertex 1.2000 1.2000 9.2000
+   vertex 9.2000 1.2000 9.2000
   endloop
  endfacet
  facet normal 0.00000 -1.00000 0.00000
   outer loop
-   vertex 2.0000 8.4000 2.0000
-   vertex 8.4000 8.4000 8.4000
-   vertex 2.0000 8.4000 8.4000
+   vertex 1.2000 9.2000 1.2000
+   vertex 9.2000 9.2000 9.2000
+   vertex 1.2000 9.2000 9.2000
   endloop
  endfacet
  facet normal 0.00000 -1.00000 0.00000
   outer loop
-   vertex 2.0000 8.4000 2.0000
-   vertex 8.4000 8.4000 2.0000
-   vertex 8.4000 8.4000 8.4000
+   vertex 1.2000 9.2000 1.2000
+   vertex 9.2000 9.2000 1.2000
+   vertex 9.2000 9.2000 9.2000
   endloop
  endfacet
  facet normal 1.00000 0.00000 0.00000
   outer loop
-   vertex 2.0000 2.0000 2.0000
-   vertex 2.0000 8.4000 8.4000
-   vertex 2.0000 2.0000 8.4000
+   vertex 1.2000 1.2000 1.2000
+   vertex 1.2000 9.2000 9.2000
+   vertex 1.2000 1.2000 9.2000
   endloop
  endfacet
  facet normal 1.00000 0.00000 0.00000
   outer loop
-   vertex 2.0000 2.0000 2.0000
-   vertex 2.0000 8.4000 2.0000
-   vertex 2.0000 8.4000 8.4000
+   vertex 1.2000 1.2000 1.2000
+   vertex 1.2000 9.2000 1.2000
+   vertex 1.2000 9.2000 9.2000
   endloop
  endfacet
  facet normal -1.00000 0.00000 0.00000
   outer loop
-   vertex 8.4000 2.0000 2.0000
-   vertex 8.4000 8.4000 8.4000
-   vertex 8.4000 8.4000 2.0000
+   vertex 9.2000 1.2000 1.2000
+   vertex 9.2000 9.2000 9.2000
+   vertex 9.2000 9.2000 1.2000
   endloop
  endfacet
  facet normal -1.00000 0.00000 0.00000
   outer loop
-   vertex 8.4000 2.0000 2.0000
-   vertex 8.4000 2.0000 8.4000
-   vertex 8.4000 8.4000 8.4000
+   vertex 9.2000 1.2000 1.2000
+   vertex 9.2000 1.2000 9.2000
+   vertex 9.2000 9.2000 9.2000
   endloop
  endfacet
 endsolid kit

@@ -1,4 +1,4 @@
-"""Rescue kits (RCJ Rescue Maze 2026, rule 3.7): solid-looking cubes with a closed hollow inside for a steel ball, dropped
+"""Rescue kits (RCJ Rescue Maze 2026, rule 3.7): cubes with a large closed hollow inside for steel balls, dropped
 in during a print pause. No libraries needed:
 python cad/rescue_kit/make_kits.py  ->  RescueKit.stl (one kit) and RescueKit_plate10.stl (10 kits: 8 to load + 2 spare)
 
@@ -9,14 +9,14 @@ rule 3.8.6 gives +-10% on all measurements, but don't rely on it. Measure a prin
 Check that this size still runs through the dispenser before printing all of them.
 
 Printing: flat on a face, no supports (the hollow's roof is a short bridge). Add a pause (Bambu Studio: right-click the
-layer slider -> "Add pause"; PrusaSlicer: "Add pause print") at the first layer ABOVE PAUSE_Z_MM printed below, put one
-ball in each hollow, resume. The script prints PAUSE_Z_MM for the sizes set here.
+layer slider -> "Add pause"; PrusaSlicer: "Add pause print") at the first layer ABOVE PAUSE_Z_MM printed below, fill each
+hollow (one ball up to hollow - CLEAR, or several smaller ones), resume. The script prints PAUSE_Z_MM for the sizes set here.
 """
 import math, os
 
 KIT = 10.4         # outer cube edge, mm (rule minimum 10.0)
-BALL = 6.0         # steel ball diameter, mm (e.g. 6 mm bearing balls; 1/4" = 6.35 also fits)
-CLEAR = 0.4        # hollow is this much bigger than the ball (prints shrink holes)
+WALL = 1.2         # wall, floor and roof thickness: 3 lines of a 0.4 mm nozzle, 6 layers of 0.2 mm
+CLEAR = 0.4        # a ball must be this much smaller than the hollow (prints shrink holes)
 GAP = 4.0          # between kits on the plate
 PLATE = (5, 2)     # 10 kits
 
@@ -37,8 +37,8 @@ def kit_tris(x0, y0):
         quad(P(xa, ya, za), P(xa, ya, zb), P(xa, yb, zb), P(xa, yb, za), out)   # left (-x)
         quad(P(xb, ya, za), P(xb, yb, za), P(xb, yb, zb), P(xb, ya, zb), out)   # right (+x)
 
-    h = BALL + CLEAR                 # hollow edge
-    w = (KIT - h) / 2                # wall thickness
+    w = WALL                         # wall thickness
+    h = KIT - 2 * WALL               # hollow edge
     box(x0, x0 + KIT, y0, y0 + KIT, 0, KIT)                                  # outside
     box(x0 + w, x0 + w + h, y0 + w, y0 + w + h, w, w + h, out=False)         # closed hollow
     return tris, w, h
@@ -78,7 +78,7 @@ for i in range(PLATE[0]):
         plate += kit_tris(i * (KIT + GAP), j * (KIT + GAP))[0]
 save(one, os.path.join(here, "RescueKit.stl"))
 save(plate, os.path.join(here, "RescueKit_plate10.stl"))
-print(f"kit {KIT} mm cube, walls {w:.1f} mm, hollow {h:.1f} mm for a {BALL} mm ball; "
+print(f"kit {KIT} mm cube, walls {w:.1f} mm, hollow {h:.1f} mm (one ball up to {h - CLEAR:.1f} mm, or several smaller); "
       f"plastic {volume(one)/1000:.2f} cm3 (outside volume {KIT**3/1000:.2f} cm3, rule minimum 1.00); "
       f"open edges {check_closed(one)} / plate {check_closed(plate)}")
-print(f"PAUSE_Z_MM = {w + h:.2f}: pause at the first layer above this height, drop one ball in each kit, resume")
+print(f"PAUSE_Z_MM = {w + h:.2f}: pause at the first layer above this height, fill each hollow, resume")
