@@ -1,5 +1,6 @@
-"""Two stands for the Waveshare 2inch LCD Module (ST7789, 240x320), landscape, glued on. No libraries needed:
-python cad/display_stand/make_stands.py  ->  DisplayStand_tilted.stl, DisplayStand_flat.stl (next to this file).
+"""Three stands for the Waveshare 2inch LCD Module (ST7789, 240x320), landscape, glued on. No libraries needed:
+python cad/display_stand/make_stands.py  ->  DisplayStand_tilted.stl, DisplayStand_flat.stl, DisplayStand_flat_sides.stl
+(next to this file).
 
 Each part is a set of overlapping closed solids (plate pieces, posts, walls, gussets, foot); slicers (Bambu Studio,
 PrusaSlicer, Cura) merge them into one part when slicing.
@@ -16,6 +17,9 @@ the connector clears the plate.
   holes), above the foot.
 - flat: a tray with a solid bottom (for glue) and a low wall around the board; wires go out through a slot in the
   back wall, raised above the floor.
+- flat_sides: the same tray, but the back wall is solid and the wires go out through a slot in the left and the right
+  wall (the connector sits near one side edge of the board, the solder holes near the other); same slot size and height
+  as flat's, centred on the board, clear of the posts.
 """
 import math, os
 
@@ -40,7 +44,7 @@ SLOT_FLOOR = 3.0            # flat: slot starts this far above the floor
 SEG = 48
 
 
-def build(tilt_deg):
+def build(tilt_deg, side_slots=False):
     tris = []
 
     def quad(a, b, c, d):  # counter-clockwise seen from outside
@@ -124,13 +128,21 @@ def build(tilt_deg):
             ptube(u, v, 0.0, PLATE_T + POST_H, POST_OD / 2, POST_ID / 2)
         top = PLATE_T + WALL_TOP
         e = 0.03
-        pbox(-ow, -hw + e, v0, v1, PLATE_T - e, top)                                # left wall
-        pbox(hw - e, ow, v0, v1, PLATE_T - e, top)                                  # right wall
         pbox(-hw, hw, L - e, v1, PLATE_T - e, top)                                  # front wall
-        # back wall (v < 0) with the wire slot, raised SLOT_FLOOR above the floor
-        pbox(-hw, -SLOT_W / 2, v0, e, PLATE_T - e, top)
-        pbox(SLOT_W / 2, hw, v0, e, PLATE_T - e, top)
-        pbox(-SLOT_W / 2 - e, SLOT_W / 2 + e, v0, e, PLATE_T - e, PLATE_T + SLOT_FLOOR)
+        if side_slots:
+            pbox(-hw, hw, v0, e, PLATE_T - e, top)                                  # back wall, solid
+            # left and right walls, each with the wire slot centred on the board, raised SLOT_FLOOR above the floor
+            for a, b in ((-ow, -hw + e), (hw - e, ow)):
+                pbox(a, b, v0, vm - SLOT_W / 2 + e, PLATE_T - e, top)
+                pbox(a, b, vm + SLOT_W / 2 - e, v1, PLATE_T - e, top)
+                pbox(a, b, vm - SLOT_W / 2 - e, vm + SLOT_W / 2 + e, PLATE_T - e, PLATE_T + SLOT_FLOOR)
+        else:
+            pbox(-ow, -hw + e, v0, v1, PLATE_T - e, top)                            # left wall
+            pbox(hw - e, ow, v0, v1, PLATE_T - e, top)                              # right wall
+            # back wall (v < 0) with the wire slot, raised SLOT_FLOOR above the floor
+            pbox(-hw, -SLOT_W / 2, v0, e, PLATE_T - e, top)
+            pbox(SLOT_W / 2, hw, v0, e, PLATE_T - e, top)
+            pbox(-SLOT_W / 2 - e, SLOT_W / 2 + e, v0, e, PLATE_T - e, PLATE_T + SLOT_FLOOR)
     return tris
 
 
@@ -167,8 +179,9 @@ def volume(tris):  # signed volume: positive if the normals point out
 
 
 here = os.path.dirname(os.path.abspath(__file__))
-for name, tilt in (("DisplayStand_tilted", TILT_DEG), ("DisplayStand_flat", 0.0)):
-    t = build(tilt)
+for name, tilt, sides in (("DisplayStand_tilted", TILT_DEG, False), ("DisplayStand_flat", 0.0, False),
+                          ("DisplayStand_flat_sides", 0.0, True)):
+    t = build(tilt, sides)
     save(t, os.path.join(here, name + ".stl"))
     zs = [p[2] for tri in t for p in tri]; ys = [p[1] for tri in t for p in tri]; xs = [p[0] for tri in t for p in tri]
     print(f"{name}.stl: {len(t)} triangles, {max(xs)-min(xs):.1f} x {max(ys)-min(ys):.1f} x {max(zs)-min(zs):.1f} mm, "
