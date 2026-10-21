@@ -609,6 +609,12 @@ void fwd(double dist){ // in mm
     // tile on the robot (2026-10-17 logs) and a whole tile on in the simulator at the robot's real speed. The move now
     // ends RAMP_END_TO_MIDDLE_MM after the ramp, see the climb loop. The log line keeps its name for the tools.)
     Serial.println("compensating");
+    // A ramp move: silver seen during it doesn't count. Tipping onto the slope points the angled colour sensor at the
+    // ramp and it reads bright (2026-10-20: r 1071 on white, silver > 800), so the white tile at the top became a
+    // checkpoint (also in the 2026-10-17/19 logs). The tile after the ramp is judged by finishTileMove()'s reading,
+    // taken on the flat.
+    if(silverDuringMove) Serial.println("silver during a ramp move ignored");
+    silverDuringMove = false;
     drivetrain.fullstop();
     delay(200);
     absoluteturn(turnNeededDeg(currentDir)); // snap direction.

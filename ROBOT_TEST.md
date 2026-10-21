@@ -1,5 +1,24 @@
 # Robot tests
 
+**Maze session 2026-10-20 (logs/2026-10-20, firmware 421f8ff then 2981e4c, cameras off).** Tag `known-good-2026-10-20`.
+- Confirmed: ramp guard on real climbs, 2p (10 of 10 climbs/descents detected, no false or broken climbs), 180 mm descent
+  (next centring -16 / -17 / -20 mm), 2s (false silver at the white ramp top ignored), relocalize (one correct
+  `position corrected` on the way home, run1.txt 19:50:16).
+- Full runs home: 2:09 (run1.txt 19:42), 2:06 (run1.txt 19:48), 1:59 (run3.txt 19:54).
+- Blue wait (test 7): obstacle seen at 89 mm before the nose reached blue, backed off, no wait needed. The 6 s wait
+  itself not triggered yet.
+- **Failed: driving around an obstacle (P2/P3 did not fix it on the robot).** Open area, obstacle in the middle of the
+  tile ahead: emergency stop counted as a completed move, then the front corner jammed on it and the encoders counted 8
+  tiles while the wheels spun (obst_c.txt 19:29; no-progress has no reference in the open). Loose obstacle near the start:
+  detected and blocked 3 times (good), then after `cleared blocked edges` the avoidance rammed it into a corner (run1.txt
+  19:47). Corridor obstacle (~9 cm in): drove past it without touching (obst_c.txt 19:26); once it squeezed past at 21 mm
+  and then jammed turning next to it (obst_b.txt 19:35): the robot needs ~22 cm to turn on the spot.
+- Open: a false `no progress` at the ramp foot, 1 in ~8 approaches (ramp2.txt 19:15:57: the front sensors read the slope
+  and moved 31 mm the wrong way, under the 40 mm drop limit); candidate: 20 mm for the front sensors. Once at the ramp foot
+  the pitch read 38-39 deg and the colour sensor dark, so it backed off a false black (run1.txt 19:42:14; user saw no
+  rearing up). False one-sided obstacle alarms at wall ends: 3 in run1.txt 19:43 (none in run3).
+- Not done: tests 3/4/5 as written, cameras-on runs, stairs, M4 box.
+
 **Not yet confirmed on the robot:** nothing open from 2l-2o (maze session 2026-10-19, logs/2026-10-19, firmware 9205f12):
 - 2l ramps: up stops in the middle; down stopped 31-53 mm short (next centring from the wall ahead), so the descent now drives
   180 mm instead of 155 (`RAMP_END_TO_MIDDLE_DOWN_MM`): 4 descents, centring -23 / -16 mm or none (the practice maze reads
@@ -15,6 +34,13 @@ New since known-good-2026-10-19 (5 changes not yet confirmed in the maze: ramp g
   ramp` 6 times, no ramp tiles counted, floor unchanged. Side effects of being lifted (not changed): the wheels finished the
   move in the air and the colour sensor read black, so that tile was marked black. Not yet re-checked: a normal ramp
   climb with this firmware.
+- **2s. No checkpoint from a silver reading during a ramp move (fix for a robot failure, 2026-10-20).** The angled colour
+  sensor reads bright while the robot tips onto the slope (r 1071 on the practice ramp, white ~720-790, silver > 800), so
+  the white tile at the top became a checkpoint (logs/2026-10-20/ramp.txt run 3; also after ramps in 2026-10-17/19 logs).
+  A wrong checkpoint means the robot restarts believing it is there after a lack of progress. Now a ramp move clears
+  `silverDuringMove`; the tile after the ramp is judged only by `finishTileMove()`'s reading on the flat. Log:
+  `silver during a ramp move ignored`. **Test:** practice ramp up and down 3x: no `checkpoint recorded` at the top
+  (white). Not checked in the sim yet.
 - **Blue wait before backing off (logic fix, 2026-10-19, not yet on the robot).**
   - Before: fwd() waited on blue only before the obstacle back-up, not before the no-progress back-up. And the 5 s started
     at `fullstop()` while the robot was still braking: in the sim it stood still only 4.9 s, and the referee called lack of
