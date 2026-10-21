@@ -1,0 +1,170 @@
+solid kit
+ facet normal 0.00000 0.00000 -1.00000
+  outer loop
+   vertex 0.0000 0.0000 0.0000
+   vertex 0.0000 10.4000 0.0000
+   vertex 10.4000 10.4000 0.0000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 -1.00000
+  outer loop
+   vertex 0.0000 0.0000 0.0000
+   vertex 10.4000 10.4000 0.0000
+   vertex 10.4000 0.0000 0.0000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 1.00000
+  outer loop
+   vertex 0.0000 0.0000 10.4000
+   vertex 10.4000 0.0000 10.4000
+   vertex 10.4000 10.4000 10.4000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 1.00000
+  outer loop
+   vertex 0.0000 0.0000 10.4000
+   vertex 10.4000 10.4000 10.4000
+   vertex 0.0000 10.4000 10.4000
+  endloop
+ endfacet
+ facet normal 0.00000 -1.00000 0.00000
+  outer loop
+   vertex 0.0000 0.0000 0.0000
+   vertex 10.4000 0.0000 0.0000
+   vertex 10.4000 0.0000 10.4000
+  endloop
+ endfacet
+ facet normal 0.00000 -1.00000 0.00000
+  outer loop
+   vertex 0.0000 0.0000 0.0000
+   vertex 10.4000 0.0000 10.4000
+   vertex 0.0000 0.0000 10.4000
+  endloop
+ endfacet
+ facet normal 0.00000 1.00000 0.00000
+  outer loop
+   vertex 0.0000 10.4000 0.0000
+   vertex 0.0000 10.4000 10.4000
+   vertex 10.4000 10.4000 10.4000
+  endloop
+ endfacet
+ facet normal 0.00000 1.00000 0.00000
+  outer loop
+   vertex 0.0000 10.4000 0.0000
+   vertex 10.4000 10.4000 10.4000
+   vertex 10.4000 10.4000 0.0000
+  endloop
+ endfacet
+ facet normal -1.00000 0.00000 0.00000
+  outer loop
+   vertex 0.0000 0.0000 0.0000
+   vertex 0.0000 0.0000 10.4000
+   vertex 0.0000 10.4000 10.4000
+  endloop
+ endfacet
+ facet normal -1.00000 0.00000 0.00000
+  outer loop
+   vertex 0.0000 0.0000 0.0000
+   vertex 0.0000 10.4000 10.4000
+   vertex 0.0000 10.4000 0.0000
+  endloop
+ endfacet
+ facet normal 1.00000 0.00000 0.00000
+  outer loop
+   vertex 10.4000 0.0000 0.0000
+   vertex 10.4000 10.4000 0.0000
+   vertex 10.4000 10.4000 10.4000
+  endloop
+ endfacet
+ facet normal 1.00000 0.00000 0.00000
+  outer loop
+   vertex 10.4000 0.0000 0.0000
+   vertex 10.4000 10.4000 10.4000
+   vertex 10.4000 0.0000 10.4000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 1.00000
+  outer loop
+   vertex 2.0000 2.0000 2.0000
+   vertex 8.4000 8.4000 2.0000
+   vertex 2.0000 8.4000 2.0000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 1.00000
+  outer loop
+   vertex 2.0000 2.0000 2.0000
+   vertex 8.4000 2.0000 2.0000
+   vertex 8.4000 8.4000 2.0000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 -1.00000
+  outer loop
+   vertex 2.0000 2.0000 8.4000
+   vertex 8.4000 8.4000 8.4000
+   vertex 8.4000 2.0000 8.4000
+  endloop
+ endfacet
+ facet normal 0.00000 0.00000 -1.00000
+  outer loop
+   vertex 2.0000 2.0000 8.4000
+   vertex 2.0000 8.4000 8.4000
+   vertex 8.4000 8.4000 8.4000
+  endloop
+ endfacet
+ facet normal 0.00000 1.00000 0.00000
+  outer loop
+   vertex 2.0000 2.0000 2.0000
+   vertex 8.4000 2.0000 8.4000
+   vertex 8.4000 2.0000 2.0000
+  endloop
+ endfacet
+ facet normal 0.00000 1.00000 0.00000
+  outer loop
+   vertex 2.0000 2.0000 2.0000
+   vertex 2.0000 2.0000 8.4000
+   vertex 8.4000 2.0000 8.4000
+  endloop
+ endfacet
+ facet normal 0.00000 -1.00000 0.00000
+  outer loop
+   vertex 2.0000 8.4000 2.0000
+   vertex 8.4000 8.4000 8.4000
+   vertex 2.0000 8.4000 8.4000
+  endloop
+ endfacet
+ facet normal 0.00000 -1.00000 0.00000
+  outer loop
+   vertex 2.0000 8.4000 2.0000
+   vertex 8.4000 8.4000 2.0000
+   vertex 8.4000 8.4000 8.4000
+  endloop
+ endfacet
+ facet normal 1.00000 0.00000 0.00000
+  outer loop
+   vertex 2.0000 2.0000 2.0000
+   vertex 2.0000 8.4000 8.4000
+   vertex 2.0000 2.0000 8.4000
+  endloop
+ endfacet
+ facet normal 1.00000 0.00000 0.00000
+  outer loop
+   vertex 2.0000 2.0000 2.0000
+   vertex 2.0000 8.4000 2.0000
+   vertex 2.0000 8.4000 8.4000
+  endloop
+ endfacet
+ facet normal -1.00000 0.00000 0.00000
+  outer loop
+   vertex 8.4000 2.0000 2.0000
+   vertex 8.4000 8.4000 8.4000
+   vertex 8.4000 8.4000 2.0000
+  endloop
+ endfacet
+ facet normal -1.00000 0.00000 0.00000
+  outer loop
+   vertex 8.4000 2.0000 2.0000
+   vertex 8.4000 2.0000 8.4000
+   vertex 8.4000 8.4000 8.4000
+  endloop
+ endfacet
+endsolid kit
