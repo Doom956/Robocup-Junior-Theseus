@@ -37,3 +37,12 @@ class TftText {
   size_t print(const char *text);
   size_t print(const String &t) { return print(t.c_str()); }
 };
+
+// Minimap under the two text lines (screen only): the robot's map around it, 40 x 6 tiles. Call from the main loop
+// (display.cpp's lcdStatus()). It reads mapGrid, never writes it, copies the tiles around the robot into the screen
+// thread's buffer and never waits; the screen thread draws the tiles that changed. Nothing with the old LCD.
+#if USE_TFT
+void tftMinimapUpdate();
+#else
+inline void tftMinimapUpdate() {}
+#endif
