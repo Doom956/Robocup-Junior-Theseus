@@ -96,7 +96,11 @@ PATCH_HALF_FRAC = 0.04   # median patch half-size = 0.04 R (stays inside a 0.2 R
 RING_AGREE = 0.6         # a ring needs 60% of its patches to agree on one colour
 WALL_FRAC = 1.25         # wall check annulus just outside the target
 WALL_WHITE_FRAC = 0.6    # 60% of the annulus must look like wall
-WALL_L_MIN = 45          # ASSUMED: raw LAB of the wall (calibrate_colors.py prints it)
+WALL_L_MIN = 65          # MEASURED 2026-10-21: wall raw L 5% = 80 / 83 (calibrate_colors.py, 2 runs;
+                         # it suggested 70 / 73), earlier recording's wall p10 72; the red and
+                         # green rings read raw L 47-61, so 65 keeps them from counting as wall.
+                         # Was 45 (assumed). calibrate's suggested WALL_CHROMA_MAX 47 not used:
+                         # its loose wall test caps chroma at 40, and pale blue/yellow would pass.
 WALL_CHROMA_MAX = 35     # MEASURED 2026-10-21: the wall around the target read chroma 17-33
                          # (tinted; normalise() removes the tint). Was 22 (assumed): the target
                          # failed "no white wall" (7/12 patches, needs 8).
@@ -109,22 +113,29 @@ WALL_CHROMA_MAX = 35     # MEASURED 2026-10-21: the wall around the target read 
 # wall colour, and a circle is fitted through those edge points.
 REFINE = True
 REFINE_RAYS = 16         # rays around the circle
-REFINE_OUT = 1.35        # rays start at 1.35 x the Hough radius (on the wall) ...
+REFINE_OUT = 1.5         # rays start at 1.5 x the Hough radius, on the wall even when Hough
+                         # locked onto the black/green ring edge at 0.8 R (was 1.35) ...
 REFINE_IN = 0.65         # ... and stop at 0.65 x: the target's edge must be in between
 REFINE_EDGE_DIST = 20    # ASSUMED: colour distance from the wall (as in classify()) that
                          # counts as the target's edge; 2 pixels in a row must reach it
 REFINE_MIN_POINTS = 8    # edge points needed for a fit, else the Hough circle is kept
-REFINE_MAX_CHANGE = 0.25 # fitted centre within 0.25 R and radius within 25% of Hough, else kept
+REFINE_MAX_CHANGE = 0.35 # fitted centre within 0.35 R and radius within 35% of Hough, else
+                         # kept (a lock at 0.8 R needs +25%; was 0.25)
+REFINE_GROWN = 1.2       # a fit more than 20% bigger than Hough's circle gets a second pass
+                         # (an inner ring edge gives 1.25x or more; 1.1 also re-ran small
+                         # fits and pushed them onto a dark rim around the target)
 DUP_FRAC = 0.15          # refined circles this close (x R) to one already checked: skipped
 
 # --- colours: nearest calibrated centre, in wall-normalised LAB (wall = L 100, a 0, b 0) ---
-# ASSUMED until calibrate_colors.py is run on the real printed targets at the venue.
+# MEASURED 2026-10-21: calibrate_colors.py, 2 runs on the yellow/blue/red/black/green target
+# (mean; the runs differ by 7 at most). Was assumed (black 15/0/0, red 55/55/35, yellow 90/-5/70,
+# green 55/-45/25, blue 60/-5/-45). Blue and yellow read pale (glare): blue is only 25 from white.
 COLOR_CENTRES = {
-    "black":  (15,   0,   0),
-    "red":    (55,  55,  35),
-    "yellow": (90,  -5,  70),
-    "green":  (55, -45,  25),
-    "blue":   (60,  -5, -45),
+    "black":  (35,   4,  -3),
+    "red":    (68,  51,  24),
+    "yellow": (97, -11,  32),
+    "green":  (59, -35,  25),
+    "blue":   (90, -19, -14),
     "white":  (100,  0,   0),  # wall / paper: never a ring colour
 }
 COLOR_VALUE = {"black": -2, "red": -1, "yellow": 0, "green": 1, "blue": 2}
@@ -400,9 +411,9 @@ def fit_circle(pts):
         return None
     return cx, cy, math.sqrt(rr)
 
-def refine_circle(img, x, y, r):
-    """Move a Hough circle onto the target's outer edge (colour frame).
-    Returns (x, y, r, edge points used); 0 points = the Hough circle, unchanged."""
+def refine_pass(img, x, y, r):
+    """One pass: rays from REFINE_OUT x r walk inward to the target's outer edge and a circle
+    is fitted through the edge points. Returns (x, y, r, edge points used); 0 = no fit."""
     W = img.width(); H = img.height()
     r_out = int(REFINE_OUT * r + 0.5)
     r_in = int(REFINE_IN * r + 0.5)
@@ -460,6 +471,19 @@ def refine_circle(img, x, y, r):
     if math.sqrt(cx * cx + cy * cy) > REFINE_MAX_CHANGE * r or abs(rf - r) > REFINE_MAX_CHANGE * r:
         return x, y, r, 0
     return int(x + cx + 0.5), int(y + cy + 0.5), int(rf + 0.5), len(good)
+
+def refine_circle(img, x, y, r):
+    """Move a Hough circle onto the target's outer edge (colour frame).
+    Returns (x, y, r, edge points used); 0 points = the Hough circle, unchanged.
+    A fit much bigger than Hough's circle means Hough was on an inner ring edge, and the rays
+    may have started inside a pale outer ring that passes the wall test (fake targets: blue on
+    a tinted wall gave a wrong label). A second pass from the bigger circle starts on the wall."""
+    x1, y1, r1, n1 = refine_pass(img, x, y, r)
+    if n1 and r1 > REFINE_GROWN * r:
+        x2, y2, r2, n2 = refine_pass(img, x1, y1, r1)
+        if n2:
+            return x2, y2, r2, n2
+    return x1, y1, r1, n1
 
 def is_duplicate(done, x, y, r):
     """True if a circle like this was already checked this frame (two Hough circles often
