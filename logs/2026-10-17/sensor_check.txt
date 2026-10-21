@@ -1,0 +1,47 @@
+--- connected on COM3 at 14:23:58
+14:25:32 [BENCH] M0 0.0 s: front 685/702 right 59/59 back 373 left 55/88
+14:25:33 [BENCH] M0 0.5 s: front 689/697 right 59/58 back 374 left 55/87
+14:25:33 [BENCH] M0 1.0 s: front 680/714 right 54/60 back 377 left 54/86
+14:25:34 [BENCH] M0 1.5 s: front 687/692 right 61/60 back 371 left 57/85
+14:25:34 [BENCH] M0 2.0 s: front 684/701 right 57/61 back 371 left 52/85
+14:25:35 [BENCH] M0 2.6 s: front 689/696 right 55/62 back 375 left 58/85
+14:25:35 [BENCH] M0 3.1 s: front 682/697 right 57/58 back 377 left 54/84
+14:25:36 [BENCH] M0 3.6 s: front 684/704 right 59/59 back 372 left 57/83
+14:25:36 [BENCH] M0 4.1 s: front 677/689 right 57/62 back 370 left 56/85
+14:25:37 [BENCH] M0 4.6 s: front 680/695 right 61/59 back 374 left 53/85
+14:25:37 [BENCH] M0 5.1 s: front 688/691 right 57/63 back 373 left 54/83
+14:25:38 [BENCH] M0 5.6 s: front 682/696 right 57/63 back 371 left 57/84
+14:25:38 [BENCH] M0 6.1 s: front 691/706 right 60/58 back 375 left 52/85
+14:25:39 [BENCH] M0 6.6 s: front 693/696 right 58/61 back 370 left 54/83
+14:25:39 [BENCH] M0 7.1 s: front 685/707 right 58/63 back 375 left 54/86
+14:25:40 [BENCH] M0 7.7 s: front 688/693 right 58/62 back 373 left 56/85
+14:25:40 [BENCH] M0 8.2 s: front 684/704 right 54/62 back 369 left 56/85
+14:25:41 [BENCH] M0 8.7 s: front 687/699 right 56/61 back 375 left 53/87
+14:25:41 [BENCH] M0 9.2 s: front 690/700 right 59/62 back 375 left 53/85
+14:25:42 [BENCH] M0 9.7 s: front 692/696 right 60/60 back 373 left 54/85
+14:25:42 [BENCH] M0 back sensor over 10 s: 369 to 377 mm (nothing behind it should read 8190 or -1; a steady reading under 400 = it sees the floor or the cable)
+14:25:43 [BENCH] next: M0) all 7 distance sensors, twice a second for 10 s: open floor, nothing within 1 m behind it
+14:25:43 [BENCH] flip the pause switch on and off to start
+14:26:11 [BENCH] M0 0.0 s: front 380/392 right 50/53 back 539 left 65/93
+14:26:11 [BENCH] M0 0.5 s: front 388/392 right 45/49 back 531 left 66/92
+14:26:12 [BENCH] M0 1.0 s: front 386/391 right 46/47 back 538 left 70/90
+14:26:12 [BENCH] M0 1.5 s: front 385/393 right 46/52 back 539 left 68/90
+14:26:13 [BENCH] M0 2.0 s: front 381/386 right 48/52 back 537 left 60/91
+14:26:13 [BENCH] M0 2.6 s: front 385/392 right 48/53 back 540 left 65/91
+14:26:14 [BENCH] M0 3.1 s: front 388/391 right 48/51 back 547 left 66/92
+14:26:14 [BENCH] M0 3.6 s: front 380/390 right 46/50 back 546 left 68/89
+14:26:15 [BENCH] M0 4.1 s: front 384/387 right 46/54 back 539 left 67/91
+14:26:15 [BENCH] M0 4.6 s: front 388/394 right 49/52 back 537 left 60/90
+14:26:16 [BENCH] M0 5.1 s: front 386/392 right 48/49 back 539 left 59/92
+14:26:16 [BENCH] M0 5.6 s: front 384/395 right 47/50 back 543 left 62/90
+14:26:17 [BENCH] M0 6.1 s: front 385/392 right 44/53 back 539 left 63/89
+14:26:17 [BENCH] M0 6.6 s: front 384/389 right 46/49 back 539 left 67/87
+14:26:18 [BENCH] M0 7.1 s: front 385/393 right 47/50 back 544 left 64/92
+14:26:18 [BENCH] M0 7.6 s: front 380/392 right 45/55 back 538 left 59/91
+14:26:19 [BENCH] M0 8.2 s: front 378/397 right 47/52 back 541 left 63/92
+14:26:19 [BENCH] M0 8.7 s: front 388/389 right 46/51 back 537 left 68/90
+14:26:20 [BENCH] M0 9.2 s: front 384/394 right 44/52 back 537 left 66/90
+14:26:20 [BENCH] M0 9.7 s: front 383/387 right 48/51 back 538 left 63/90
+14:26:21 [BENCH] M0 back sensor over 10 s: 531 to 547 mm (nothing behind it should read 8190 or -1; a steady reading under 400 = it sees the floor or the cable)
+14:26:21 [BENCH] next: M0) all 7 distance sensors, twice a second for 10 s: open floor, nothing within 1 m behind it
+14:26:21 [BENCH] flip the pause switch on and off to start

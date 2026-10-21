@@ -1,0 +1,150 @@
+--- connected on COM3 at 16:44:07
+16:44:07 Sensor 6 is able to initialize
+16:44:10 [CAL] sensor 2  meanRaw=598.6mm  true=80mm  valid=8/100  -> SENSOR_OFFSET_MM[2] = 519
+16:44:10 Port 0: 0x28 0x30 0x60 0x70
+16:44:10 Port 1: 0x28 0x30 0x60 0x70
+16:44:10 Port 2: 0x28 0x30 0x60 0x70
+16:44:10 Port 3: 0x28 0x30 0x60 0x70
+16:44:10 Port 4: 0x28 0x30 0x60 0x70
+16:44:10 Port 5: 0x28 0x30 0x60 0x70
+16:44:10 Port 6: 0x28 0x30 0x60 0x70
+16:44:10 Port 7: 0x28 0x29 0x60 0x70
+16:44:10 Found tcs34725 sensor
+16:44:11 clear value
+16:44:11 64.00
+16:44:11 motor shield found
+16:44:12 gyro found
+16:44:12 [BENCH] LCD test: RS 27, E 25, D4 23, D5 53, D6 29, D7 31 (RW to GND)
+16:44:12 [BENCH] LCD written 0
+16:44:13 [BENCH] LCD written 1
+16:44:14 [BENCH] LCD written 2
+16:44:15 [BENCH] LCD written 3
+16:44:16 [BENCH] LCD written 4
+16:44:17 [BENCH] LCD written 5
+16:44:18 [BENCH] LCD written 6
+16:44:19 [BENCH] LCD written 7
+16:44:20 [BENCH] LCD written 8
+16:44:21 [BENCH] LCD written 9
+16:44:22 [BENCH] LCD written 10
+16:44:23 [BENCH] LCD written 11
+16:44:25 [BENCH] LCD written 12
+16:44:26 [BENCH] LCD written 13
+16:44:27 [BENCH] LCD written 14
+16:44:28 [BENCH] LCD written 15
+16:44:29 [BENCH] LCD written 16
+16:44:30 [BENCH] LCD written 17
+16:44:31 [BENCH] LCD written 18
+16:44:32 [BENCH] LCD written 19
+16:44:33 [BENCH] LCD written 20
+16:44:34 [BENCH] LCD written 21
+16:44:35 [BENCH] LCD written 22
+16:44:36 [BENCH] LCD written 23
+16:44:37 [BENCH] LCD written 24
+16:44:38 [BENCH] LCD written 25
+16:44:39 [BENCH] LCD written 26
+16:44:41 [BENCH] LCD written 27
+16:44:42 [BENCH] LCD written 28
+16:44:43 [BENCH] LCD written 29
+16:44:44 [BENCH] LCD written 30
+16:44:45 [BENCH] LCD written 31
+16:44:46 [BENCH] LCD written 32
+16:44:47 [BENCH] LCD written 33
+16:44:48 [BENCH] LCD written 34
+16:44:49 [BENCH] LCD written 35
+16:44:50 [BENCH] LCD written 36
+16:44:51 [BENCH] LCD written 37
+16:44:52 [BENCH] LCD written 38
+16:44:53 [BENCH] LCD written 39
+16:44:54 [BENCH] LCD written 40
+16:44:56 [BENCH] LCD written 41
+16:44:57 [BENCH] LCD written 42
+16:44:58 [BENCH] LCD written 43
+16:44:59 [BENCH] LCD written 44
+16:45:00 [BENCH] LCD written 45
+16:45:01 [BENCH] LCD written 46
+16:45:02 [BENCH] LCD written 47
+16:45:03 [BENCH] LCD written 48
+16:45:04 [BENCH] LCD written 49
+16:45:05 [BENCH] LCD written 50
+16:45:06 [BENCH] LCD written 51
+16:45:07 [BENCH] LCD written 52
+16:45:08 [BENCH] LCD written 53
+16:45:09 [BENCH] LCD written 54
+16:45:10 [BENCH] LCD written 55
+16:45:12 [BENCH] LCD written 56
+16:45:13 [BENCH] LCD written 57
+16:45:14 [BENCH] LCD written 58
+16:45:15 [BENCH] LCD written 59
+16:45:16 [BENCH] LCD written 60
+16:45:17 [BENCH] LCD written 61
+16:45:18 [BENCH] LCD written 62
+16:45:19 [BENCH] LCD written 63
+16:45:20 [BENCH] LCD written 64
+16:45:21 [BENCH] LCD written 65
+16:45:22 [BENCH] LCD written 66
+16:45:23 [BENCH] LCD written 67
+16:45:24 [BENCH] LCD written 68
+16:45:25 [BENCH] LCD written 69
+16:45:26 [BENCH] LCD written 70
+16:45:28 [BENCH] LCD written 71
+16:45:29 [BENCH] LCD written 72
+16:45:30 [BENCH] LCD written 73
+16:45:31 [BENCH] LCD written 74
+16:45:32 [BENCH] LCD written 75
+16:45:33 [BENCH] LCD written 76
+16:45:34 [BENCH] LCD written 77
+16:45:35 [BENCH] LCD written 78
+16:45:36 [BENCH] LCD written 79
+16:45:37 [BENCH] LCD written 80
+16:45:38 [BENCH] LCD written 81
+16:45:39 [BENCH] LCD written 82
+16:45:40 [BENCH] LCD written 83
+16:45:41 [BENCH] LCD written 84
+16:45:42 [BENCH] LCD written 85
+16:45:44 [BENCH] LCD written 86
+16:45:45 [BENCH] LCD written 87
+16:45:46 [BENCH] LCD written 88
+16:45:47 [BENCH] LCD written 89
+16:45:48 [BENCH] LCD written 90
+16:45:49 [BENCH] LCD written 91
+16:45:50 [BENCH] LCD written 92
+16:45:51 [BENCH] LCD written 93
+16:45:52 [BENCH] LCD written 94
+16:45:53 [BENCH] LCD written 95
+16:45:54 [BENCH] LCD written 96
+16:45:55 [BENCH] LCD written 97
+16:45:56 [BENCH] LCD written 98
+16:45:57 [BENCH] LCD written 99
+16:45:59 [BENCH] LCD written 100
+16:46:00 [BENCH] LCD written 101
+16:46:01 [BENCH] LCD written 102
+16:46:02 [BENCH] LCD written 103
+16:46:03 [BENCH] LCD written 104
+16:46:04 [BENCH] LCD written 105
+16:46:05 [BENCH] LCD written 106
+16:46:06 [BENCH] LCD written 107
+16:46:07 [BENCH] LCD written 108
+16:46:08 [BENCH] LCD written 109
+16:46:09 [BENCH] LCD written 110
+16:46:10 [BENCH] LCD written 111
+16:46:11 [BENCH] LCD written 112
+16:46:12 [BENCH] LCD written 113
+16:46:13 [BENCH] LCD written 114
+16:46:15 [BENCH] LCD written 115
+16:46:16 [BENCH] LCD written 116
+16:46:17 [BENCH] LCD written 117
+16:46:18 [BENCH] LCD written 118
+16:46:19 [BENCH] LCD written 119
+16:46:20 [BENCH] LCD written 120
+16:46:21 [BENCH] LCD written 121
+16:46:22 [BENCH] LCD written 122
+16:46:23 [BENCH] LCD written 123
+16:46:24 [BENCH] LCD written 124
+16:46:25 [BENCH] LCD written 125
+16:46:26 [BENCH] LCD written 126
+16:46:27 [BENCH] LCD written 127
+16:46:28 [BENCH] LCD written 128
+16:46:29 [BENCH] LCD written 129
+16:46:31 [BENCH] LCD written 130
+16:46:32 [BENCH] LCD written 131
+16:46:33 [BENCH] LCD written 132

@@ -1,4 +1,223 @@
-# Next steps (written 2026-10-06)
+# Next steps (updated 2026-10-17, evening)
+
+**Fast PC: the simulator to-do list is now [SIM_WORKLIST.md](SIM_WORKLIST.md)** (say "work through SIM_WORKLIST.md").
+
+## 0. On the other PC: get today's work
+
+First time on that PC only (skip if it already has the project):
+```
+git clone https://github.com/Doom956/Robocup-Junior-Theseus.git
+cd Robocup-Junior-Theseus
+pio pkg install -g --tool platformio/toolchain-gccmingw32
+```
+(also needs PlatformIO and Python 3; see section 1 below)
+
+Every time:
+```
+cd Robocup-Junior-Theseus
+git checkout main
+git pull
+git fetch
+```
+Check: `git log --oneline -1` shows `972a272` (LCD one-line check) or newer, and `git log --oneline -1 origin/robot-test`
+shows `22c43c5` or newer. Then open Claude Code in that folder: it reads `CLAUDE.md` and this file.
+
+**The robot runs robot-test.** To flash it:
+```
+git checkout robot-test
+git pull
+pio run -t upload
+git checkout main
+```
+(robot plugged in by USB, battery ON; check `#define BENCH_MODE 0` in `Main/main.cpp` first). At power-on the LCD should
+say `READY`; `!GYRO`, `!COLR` or sensor names (FR RF RB B LB LF FL) mean something isn't plugged in.
+
+What was done on 2026-10-17: `ROBOT_TEST.md` section 2k (on robot-test) and `CLAUDE.md` ("Real robot 2026-10-17").
+Raw logs: `logs/2026-10-16`, `logs/2026-10-17`.
+
+## 1. Simulator jobs (run on the faster PC)
+
+Each command builds both versions from git and runs 600 comp fields; do both seed sets (the second line of each pair).
+They take a while: start them and leave the PC. Or ask Claude: "run the simulator jobs in NEXT_STEPS.md".
+
+**a. The three robot-test fixes of 2026-10-17 not yet checked** (each is one commit, compared with the one before it):
+```
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600
+python tools/sim/physics/ab.py 407753c f6e2fde --runs 600 --start 601
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600
+python tools/sim/physics/ab.py f6e2fde bc10a83 --runs 600 --start 601
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600
+python tools/sim/physics/ab.py 6353e9b a1f6662 --runs 600 --start 601
+```
+(407753c -> f6e2fde: no centring on the slope after a ramp, wall after two blocks; f6e2fde -> bc10a83: black found during
+avoidance marked; 6353e9b -> a1f6662: repeated-failure guard.) Keep each if its score interval isn't below zero.
+
+**b. Whole robot-test vs main**, to see where both stand now:
+```
+python tools/sim/physics/ab.py main origin/robot-test --runs 600
+python tools/sim/physics/ab.py main origin/robot-test --runs 600 --start 601
+```
+
+**c. Move the logic bugs to main** (they are wrong on any robot): white reference at the start of the run, blue only if
+blue > 2.5 x red, black found during avoidance marked, repeated-failure guard. Each needs a main-vs-main+fix A/B (no harm)
+and `pio run`. Ask Claude: "move the 2026-10-17 logic bugs to main".
+
+**Results (2026-10-17, done on the fast PC):**
+- a. All three kept. 407753c -> f6e2fde +0.3 +-1.2 / -0.3 +-1.0 (time lost -3 +-1 / -3 +-1 pts); f6e2fde -> bc10a83
+  -0.2 +-0.4 / +0.0 +-0.1; 6353e9b -> a1f6662 +0.5 +-0.7 / +0.7 +-0.9.
+- b. main -> robot-test +9.9 +-5.9 / +9.6 +-6.0, time lost 27% -> 10% / 28% -> 10%, home 64% -> 79% / 65% -> 78%. But
+  restarts per run 0.62 -> 2.58 / 0.71 -> 2.53 and the worst 10% of runs 30.8 -> 23.8 / 30.8 -> 23.2: a few lost runs loop
+  on "no path found" (a wall written after repeated failures, often while the position was already off, cuts the only way
+  home; restart, same again). Removing those walls when there is no path home: -0.6 +-0.6 / -0.7 +-0.6, time lost +6 / +6
+  pts: dropped.
+- c. Done: on main (white reference, blue rule, black in avoidance marked, wall after 4 failures at one edge; the
+  no-progress parts of the guard stay on robot-test, main has no no-progress check). main -> main+fixes +1.7 +-3.8 /
+  +1.4 +-3.9, time lost -5 +-3 / -7 +-3 pts, home +1 / +2 pts. pio run builds.
+- Robot logs 2026-10-17 (robot_log.py, B6-B9): turns median 0.5-0.7 deg; moves start 0.4-0.7 deg off. centreAlong from a
+  wall AHEAD says the robot stopped short (median -31 mm), from a wall BEHIND that it stopped past (median +24 mm): both
+  say the wall is ~25-30 mm further than the code's 140 mm from the tile middle (RCJ: 280 mm between wall faces). Measure
+  the practice maze (inner faces across a tile, wall thickness): if it is wider, nothing to fix for competition; if it
+  is 280, the front/back sensors read long at close range.
+
+## 1c. Simulator fitted to the robot (2026-10-18, fast PC)
+
+- **The sim was 2.5x too slow.** One tile took 2.7 s in the sim, 1.08-1.13 s on the robot (M3). Fitted to the move tests and
+  bench tests: motor 170 RPM (was 72, the BOM's #3493; the real motors are geared faster, or a 6 V version on 12 V), stall
+  torque 4.2 kg.cm (ramp: up at PWM 180 as slow as down at PWM 120 on the robot), skidFactor 2.5, wheelMu 0.071, no wheel
+  slip (tractionMean 1.0). Sim now: one tile 1.13 s / 300 mm (robot 1.1 s / 297-326 mm), turnright(150) 1 s 97.6 deg
+  (92-97), 90 deg turn 1.1 s (0.77-1.01), bench tests 2 / 4: 30 / 51 (25-30 / 49-51). `--selftest` repeats M3 and M1.
+  Not explained: real ramp climbs take ~38 fwd() loops, the sim's ~23 (a log with ms timestamps would tell).
+- **Replacement left-back sensor modelled** (`tofLeftBackExtraMm` 30): robot-test's SENSOR_OFFSET_MM[5] = 30 corrected an
+  error the sim's sensor didn't have, so robot-test squared up crooked on left walls (heading 9-14 deg off, 82% of runs
+  lost). Every robot-test sim result since 2026-10-17 had this (section 1 above too).
+- **main -> robot-test on the fitted sim:** +69.9 +-5.6 / +66.6 +-5.7, home 38% -> 77% / 35% -> 78%, time lost 50% -> 15%.
+  main has no correction for the long left-back sensor: don't run main on the robot while that sensor is fitted.
+- **robot-test settings at real speed** (600 comp): turns back to main's (20 / 4.5) -5.4 +-3.5 (keep 45 / 8); steering
+  gain back to 2 +1.3 +-3.8; no minimum PWM 55 +0.7 +-3.3 (no difference: keep, they work on the robot).
+- **Overshoot (1b item 1):** the moves themselves end about right (M3 307 mm, sim 300). The robot ending near the back of
+  tiles in the maze is centreAlong(): from a wall behind it reads 24 mm "past", from a wall ahead 31 mm "short", so it
+  pulls the robot toward whichever wall it uses. Measure the practice maze (inner faces across a tile, wall thickness).
+  Centring by balancing front and back when both walls are in the tile: -0.5 +-1.3 / -0.3 +-1.0, walls 300 apart -0.2
+  +-3.5: no change in the sim (held). Stopping 12 mm early / PWM 50 not tried: the moves don't overshoot.
+
+## 1d. Section 1b worked through on the fitted sim (2026-10-18, fast PC; robot-test with the ramp fix = 170.2 / 165.3)
+
+- **Ramp exit (now robot-test 2l):** the timed push after a ramp sent the robot a whole tile on at real speed; on the
+  robot every "centring along" after "compensating" said 15-70 mm past (logs 2026-10-17). Drive 155 mm from the ramp's
+  end instead: +13.1 +-3.4 / +8.9 +-3.6, time lost 15% -> 8%, home 77% -> 86%. Ramps as first cause of getting lost:
+  28% -> 3%. Robot test in ROBOT_TEST.md 2l.
+- **2. "no path found" loop:** write the 4-failure wall only when this tile's other walls match the map (or a wall is
+  seen ahead): -0.0 +-0.5 / +0.4 +-0.4. Held (no effect).
+- **4b. side-front obstacle at the corner** (side-front < 30 mm and its back sensor 60+ mm more): -76.9 / -79.4, 20
+  restarts per run: fires at every side wall starting or ending beside the robot. Dropped; needs real readings (M4 + box).
+- **Obstacle straight ahead** (both front sensors 70-250): not retried. A 5-9 cm obstacle in the middle of the path sits
+  in the gap between the front beams (72-116 mm wide at 100-250 mm ahead), so both sensors agree only on walls.
+- **4a. keep obstacle blocks made in the last 60 s when the map looks finished early** (strategy, needs the user's yes):
+  always keep them -20.4 +-4.2 / -19.3 +-4.5 but ever lost 50% -> 22%, time lost 8% -> 3%, home 86% -> 92% / 95%,
+  explored 92% -> 79% (it goes home early instead of driving round); keep them only while something else is open
+  -1.0 +-3.1 / +2.3 +-3.1. Neither recommended.
+- **Where runs get lost now** (lostcause, 300 fields): obstacles ~75% (pushed obstacle 40%, real obstacle 18%, false
+  alarm 16%), short move 8%, scraped wall 6%, ramp 3%. The obstacles the robot pushes are mostly ones between its front
+  beams: a third, middle front sensor would see them, but the mux has no free port (7 distance sensors + the colour sensor on
+  port 7). Not pursued (user, 2026-10-18).
+- **3. Sensors see the floor (sim):** the VL53L0X cone also reaches the floor and ramp slopes (tofFloorGain 3, fitted to M0:
+  back 266-373 mm with nothing behind, front ~690, sides ~670-760). With that, robot-test drops 172 -> 90 in the sim:
+  centreAlong() took the back sensor's floor reading (~300-370) for "a wall one tile behind" and moved the robot up to
+  150 mm. That matches the robot's back-wall centring saying +24 mm "past" on average and the robot ending near the back
+  of tiles. Fix on robot-test (2m): back sensor only for this tile's wall (<= 150 mm): +69.8 +-5.1 / +70.5 +-5.2, home
+  54% -> 82%; on the sim without floor -2.7 +-3.1. Wall one tile out on the side still reads right (342-364 vs real peak
+  375-400). Item 7 (camera wait): not wanted (user).
+- **Ramp count capped at 3 tiles** (a robot stuck tilted on the slope added 13-21 ramp tiles in 12 of 674 crossings):
+  +0.1 +-0.6 / -0.2 +-0.5 (those runs were already lost). Held.
+- **6. Robustness of robot-test** (300 comp fields each, vs the fitted sim): walls 6 mm (wider path, like the practice
+  maze) +11.5 +-5.5; walls 30 mm (narrower) -16.7 +-6.4 (home 84% -> 75%); 3x grip variation +3.4; gyro drift 0.5
+  deg/min -1.1; 2x sensor noise -26.3 +-7.0 and 2x floor reflection -32.4 +-6.1, both by exploring less (88% -> 75-78%),
+  not by getting lost: the no-progress check's 80 mm window fired on noise (3 of 4 stops false by default, 9 of 10 with
+  noise). Fixed on robot-test (2n): the window only counts when the whole move is also < 60% behind: +6.5 +-2.4 /
+  +9.3 +-3.0, explored 87% -> 91%. Re-check with 2n: 2x noise +4.3 +-5.3, 2x floor reflection -0.1 +-5.3 (both fixed);
+  walls 30 mm (270 mm path) still -17.8 +-6.2: probably the one-wall steering target (80 mm, ROBOT_WIDTH_MM, kept as is by
+  the user's rule) leaving the robot close to the far side. Only matters if competition walls are thicker than RCJ's 20 mm.
+- **2n gap (sim selftest "M8 box"):** a box between the front beams 200 mm ahead is missed with 2n (caught before);
+  checking more often catches it but 213 false stops; an end-of-move check catches it (false 20 -> 37) but +0.1 +-3.7 /
+  -1.8 +-3.8: held, written into ROBOT_TEST.md 2n c, to add if the robot's M8 drives into the box. New move tests on
+  robot-test: M7 wheels in the air (motor RPM vs the sim's 170) and M8 (box 15 cm ahead).
+- **Sim 553492e** (wheel spread 5%, LoP restart facing a random direction): main -> robot-test +93.2 +-5.1 / +96.4 +-5.0,
+  home 34% -> 83% / 33% -> 81%, time lost 56% -> 10%. robot-test steering gain 2 instead of 1: +3.1 +-3.8 / +1.4 +-4.0 (keep 1).
+- Section 1b done (2026-10-18): 1 sim fitted + robot-test settings checked; 2 held; 3 floor/ramp seen (+ fix 2m); 4a/4b
+  held/dropped; 5 mostly structural; 6 robustness (+ fix 2n); 7 not wanted. robot-test now 2l + 2m + 2n on top of 2k.
+
+## 1b. Next simulator work (written 2026-10-18), in this order
+
+On the fast PC: `git checkout main`, `git pull`, `git fetch`, open Claude Code in the folder and say
+**"work through section 1b of NEXT_STEPS.md"** (or one item at a time). Rules as in CLAUDE.md: A/B on 600 comp fields,
+both seed sets (`--start 601`), report score / time lost / home; robot-test changes go on robot-test with a ROBOT_TEST.md
+entry; strategy changes wait for my yes.
+
+0. **First: why robot-test's lead over main fell from +50 (2026-10-16, 171.4 vs 120.9) to +10 (2026-10-17, home 89% ->
+   79%).** Each 2026-10-17 change passed its own A/B, but they were compared commit to commit. Suspect: `SENSOR_OFFSET_MM[5]
+   = 30` (the replacement left-back sensor reads 30 mm long on the REAL robot; the simulated one doesn't, so the
+   correction makes the sim's sensor read 30 mm short and squaring up on left walls goes wrong). Check: A/B robot-test vs
+   a temporary branch of robot-test with that offset at 0 (ab.py takes any two git refs), and 99ff621 (2026-10-16) vs
+   current robot-test. If it is the offset: give the sim the same +30 mm on that sensor (a sim
+   parameter, measured on the robot) so sim and robot match, and keep the firmware's 30. Don't change the robot's firmware
+   for this.
+1. **Moves stop short of the tile middle (real robot).** Corrected 2026-10-18: the video of the 2026-10-17 maze runs
+   shows the robot **undershooting** (stopping before the middle of the tile), not overshooting. Conflicting data: move
+   test M3 measured 307-326 mm by the back sensor (that sensor reads long, +6-13 mm at the bench, and its long-range
+   readings were unreliable), and the maze logs' centring from the wall ahead says median 31 mm short (but the practice
+   maze may be wider than 280 mm). Steps:
+   a. Get one clean real measurement: M3 with a tape measure or ruler (mark the back of the robot before and after each
+      of 3 moves), on a maze tile, and measure the practice maze (inner wall faces across a tile, wall thickness).
+   b. Fit the simulator's stopping to it (today the sim stops ~6 mm short, stopcentre.py).
+   c. With the fitted sim, A/B on robot-test: minimum drive PWM 60 and 65 instead of 55 (ROBOT_TEST.md 2f: "mostly short:
+      raise the 55 to 60-65"); keep the best if its interval isn't below zero. Then M3 + one maze run on the robot.
+   d. centreAlong() corrects the stop when there is a wall within ~45 cm ahead or behind; the error adds up in open areas.
+2. **"no path found" loop on robot-test** (worst 10% of runs, 2.6 restarts per run): the wall written after repeated
+   failures can cut the only way home. Removing those walls when there is no path made it worse. Try: only write the
+   wall when the position looks right (walls of this tile match the map), or keep the guard's walls out of the way-home
+   planner only after a "no path found".
+3. **Make the sim see what the real sensors saw:** (a) front sensors read a ramp's slope as a wall at ~370 mm from the
+   tile in front of it (logs/2026-10-17 ramp_sensors.txt) and ~800 once the robot tips onto it; (b) the back sensor
+   sometimes reads the floor at 170-420 mm with nothing behind (logs/2026-10-16, 2026-10-17 partA). Then re-run robot-test
+   vs main: results that depend on these get more trustworthy.
+4. **Obstacles:** (a) don't let "map looks finished early" clear an obstacle block made in the last minute (strategy:
+   numbers first, then my yes); (b) a side-front sensor under ~30 mm where the map has no wall = obstacle at the corner
+   (logs/2026-10-17 partB9.txt: right-front read 48, 23, 18 mm scraping past one).
+5. **Blue revisits:** route around blue tiles on through-routes when another way exists.
+6. **Robustness of robot-test:** sweep walls wider/narrower (after the maze measurement), more wheel slip, noisier
+   sensors; then `lostcause.py` on robot-test to find what now loses most runs.
+7. **Optional, for realistic times:** a simulator option for the camera's wait after moves (up to 4 s per move next to a
+   wall, from the 2026-10-07 robot runs), so time-based results (way home, explored) match runs with the cameras on.
+
+## 2. Open problems (code, then simulator, then robot)
+
+1. "map looks finished early" clears an obstacle block seconds after it was made, so the robot drives around obstacles
+   too soon (idea: don't clear a block made in the last minute). Strategy change: needs your yes after the sim numbers.
+2. Obstacles against a wall pass outside both front sensors; the robot scrapes past on its corner (side-front sensor read
+   ~18 mm). Idea: a side-front reading under ~30 mm with no wall there = obstacle. Needs real readings first (robot test 3b).
+3. Blue tiles entered up to 5 times a run (2 blue tiles): try routing around blue on through-routes.
+4. Camera 4 s wait after moves (victim code, team decision to leave it): ask the camera code's author about `>= 0`
+   instead of `!= -1` in cameraTask.
+
+## 3. Robot tests still to do
+
+No maze needed (move tests: set `#define BENCH_MODE 2` in `Main/main.cpp` and the list in `Main/bench.cpp` `MOVE_TESTS`):
+- a. M6 stuck check: box held or taped down in the middle of the path, wall 30-40 cm ahead; it should back up.
+- b. M4 + box: drive along a wall with a box against it in the path; gives the side-sensor readings for problem 2.
+
+In the maze (`BENCH_MODE 0`, cameras off, record with `python tools/serial_log.py logs/<date>/run.txt`):
+- c. Relocalize: after 3-4 tiles pause, carry it back one tile facing the same way, resume (LCD: `POS CORRECTED`).
+- d. Pause and restart from the last checkpoint.
+- e. A full run with no obstacles: count false `OBSTACLE` on the LCD / in the log.
+- f. Cameras on: 2 full runs with victims; check victims are still found and note the wait after each move.
+- g. Obstacle runs again after problem 1 is fixed.
+
+Hardware: secure the gyro cable and the LCD's loose contact (both caused problems); always run with the battery on
+(USB alone is too weak for the motors); switch on with the colour sensor over a white tile.
+
+---
+
+# Notes from 2026-10-06
 
 What was done on 2026-10-06, how to set up another PC, and the software checks that are left. The robot
 tests that need the robot in person are in `ROBOT_TEST.md` on the `robot-test` branch.
@@ -18,7 +237,7 @@ Needs, once per PC:
 - Python 3
 
 Check it works: `python tools/sim/physics/run_physics.py --selftest` builds the simulator and prints its
-`BENCH` lines (should show 25, about 95 deg and 19).
+`BENCH` lines (should show 30, about 92 deg and 51 since the robot was weighed on 2026-10-16).
 
 Branches: `main` (tested fixes) and `robot-test` (main + the changes waiting for real-robot tests). The
 A/B tool builds any branch straight from git, so you don't need to switch branches to compare them:

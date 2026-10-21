@@ -7,10 +7,22 @@
 // the old 20 deg threshold missed shallower ramps and could drop out mid-ramp on a
 // ~20 deg one. Speed bumps (<=2 cm) only tilt this robot ~7 deg. Bench-tune.
 #define RAMP_PITCH_DEG 12
+#define RAMP_END_TO_MIDDLE_MM 155
+// Coming down stops shorter: on the robot (2026-10-19, 5 descents) the next centring said 31-53 mm short after a
+// descent, 10-22 after a climb (the practice maze reads ~20-30 mm "short" from a wall ahead everywhere).
+#define RAMP_END_TO_MIDDLE_DOWN_MM 180
 // fwd() gives up on a tile after this long (victim stops excluded): covers a stall
 // at the low end of the Scale ramp-down or a wheel caught on debris.
 #define FWD_TIMEOUT_US_PER_TILE 8000000.0
 #define CLIMB_TIMEOUT_US 15000000.0
+// Rules 3.1.5: ramps are at most 25 deg. Steeper than MAX_RAMP_PITCH_DEG = lifted or tipped, not a ramp; and no ramp is
+// longer than MAX_RAMP_TILES (RoboCup 2025 international fields: 1-3 tiles).
+#define MAX_RAMP_PITCH_DEG 35
+#define MAX_RAMP_TILES 3
+// A climb ends after RAMP_END_READINGS pitch readings in a row at or under RAMP_PITCH_DEG, not the first one (in the
+// sim, 1-2 deg of pitch noise or a 13-15 deg ramp ended climbs halfway). The distance driven since the first of them is
+// credited back, so the stop after the ramp (RAMP_END_TO_MIDDLE_MM) is measured from the same point as before.
+#define RAMP_END_READINGS 3
 #define BACKUP_TIMEOUT_MS 2500
 // absoluteturn(): finished when within this many degrees of the target.
 #define TURN_DONE_DEG 2.0
@@ -81,6 +93,9 @@ static void handleAvoidanceResult(int prevdist){
   }
 }
 
+// Stop on a blue tile before backing off it: 6 s, not 5. The wait starts at fullstop() while the robot is still
+// braking (~0.3 s in the sim), and the referee counts 5 s from when it stands still (RCJ 5.5.1).
+#define BLUE_STOP_WAIT_MS 6000
 void fwd(double dist){ // in mm
   double pulses = dist/(wheel_diameter*M_PI)*wheel_cpr*gear_ratio; // easier to make a variable.
   bool black = false; // toggle for black tile
@@ -159,7 +174,7 @@ void fwd(double dist){ // in mm
   }
   // outside loop
     if(canCheckObstacle&&front_left<=OBSTACLE_DIST&&front_left!=-1&&front_right>=MIN_DIST&&front_right!=-1){ // trigger obstacleavoidance
-      Serial.println("obstacle left");
+      Serial.print("obstacle left: fl="); Serial.print(front_left); Serial.print(" fr="); Serial.println(front_right);
       if(secondTry){
         int prevdist = obstacleavoidance(1);
         drivetrain.fullstop();
@@ -187,7 +202,7 @@ void fwd(double dist){ // in mm
       return;
     }
     else if(canCheckObstacle&&front_right<=OBSTACLE_DIST&&front_right!=-1&&front_left>=MIN_DIST&&front_left!=-1){ // same rule as the left side (was >= OBSTACLE_DIST)
-      Serial.println("obstacle right");
+      Serial.print("obstacle right: fl="); Serial.print(front_left); Serial.print(" fr="); Serial.println(front_right);
       int prevdist = 0;
       if(secondTry){
         prevdist = obstacleavoidance(0);
@@ -331,7 +346,10 @@ void fwd(double dist){ // in mm
     if(canCheckObstacle && !secondTry && fabs(yawNow) <= 4.0 && avgEncoder() < pulsesForDistanceMm(250) &&
        ((front_left_current<=OBSTACLE_DIST&&front_left_current!=-1&&front_right_current>=MIN_DIST&&front_right_current!=-1) ||
         (front_right_current<=OBSTACLE_DIST&&front_right_current!=-1&&front_left_current>=MIN_DIST&&front_left_current!=-1))){
-      Serial.println("obstacle ahead during the move");
+      Serial.print("obstacle ahead during the move: fl=");
+      Serial.print(front_left_current); Serial.print(" fr="); Serial.print(front_right_current);
+      Serial.print(" at "); Serial.print(avgEncoder() / pulsesForDistanceMm(1), 0); Serial.print(" mm, yaw ");
+      Serial.println(yawNow, 1);
       lcdEvent("OBSTACLE (move)");
       drivetrain.fullstop();
       fwdExit = "obstacle-mid";
@@ -362,7 +380,9 @@ void fwd(double dist){ // in mm
       if(refs > 0){
         if(winEncMm < 0){ winEncMm = encMm; winProg = best; }
         else if(encMm - winEncMm >= 80){
-          if(best - winProg < 0.35 * (encMm - winEncMm)) noProgressLoops = 3;
+          // ...and only when the whole move so far is clearly behind too: one noisy reading at either end of a window was
+          // enough to fail it (simulator with the sensors seeing the floor: 3 of 4 stops were false)
+          if(best - winProg < 0.35 * (encMm - winEncMm) && best < 0.6 * encMm) noProgressLoops = 3;
           winEncMm = encMm; winProg = best;
         }
       }
@@ -411,9 +431,24 @@ void fwd(double dist){ // in mm
       double sectionPulses = pulses; // slope length of one tile at the current pitch
       timer climbTime;
       drivetrain.reset_encoderCount(true,true,true); // count ramp distance from the ramp start
-      while(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > RAMP_PITCH_DEG){
+      bool steepTilt = false;
+      int below = 0;           // readings in a row at or under RAMP_PITCH_DEG
+      double encAtCrest = 0;   // encoder at the first of them
+      while(true){
+        if(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) <= RAMP_PITCH_DEG){
+          if(below == 0) encAtCrest = avgEncoder();
+          if(++below >= RAMP_END_READINGS) break;
+        }
+        else below = 0;
         if(Pausemaze == true) { drivetrain.fullstop(); moveInterrupted = true; break; }
         if(climbTime.getTime() > CLIMB_TIMEOUT_US) { Serial.println("climb timeout"); fwdExit = "climb-timeout"; break; }
+        // 2026-10-19: the robot picked up mid-run (pitch up to 55 deg) counted ~60 ramp sections in 3 s and the map ran out
+        if(abs(myGyro.modulus(myGyro.pitch_heading())-init_pitch) > MAX_RAMP_PITCH_DEG){
+          Serial.println("pitch over 35 deg: not a ramp (lifted or tipped?)");
+          steepTilt = true;
+          drivetrain.fullstop();
+          break;
+        }
         // PID centering
         double yaw = myGyro.heading()-init_yaw;
         if(yaw>180) yaw = yaw-360;
@@ -437,23 +472,36 @@ void fwd(double dist){ // in mm
         if(avgEncoder() >= sectionPulses){
           Serial.println("1 section of the ramp climbed");
           cnt++;
+          if(below > 0) encAtCrest -= avgEncoder();
           drivetrain.reset_encoderCount(true,true,true);
         } // track tiles
       }
       // A ramp section left partly counted (the encoder resets above discard it) still
       // occupies a tile if more than half of it was climbed; previously a ramp a
       // little shorter than one slope-length gave cnt = 0 and no floor change.
-      if(moveInterrupted == false && avgEncoder() >= sectionPulses / 2.0) cnt++;
+      // distance driven since the ramp ended (credited back so the stop after it is measured from the same point)
+      double sinceCrest = below >= RAMP_END_READINGS ? avgEncoder() - encAtCrest : 0;
+      if(moveInterrupted == false && avgEncoder() - sinceCrest >= sectionPulses / 2.0) cnt++;
+      if(steepTilt) cnt = 0; // handled as a tilt that wasn't a ramp
+      if(cnt > MAX_RAMP_TILES){ Serial.print("ramp count "); Serial.print(cnt); Serial.println(" capped at 3"); cnt = MAX_RAMP_TILES; }
       int carried = 0; // tilted distance that still counts toward this tile
       if(cnt == 0){
         Serial.println("short tilt, not a ramp (bump/debris)");
         climbed = false;
         carried = avgEncoder();
       }
-      // ramp crested: restore pre-ramp encoder values so outer loop finishes the tile
-      drivetrain.set_encoderCountA(_encoderCountA + carried);
-      drivetrain.set_encoderCountB(_encoderCountB + carried);
-      drivetrain.set_encoderCountD(_encoderCountD + carried);
+      if(cnt == 0){ // not a ramp: restore the pre-tilt counts plus the tilted distance, the outer loop finishes the tile
+        drivetrain.set_encoderCountA(_encoderCountA + carried);
+        drivetrain.set_encoderCountB(_encoderCountB + carried);
+        drivetrain.set_encoderCountD(_encoderCountD + carried);
+      }
+      else { // ramp crested: the pitch drops back under RAMP_PITCH_DEG with the robot's middle at about the end of
+             // the ramp, so the middle of the tile after it is RAMP_END_TO_MIDDLE_MM ahead: drive exactly that
+        int left = (int)(pulses - pulsesForDistanceMm(upwards ? RAMP_END_TO_MIDDLE_MM : RAMP_END_TO_MIDDLE_DOWN_MM) + sinceCrest);
+        drivetrain.set_encoderCountA(left);
+        drivetrain.set_encoderCountB(left);
+        drivetrain.set_encoderCountD(left);
+      }
       climbtoggle = false; // re-enable encoder-based exit in outer loop
       myTime = timer();    // restart the tile timeout for the remainder after the ramp
       if(moveInterrupted == true) break;
@@ -489,12 +537,26 @@ void fwd(double dist){ // in mm
   // Didn't get halfway (front blocked, stall, timeout): the robot is still in the
   // tile it started from. Back up to its centre and report it so the caller
   // doesn't advance the map position.
+  // End-of-move check (ROBOT_TEST.md 2n c): a box between the front beams hit after a clear start is missed by the 80 mm
+  // window (2n). If the wall ahead came much less near than the encoders say, the robot was blocked. Robot, 2026-10-18:
+  // move test M8 (box 15 cm ahead) drove into it and reported a normal move. Sim: false stops 20 -> 37 per 80 runs,
+  // +0.1 +-3.7 / -1.8 +-3.8, home +4 / +2 pts.
+  if(!noProgress && !noProgressOff && !climbed && !black && moveInterrupted == false && !obstacleAhead && frontRef && !frontLost){
+    double encEnd = avgEncoder() / pulsesForDistanceMm(1);
+    int r = measure(1), l = measure(7);
+    if(encEnd >= 200 && r > 0 && l > 0 && abs(r - l) <= 40){
+      double p = (prog0R + prog0L) / 2.0 - (r + l) / 2.0;   // how much nearer the wall ahead came
+      if(p < 0.8 * encEnd){ Serial.println("[FWD] no progress at the end"); lcdEvent("NO PROGRESS"); fwdExit = "no-progress"; noProgress = true; lastMoveNoProgress = true; }
+    }
+  }
   if(noProgress && moveInterrupted == false){
     // blocked: treat the edge like an obstacle. Back up by the same readings (the encoders over-counted, so
     // backing up by them would go too far), until one is back where it was at the start of the move.
     fwdShort = true;
     obstacleAhead = true;
     Serial.println("[FWD] blocked, backing up by the distance sensors");
+    // nose already over a blue tile: stand still 5 s first, as for an obstacle (RCJ 5.5.1)
+    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(BLUE_STOP_WAIT_MS); }
     unsigned long backStart = millis();
     while(millis() - backStart < 2000 && Pausemaze == false){
       int r = measure(1), l = measure(7), b = measure(4);
@@ -508,7 +570,7 @@ void fwd(double dist){ // in mm
     Serial.println("[FWD] obstacle, backing up to start tile");
     // Over a blue tile already (the colour sensor is ahead of the centre, so maybe more than half the
     // robot is on it): stand still 5 s before leaving it, or the referee calls lack of progress (RCJ 5.5.1).
-    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(5000); }
+    if(blueSeen){ Serial.println("[FWD] on blue: waiting 5 s first"); drivetrain.fullstop(); delay(BLUE_STOP_WAIT_MS); }
     backUpToStart();
   }
   else if(climbed == false && black == false && moveInterrupted == false && avgEncoder() < pulses / 2.0){
@@ -543,9 +605,16 @@ void fwd(double dist){ // in mm
         else descend(mapGrid, x_pos, y_pos, m1, m2, m3, currentFloor);
       }
     }
+    // (No timed push here any more: fw(200) for 300 ms after the ramp left the robot 15-70 mm past the middle of the
+    // tile on the robot (2026-10-17 logs) and a whole tile on in the simulator at the robot's real speed. The move now
+    // ends RAMP_END_TO_MIDDLE_MM after the ramp, see the climb loop. The log line keeps its name for the tools.)
     Serial.println("compensating");
-    drivetrain.fw(200);
-    delay(300);
+    // A ramp move: silver seen during it doesn't count. Tipping onto the slope points the angled colour sensor at the
+    // ramp and it reads bright (2026-10-20: r 1071 on white, silver > 800), so the white tile at the top became a
+    // checkpoint (also in the 2026-10-17/19 logs). The tile after the ramp is judged by finishTileMove()'s reading,
+    // taken on the flat.
+    if(silverDuringMove) Serial.println("silver during a ramp move ignored");
+    silverDuringMove = false;
     drivetrain.fullstop();
     delay(200);
     absoluteturn(turnNeededDeg(currentDir)); // snap direction.

@@ -89,13 +89,23 @@ static int encoderAvg(){
   return (drivetrain.encoderCountA + drivetrain.encoderCountB + drivetrain.encoderCountD) / 3;
 }
 
+// Test name on LCD line 1, kept on screen (lcdPrint() clears it after 1 s; it is the camera code's message function).
+static void benchLcd(const char *text){
+  char b[17];
+  snprintf(b, sizeof(b), "%-16s", text);
+  if(!lcdMutex.trylock()) return;
+  lcd.setCursor(0, 0);
+  lcd.print(b);
+  lcdMutex.unlock();
+}
+
 // the "next" button: the pause switch flipped on and then off again (LED blinks slowly meanwhile)
 static void waitForSwitch(const char *lcdText, const char *howToPlace){
   drivetrain.fullstop();
   Serial.print("[BENCH] next: ");
   Serial.println(howToPlace);
   Serial.println("[BENCH] flip the pause switch on and off to start");
-  lcdPrint(lcdText);
+  benchLcd(lcdText);
   while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(1000); delay(20); }
   while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(1000); delay(20); }
   led(true);   // on while the test runs
@@ -450,7 +460,7 @@ static void waitForFrontWall(const char *lcdText, const char *howToPlace){
   Serial.print("[BENCH] next: ");
   Serial.println(howToPlace);
   Serial.println("[BENCH] move the robot until the LED comes on (both front sensors 250-400 mm), then flip the pause switch on and off");
-  lcdPrint(lcdText);
+  benchLcd(lcdText);
   unsigned long lastPrint = 0;
   for(int phase = 0; phase < 2; phase++){
     while(digitalRead(BENCH_SWITCH_PIN) == (phase == 0 ? LOW : HIGH)){
@@ -488,10 +498,46 @@ static void moveBlocked(){
   endLine();
 }
 
+// M7: wheels in the air (robot on a box, all wheels free): the motors' speed with no load, from the encoders
+// (5 x 195 counts per wheel turn). The simulator assumes 170 RPM at 12 V (fitted to the move tests 2026-10-18; the
+// BOM's #3493 would be 72), so free-running it expects about 158 RPM at PWM 255 and 90 at PWM 150 on an 11.8 V battery.
+static void moveWheelsInAir(){
+  waitForSwitch("M7 wheels up", "M7) robot lifted so no wheel touches anything (on a box or held), battery on");
+  for(int pwm : {150, 255}){
+    drivetrain.fw(pwm);
+    delay(700);                                   // spin up
+    drivetrain.reset_encoderCount(true, true, true);
+    unsigned long t0 = millis();
+    delay(1000);
+    long a = drivetrain.encoderCountA, b = drivetrain.encoderCountB, d = drivetrain.encoderCountD;
+    double s = (millis() - t0) / 1000.0;
+    drivetrain.fullstop();
+    delay(1000);
+    add("M7 fw("); addInt(pwm); add(") wheels free: RPM A/B/D ");
+    addNum(a / 975.0 / s * 60, 0); add("/"); addNum(b / 975.0 / s * 60, 0); add("/"); addNum(d / 975.0 / s * 60, 0);
+    add(pwm == 255 ? " (sim about 158)" : " (sim about 90)");
+    endLine();
+  }
+  add("M7 if these are about half the sim's, the motors are the 72 RPM ones and something else makes the robot fast; tell Claude");
+  endLine();
+}
+
+// M8: an obstacle hit after a clear start (robot-test 2n): a box the front sensors can't see (it sits between their
+// beams) partway into the next tile. The no-progress check must still stop the move.
+static void moveBlockedLater(){
+  waitForFrontWall("M8 blocked later", "M8) as M5 (wall 30-40 cm ahead), plus a heavy box 8-10 cm wide (taped down) in the middle, its front 15 cm ahead of the robot");
+  squareHere();
+  add("M8 start: front "); addInt(measure(7)); add("/"); addInt(measure(1)); add(" (both should still see the wall, not the box), back "); addInt(measure(4));
+  endLine();
+  fwd(TILE_MM);
+  add("M8 after the move: "); addFrontAndResult(); add(", back "); addInt(measure(4)); add(". Expected: '[FWD] no progress' and the robot back near where it started");
+  endLine();
+}
+
 static void printAllForever(const char *lcdText){
   drivetrain.fullstop();
   Serial.println("[BENCH] done. Flip the pause switch on and off to print every result again.");
-  lcdPrint(lcdText);
+  benchLcd(lcdText);
   while(true){ // fast blink; each switch flip prints all results again (plug in USB first)
     while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(250); delay(20); }
     while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(250); delay(20); }
@@ -504,8 +550,9 @@ static void printAllForever(const char *lcdText){
   }
 }
 
-// Which move tests run, in this order (0 = M0 sensor watch, 1-6 = M1-M6); shorten it to repeat a few.
-static const int MOVE_TESTS[] = {0, 1, 2, 3, 4, 5, 6};
+// Which move tests run, in this order (0 = M0 sensor watch, 1-8 = M1-M8); change it to repeat a few.
+// Without a maze (2026-10-18): wheels in the air, sensors on open floor, turns, 3 moves, blocked, blocked later.
+static const int MOVE_TESTS[] = {7, 0, 1, 3, 6, 8};
 
 void runMoveTests(){
   pinMode(LEDPIN, OUTPUT);
@@ -521,6 +568,8 @@ void runMoveTests(){
       case 4: moveAlongWall(); break;
       case 5: moveTowardWall(); break;
       case 6: moveBlocked(); break;
+      case 7: moveWheelsInAir(); break;
+      case 8: moveBlockedLater(); break;
     }
   }
   printAllForever("move tests done");

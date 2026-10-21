@@ -1,5 +1,111 @@
 # Robot tests
 
+**Maze session 2026-10-20 (logs/2026-10-20, firmware 421f8ff then 2981e4c, cameras off).** Tag `known-good-2026-10-20`.
+- Confirmed: ramp guard on real climbs, 2p (10 of 10 climbs/descents detected, no false or broken climbs), 180 mm descent
+  (next centring -16 / -17 / -20 mm), 2s (false silver at the white ramp top ignored), relocalize (one correct
+  `position corrected` on the way home, run1.txt 19:50:16).
+- Full runs home: 2:09 (run1.txt 19:42), 2:06 (run1.txt 19:48), 1:59 (run3.txt 19:54).
+- Blue wait (test 7): obstacle seen at 89 mm before the nose reached blue, backed off, no wait needed. The 6 s wait
+  itself not triggered yet.
+- **Failed: driving around an obstacle (P2/P3 did not fix it on the robot).** Open area, obstacle in the middle of the
+  tile ahead: emergency stop counted as a completed move, then the front corner jammed on it and the encoders counted 8
+  tiles while the wheels spun (obst_c.txt 19:29; no-progress has no reference in the open). Loose obstacle near the start:
+  detected and blocked 3 times (good), then after `cleared blocked edges` the avoidance rammed it into a corner (run1.txt
+  19:47). Corridor obstacle (~9 cm in): drove past it without touching (obst_c.txt 19:26); once it squeezed past at 21 mm
+  and then jammed turning next to it (obst_b.txt 19:35): the robot needs ~22 cm to turn on the spot.
+- Open: a false `no progress` at the ramp foot, 1 in ~8 approaches (ramp2.txt 19:15:57: the front sensors read the slope
+  and moved 31 mm the wrong way, under the 40 mm drop limit); candidate: 20 mm for the front sensors. Once at the ramp foot
+  the pitch read 38-39 deg and the colour sensor dark, so it backed off a false black (run1.txt 19:42:14; user saw no
+  rearing up). False one-sided obstacle alarms at wall ends: 3 in run1.txt 19:43 (none in run3).
+- Not done: tests 3/4/5 as written, cameras-on runs, stairs, M4 box.
+
+**Not yet confirmed on the robot:** nothing open from 2l-2o (maze session 2026-10-19, logs/2026-10-19, firmware 9205f12):
+- 2l ramps: up stops in the middle; down stopped 31-53 mm short (next centring from the wall ahead), so the descent now drives
+  180 mm instead of 155 (`RAMP_END_TO_MIDDLE_DOWN_MM`): 4 descents, centring -23 / -16 mm or none (the practice maze reads
+  ~20-30 mm "short" from a wall ahead everywhere).
+- 2m centring: stops in the middle and corrects itself (run 1).
+- 2n: 0 false `no progress` in 2 full runs (plus bench 5 of 5). 2o: no repeated stops at one edge.
+- Full runs home: 2.5 min and 1:53.
+Open, not a regression from 2l-2o: a false "obstacle" (one front sensor 58-84 mm, the other out of range) at the tile next
+to the top of the ramp (map 23,18 floor 2, facing the way down), both runs; it blocks that edge and still gets home.
+New since known-good-2026-10-19 (5 changes not yet confirmed in the maze: ramp guard on a real ramp, blue wait, 2p, P3, P2. **No more firmware changes on robot-test until a maze session confirms some**, user 2026-10-20):
+- Ramp guard (logic fix, also on main): a pitch over 35 deg isn't a ramp, and a ramp counts at most 3 tiles. **Confirmed
+  2026-10-19** (logs/2026-10-19/lift.txt, firmware 09fa442): lifted mid-move, pitch 40-48 deg, `pitch over 35 deg: not a
+  ramp` 6 times, no ramp tiles counted, floor unchanged. Side effects of being lifted (not changed): the wheels finished the
+  move in the air and the colour sensor read black, so that tile was marked black. Not yet re-checked: a normal ramp
+  climb with this firmware.
+- **2s. No checkpoint from a silver reading during a ramp move (fix for a robot failure, 2026-10-20).** The angled colour
+  sensor reads bright while the robot tips onto the slope (r 1071 on the practice ramp, white ~720-790, silver > 800), so
+  the white tile at the top became a checkpoint (logs/2026-10-20/ramp.txt run 3; also after ramps in 2026-10-17/19 logs).
+  A wrong checkpoint means the robot restarts believing it is there after a lack of progress. Now a ramp move clears
+  `silverDuringMove`; the tile after the ramp is judged only by `finishTileMove()`'s reading on the flat. Log:
+  `silver during a ramp move ignored`. **Test:** practice ramp up and down 3x: no `checkpoint recorded` at the top
+  (white). Not checked in the sim yet.
+- **Blue wait before backing off (logic fix, 2026-10-19, not yet on the robot).**
+  - Before: fwd() waited on blue only before the obstacle back-up, not before the no-progress back-up. And the 5 s started
+    at `fullstop()` while the robot was still braking: in the sim it stood still only 4.9 s, and the referee called lack of
+    progress.
+  - Now both back-ups wait 6 s (`BLUE_STOP_WAIT_MS`).
+  - Sim, TEST_PRIORITY test 7 with the obstacle in the blue tile's first half, 300 mm tiles: 8/20 -> 19/20. 600 comp fields:
+    -0.2 +-0.8 / +0.6 +-0.7 (no change).
+  - Still open: obstacle avoidance on the way home, driving through a blue tile, doesn't stop on it (seen on 320 mm tiles).
+  - **Test:** TEST_PRIORITY 7, obstacle in the first half of the blue tile. Expect `[FWD] on blue: waiting 5 s first`, the
+    robot standing still ~6 s, then backing up, and no lack of progress.
+- **2p. A climb ends only after 3 pitch readings in a row under 12 deg (PHYSICS-DEPENDENT, 2026-10-19, not yet on the robot).**
+  - Before, the first reading under 12 deg ended a climb. The robot reads 13-15 deg on the practice ramp (logs
+    2026-10-17/19), only 1-3 deg over. In the sim, 1-2 deg of pitch noise or a 13-15 deg ramp ended climbs halfway and the
+    floor was lost. **The robot has never shown this:** 0 `short tilt` in ~70 real ramp crossings (2026-10-17/19). So 2p
+    guards against a ramp or pitch reading worse than the practice one. It doesn't fix a seen failure.
+  - Now: the climb ends after `RAMP_END_READINGS` (3) readings in a row at or under 12 deg. The distance driven since the
+    first of them is credited back, so the 2l stops (155 up / 180 down) are measured from the same point as before.
+  - The climb still starts over 12 deg.
+    - Starting at 9 deg was tried and dropped. In the sim (100 flat fields, 2 cm bumps) it started 959 climbs and added 7
+      false ramp tiles; at 12 deg it was 59 and 1, the same as before 2p.
+    - A 3-reading average for the flat reference was also dropped: `pitch_heading()` returns 0 under 5 deg, and
+      back-to-back reads get the same 100 Hz BNO055 sample (the sim now models that).
+  - Sim, 600 comp fields, seeds 1-600 / 601-1200, robot-test before 2p -> with 2p:
+    - normal 15-25 deg ramps: +0.8 / +1.9;
+    - 13-15 deg ramps: +14.4 / +16.5, home +16 / +20;
+    - with 1 deg pitch noise: +26.2 / +26.2, home +26 / +35;
+    - 10-12 deg ramps: +0.3 / +0.3, unchanged (under the trigger, as before).
+  - **Test:**
+    - The practice ramp, up and down 3 times each, logging. Expect the same `adding ramp to map` count as before, and the
+      first `centring along` after the ramp like 2l (up -10 to -22, down within ~25 mm).
+    - Then drive over a **2 cm step** and a **speed bump**. Expect no `climbing` and nothing added to the map (no `adding
+      ramp to map`, `[POS]` floor unchanged).
+    - Bad: `climb timeout`, `ramp count .. capped`, a floor change on flat ground, or stops after the ramp clearly
+      different from 2l. If bad, revert 2p (two commits).
+- **2q (P3). Obstacle avoidance squares up before measuring the distance left (logic fix, also on main, 2026-10-20, not yet on
+  the robot).**
+  - The closing drive's length was "front reading before - front reading now". The second reading was taken while the
+    robot was still turned 10-15 deg: in a corridor there's no room to straighten. A turned sensor measures along its own
+    ray, and in a corridor that ray hits a side wall. So the robot drove 0 mm and the code counted the tile (sim test 6,
+    seeds 2/3: map one tile ahead from then on).
+  - Now the FWD step turns to the tile direction (`absoluteturn`) before `parallel()` and the reading.
+  - Sim, 600 comp: main -0.6 +-3.3 / -0.3 +-3.4 (no harm); robot-test alone +1.0 +-2.2 / +2.7 +-2.4.
+- **2r (P2). Avoidance's line-up (PARALLEL) stops 35 deg off the tile direction (PHYSICS-DEPENDENT, 2026-10-20, not yet on
+  the robot).**
+  - Lining up on the side sensors had no limit on rotation and followed whatever they saw. Sim seed 3 turned 120 deg into
+    the next tile before driving on.
+  - Now: more than 35 deg (`PARALLEL_MAX_OFF_DEG`) off the tile direction by the gyro -> stop, turn back square, go to FWD.
+  - Sim, 600 comp, robot-test: +2.7 +-2.1 / +4.5 +-2.3. With 2q: +3.1 +-1.9 / +4.0 +-2.5, home +3 / +2, restarts
+    0.63 -> 0.57 / 0.62 -> 0.54.
+  - T1 test 6 (dead end behind an obstacle), 300 mm tiles: 51 -> 71 of 120 with 2q+2r. Test 2 is unchanged (its fails
+    are detection: the obstacle at the robot's corner).
+- **Test for 2q + 2r: TEST_PRIORITY 6** (dead end whose only way out passes the obstacle), cameras off, logging.
+  - Corridor first (walls both sides of the obstacle's tile), then with that tile open on the far side if you can.
+  - Expect `obstacle avoidance`, `turn step`, `paralleling step`(s), `fwd step`, and the LCD / `[POS]` position right on
+    the next tile.
+  - Watch the **300 ms full-power lurch** after `turn step`. It isn't changed, and in the sim it throws the robot 100-200
+    mm, into the far wall or past the obstacle. Note if the robot hits a wall or the obstacle there.
+  - Bad (2q): after `fwd step` the robot barely moves but `[POS]` jumps a tile.
+  - Bad (2r): a turn of more than ~45 deg during `paralleling step`, or it ends facing the wrong way.
+  - If 2r misbehaves, revert it (one commit). 2q is also on main.
+Still never tested on purpose (TEST_PRIORITY.md on main, tests 2-7): obstacle strategy (section 1 a-e), relocalize
+(section 2 a) and the home check (2c).
+Run clock confirmed 2026-10-18.
+Last good maze version: tag `known-good-2026-10-19`.
+
 Changes on this branch depend on how real the simulator's motors, grip, turning, gyro or sensors are,
 so they stay off `main` until they pass on the real robot. Each one has a short test below: what to
 set up, what to run, and what to watch for in the Serial monitor.
@@ -347,6 +453,129 @@ c. **If (b) shows false alarms,** the ready fix: check only between 160 and 250 
    came near the end of moves with the robot turned (8 in 150 runs -> 0), at the cost of catching fewer real
    jams: +1.0 +-3.0 / +0.2 +-3.0 (seeds 1-600 / 601-1200), and -2.9 +-2.6 if turns jam on walls. So it waits for
    what the real robot does.
+
+## 2o. The no-progress check is no longer switched off after two stops at one edge (2026-10-18)
+
+**What changed** (`Main/main.cpp` `repeatedFailure()`, from 2k): the 2nd no-progress stop at the same edge used to turn the
+check off for the next try there (two in a row were thought more likely false). The "wall after 4 failures" part stays.
+
+**Why:** with 2n most stops are real. In the simulator (obstacle beside the path, seed 3): stopped twice correctly, "map
+looks finished early" cleared the block at once, and on the 3rd try, with the check off, the robot drove into the obstacle
+and counted a tile it never drove.
+
+**Simulator** (600 comp fields, seeds 1-600 / 601-1200): -0.6 +-1.0 / -0.5 +-0.7, time lost -1 / -1 pts, runs ever lost
+55% -> 47% / 54% -> 47%. With 15-20 cm obstacles: +0.1 +-1.6, ever lost 79% -> 72%.
+
+**Robot test:** with M8 (box 15 cm ahead): run fwd() at it 3 times in a row (or let the maze run hit the same box): every
+try should stop with `[FWD] no progress`, never `exit=normal` against the box.
+
+**Revert 2o if:** the maze run shows repeated `[FWD] no progress` stops at one edge with nothing there. That is what
+happened on 2026-10-17 (logs/2026-10-17 partB8.txt, 15:44:57 on: no-progress again and again on the move home from 26,22
+to 26,21, distance sensors 29-70 mm for ~200 mm of encoders), and why the "check off after 2 stops" rule existed. With
+2o, the 4th failure writes a wall there, which can cut the way home ("no path found"). Count the stops per edge in the
+log (test 2n a) before trusting 2o.
+
+## Run clock (2026-10-18, also on main)
+
+`mazeTime` (RUN_TIME_S, the way-home timing) now starts at the first switch flip (run start), not at power-on: a robot
+switched on minutes early during setup thought those minutes were used and headed home early. Restarts after a lack of
+progress must use the pause switch (the clock keeps running); cutting the power resets the clock and loses the map.
+**Robot test:** switch on, wait 2 minutes, start the run: the LCD run time should start from 0 at the switch flip.
+
+## 2n. No-progress check: the 80 mm window only when the whole move is behind too (2026-10-18)
+
+**Robot, 2026-10-18 (logs/2026-10-18):** M6 (box 10 cm) caught. M8 (box 15 cm) drove into the box and reported a normal
+move, the gap in c below, so **the end-of-move check from c is now in** (robot-test): M8, M6, M8 all caught and backed up
+to the start. Still to check in the maze: false `no progress at the end` stops in normal runs (sim 20 -> 37 per 80 runs).
+Same session: M7 wheels in the air at fw(255) 118/139/150 RPM (A/B/D; sim fit ~158), fw(150) 67/66/89 (sim ~90); M1 turns
+0.75-0.97 s within 2 deg; M3 move 1 285 mm; M0 back sensor saw nothing with nothing behind.
+
+**What changed** (`Main/movement.cpp` `fwd()`, no-progress check from 2j/2k): the check over each 80 mm of travel now
+stops the move only if the distance sensors also show less than 60% of the encoder distance for the whole move so far.
+
+**Why:** in the simulator with the sensors seeing the floor (fitted to move test M0), 120 of 161 no-progress stops came
+while the robot was driving normally: one noisy reading at either end of an 80 mm window was enough. Each false stop
+blocks an edge, the map "looks finished" sooner and the robot explores less. With 2x sensor noise or stronger floor
+reflections, 90-97% of the stops were false. Now: 20 false, 44 real (was 41 real). The robot showed many no-progress stops
+too (7 in run B8, ~15 on one move home on 2026-10-17).
+
+**Simulator** (600 comp fields, seeds 1-600 / 601-1200): +6.5 +-2.4 / +9.3 +-3.0, explored 87% -> 91%, time lost +0 +-1 /
++1 +-1 pts, home -0 / -1 pts, worst 10% of runs 53 -> 62 / 42 -> 61. Without the window at all: +7.1 / +9.2 but runs ever
+lost 50% -> 55%.
+
+**Robot test:**
+- a. A few minutes of normal exploring in the maze with no obstacles: count `[FWD] no progress` in the log
+  (`python tools/robot_log.py log.txt`). It should be 0 or close to it.
+- b. Move tests M6 (box 10 cm ahead) and M8 (box 15 cm ahead): it should stop (`[FWD] no progress`) and back up.
+- c. **Known gap:** in the simulator (selftest "M8 box"), with 2n a box 200 mm ahead is missed: the robot pushes into it and
+  reports a normal move, ~100 mm short (before 2n it was caught; 250 mm is missed by both). If M8 on the robot also drives
+  into the box without `[FWD] no progress`, add this end-of-move check in `fwd()` just before
+  `if(noProgress && moveInterrupted == false){` (sim: catches 100/150/200 mm, false stops 20 -> 37 per 80 runs, score
+  +0.1 +-3.7 / -1.8 +-3.8, home +4 / +2 pts: held until the robot shows the gap):
+
+  ```cpp
+  if(!noProgress && !noProgressOff && !climbed && !black && moveInterrupted == false && !obstacleAhead && frontRef && !frontLost){
+    double encEnd = avgEncoder() / pulsesForDistanceMm(1);
+    int r = measure(1), l = measure(7);
+    if(encEnd >= 200 && r > 0 && l > 0 && abs(r - l) <= 40){
+      double p = (prog0R + prog0L) / 2.0 - (r + l) / 2.0;   // how much nearer the wall ahead came
+      if(p < 0.8 * encEnd){ Serial.println("[FWD] no progress at the end"); fwdExit = "no-progress"; noProgress = true; lastMoveNoProgress = true; }
+    }
+  }
+  ```
+
+## 2m. Centring along the tile: back sensor only for this tile's own wall (2026-10-18)
+
+**What changed** (`Main/Distance.cpp` `centreAlong()`): the back sensor is used only when it reads 150 mm or less (the
+wall at the back of this tile). Before, anything up to 450 mm counted, taken as "a wall one tile behind".
+
+**Why:** the back sensor is 43 mm above the floor and its beam reaches the floor: with nothing behind it read 170-540 mm
+(move tests M0, 2026-10-16/17), the same as a wall one tile behind. centreAlong() then "corrected" the robot by tens of mm.
+In the maze logs, back-wall centring said +24 mm past the middle on average and moved the robot backwards: the robot
+ending near the back edge of tiles (video, 2026-10-17). In the simulator with the floor modelled (fitted to M0), this
+was the main way runs got lost.
+
+**Simulator** (600 comp fields, seeds 1-600 / 601-1200): +69.8 +-5.1 / +70.5 +-5.2, home 54% -> 82%, time lost 30% -> 10%,
+runs ever lost 87% -> 50%. On a sim where sensors don't see the floor: -2.7 +-3.1 (no harm).
+
+**Robot test:** cameras off, logging, a few minutes of exploring in the maze (also part of the tile accuracy check).
+- Watch: the robot should end in the middle of tiles, not near the back edge.
+- Log: `centring along: ... (back wall)` lines should be rare and small now; `python tools/robot_log.py log.txt`, the
+  "stops along the tile" line.
+
+## 2l. After a ramp: drive half a tile from the ramp's end, no timed push (2026-10-18)
+
+**What changed** (`Main/movement.cpp` `fwd()`): after the climb loop, the move used to finish the tile from the encoder
+count before the ramp and then push `fw(200)` for 300 ms ("compensating"). Now it drives exactly `RAMP_END_TO_MIDDLE_MM`
+(155 mm) from the moment the tilt drops back under 12 deg (the robot's middle is then at about the ramp's end) and stops.
+The snap turn after it stays.
+
+**Why:** on the robot (logs/2026-10-17 partB3-B8) every "centring along" right after "compensating" said 15-70 mm past
+the middle (from the wall ahead, which reads "short" in the practice maze: really further). It worked only because each
+ramp exit in the practice maze had a wall within reach for `centreAlong()`. With no wall there, the robot stays past the
+middle and the colour sensor (93 mm ahead) reads the next tile. In the simulator fitted to the robot's real speed the push
+went a whole tile on; ramps were the most common way to get lost.
+
+**Simulator** (fitted sim, 600 comp fields, seeds 1-600 / 601-1200): +13.1 +-3.4 / +8.9 +-3.6, time lost 15% -> 8% /
+15% -> 8%, home 77% -> 86% / 78% -> 86%, worst 10% of runs 50 -> 69 / 43 -> 51. Stop position after a ramp (at the next
+colour read): more than 60 mm past the middle 106 of 542 -> 0 of 404, median +3 mm.
+
+**Robot test:** cameras off, logging. Drive over each ramp of the practice maze 3-4 times each way (up and down).
+- Watch: the robot stops in the middle of the tile after the ramp on its own, not past it and not on the slope.
+- Log: after each `compensating`, a `centring along` line should be small (under ~20 mm) or missing. Before this change
+  it was +15 to +70.
+- If it stops **short** (still partly on the ramp, or "centring along" clearly negative from a wall ahead): raise
+  `RAMP_END_TO_MIDDLE_MM` to 170-180. If it stops **past**: lower it to 140.
+- If it gets stuck at the top or bottom of the ramp, set it back (`git revert` this commit) and tell Claude.
+
+**Descents: 180 mm (`RAMP_END_TO_MIDDLE_DOWN_MM`), decided by the robot (2026-10-19).** On the same practice tiles, the
+next centring said -10 to -22 mm after climbs and -31 to -53 mm after descents: the ~25 mm up/down difference is not the
+tile size (both on 320 mm tiles), so the descent gets its own 180 mm. After the change: 4 descents, -23 / -16 mm or no
+centring. The simulator's descent stop positions (SIM_WORKLIST N1: 10-18% more than 30 mm past on 300 mm tiles) are not
+trustworthy here: its slope speed is ~30% faster than the robot's (A4: 1.22 s vs 1.75 s on the practice ramp), so the
+robot's numbers decide (real robot beats sim). Re-checked with the slope speed fitted (`slopeDrag` 0.8, SIM_WORKLIST N1):
+the sim still stops ~40 mm shorter after ramps than the robot and shows no up/down difference, so it can't judge this
+setting. 180 stays; no further sim check planned.
 
 ## 2k. Fixes from the maze runs of 2026-10-17 (real robot; the last 3 not yet checked in the simulator)
 

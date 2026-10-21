@@ -34,8 +34,16 @@ struct Params {
   // Motors: Pololu 195.3125:1 Metal Gearmotor 20Dx44L mm 12V (#3493) on a Carobot V3 shield
   // (TB6612FNG + PCA9685, like the Adafruit Motor Shield V2), powered by a 3S LiPo.
   double batteryVoltage = 11.76;  // 3S LiPo, measured before the bench tests (2026-10-06)
-  double noLoadRpmAt12V = 72;     // datasheet
-  double stallKgcmAt12V = 10;     // datasheet (extrapolated); gearbox limit is 5 kg.cm
+  // FITTED 2026-10-18 to the robot's move tests (logs/2026-10-16, 2026-10-17): one tile (fwd(300) from rest) takes
+  // 1.08-1.13 s and 27-29 loops of fwd(); with the datasheet's 72 RPM (Pololu #3493) the sim took 2.7 s, so the motors
+  // on the robot are a faster gearing than that part. 170 gives 1.16 s and 27-28 loops. Stall torque and no-load current
+  // are still the #3493 datasheet values (unknown for the real motor).
+  double noLoadRpmAt12V = 170;
+  // FITTED 2026-10-18: on the robot's 13-15 deg practice ramp, climbing (PWM 180) takes as long as coming down (PWM 120):
+  // 36-43 fwd() climb loops either way (logs/2026-10-17 partB7/B8). That needs gravity to cost ~0.12 of stall torque, so
+  // ~4 kg.cm: 4.2 gives 23.4 / 22.5 loops up / down at 14 deg (10, the #3493 datasheet, gave 21 / 26). Fits the faster
+  // gearing (10 x 72/170). Real climbs take more loops than the sim's (~38 vs ~23): not explained yet.
+  double stallKgcmAt12V = 4.2;
   double frictionFracAt12V = 0.05; // no-load current / stall current = 80 mA / 1.6 A (datasheet)
   double stictionFactor = 1.3;    // extra friction to start from standstill
   // Motor A (left front) only: extra friction at low power, fraction of stall torque, fading to none at
@@ -44,18 +52,30 @@ struct Params {
   // or driver channel); at PWM 150 (test 3) A counted like the others (1010 vs 984-1105). 0.16 gives --selftest
   // tests 2/3/4 = 30 / 93 deg / 51 (robot 25-30 / 92-97 deg / 49-51); 0 = motor A like the others.
   double motorAExtraFriction = 0.16;
-  double robotMassKg = 1.15;      // ESTIMATE from the parts' datasheets + printed parts (README "Robot mass") - weigh it
+  double robotMassKg = 1.955;     // WEIGHED 2026-10-16 (the parts list estimate was 1.15, README "Robot mass")
   double driverOhms = 0.5;        // TB6612FNG output ON resistance, upper + lower, typ (Toshiba datasheet); motor 12 V / 1.6 A = 7.5 ohm
   // wheelMu and skidFactor FITTED to the robot's bench mode (Main/bench.cpp, 3 runs on 2026-10-06): lowest
   // turnright() PWM that turns it 5 deg in 1 s 25/30/25 (sim 25), turnright(150) for 1 s 97/92/95 deg (sim 95).
   // (Before: 0.8 and 1.3, assumed, gave 45 and 70.) wheelMu is the sideways drag when turning on the spot; it is
-  // also the grip for pushing a loose obstacle (off by default).
-  double wheelMu = 0.2;
+  // also the grip for pushing a loose obstacle (off by default). Refitted to 0.17 for the weighed 1.955 kg (was 0.2
+  // with the 1.15 kg estimate): bench tests 2/3/4 in the sim 30 / 91.8 deg / 51.
+  // Refitted 2026-10-18 to 0.071 with the 4.2 kg.cm stall torque (same drag as a fraction of it): bench tests 2/3/4 in the
+  // sim 30 / 97.6 deg / 51, move test M1 90 deg in 1.1 s.
+  double wheelMu = 0.071;
   double motorTau = 0.05;         // motor + gearbox speed time constant, s
-  double motorGainSigma = 0.03;   // per-motor speed difference (fraction)
+  // per-motor speed difference (fraction), assumed. Move test M7 (2026-10-18, wheels in the air): A/B/D 118/139/150 RPM at
+  // fw(255), 67/66/89 at fw(150); most of that spread is motor A, which motorAExtraFriction already models, B vs D ~4-8%
+  // at full power: 0.05 (motor A's weakness stays in motorAExtraFriction). robot-test: 0.05 vs 0.03 -2.5 +-3.6; 0.12 (which
+  // double-counted motor A) -15.3 +-6.3.
+  double motorGainSigma = 0.05;
   double trackWidth = 156;        // left-right wheel spacing, mm (CAD)
-  double skidFactor = 1.1;        // skid steering turns slower than the ideal track predicts (fitted, see wheelMu)
-  double tractionMean = 0.97, tractionSigma = 0.02, tractionTau = 0.5; // wheel grip (ground speed / wheel speed)
+  // skid steering turns slower than the ideal track predicts. FITTED: bench test 3 (turnright(150) 1 s: 92-97 deg) gives
+  // 2.5 with the 170 RPM motor (97.5 deg; move test M1: 90 deg in 1.1 s, robot 0.77-1.01 s). Was 1.1 with 72 RPM.
+  double skidFactor = 2.5;
+  // wheel grip (ground speed / wheel speed). tractionMean FITTED 2026-10-18: one-tile moves on the robot measured 297-326 mm
+  // by the back sensor (median 307, encoders ~296-300), so no slip on flat floor; 1.0 gives 302 in the sim (0.97, assumed,
+  // gave 295). Sigma and tau assumed.
+  double tractionMean = 1.0, tractionSigma = 0.02, tractionTau = 0.5;
   double wallNudgeMm = 0.3;       // how far a wall can shove a turning robot sideways, mm per ms (0 = it jams)
   double wheelDiameter = 80;
   double encoderCountsPerRev = 5 * 195.3125; // 20 CPR encoder, code counts rising edges of one channel = 5 per motor turn
@@ -77,6 +97,14 @@ struct Params {
   // 14/8/17 mm (front + back) more than the CAD says, whatever the centring: about +8 mm per sensor on average.
   // (Measured on the team's practice tile; walls thinner than the 20 mm used here would explain part of it.)
   double tofOffsetMeanMm = 8;
+  // The left-back sensor (code sensor 5) was replaced on 2026-10-17; the new one reads 26-30 mm more than left-front
+  // between two walls (MEASURED, robot-test sets SENSOR_OFFSET_MM[5] = 30 for it). Added to that sensor's offset so the
+  // firmware's correction matches; 0 = the original sensor.
+  double tofLeftBackExtraMm = 30;
+  // How strongly the floor / a ramp's slope returns light into the cone (0 = sensors only see walls, as before). FITTED
+  // 2026-10-18 to move test M0 on open floor: robot back 266-373 mm, front 685-702, sides 669-763; the sim with 3 reads
+  // back ~340, front ~770, sides ~750 (selftest "M0 open floor"). The robot's back sensor sometimes reads 8190 instead.
+  double tofFloorGain = 3.0;
   // Bench test 6: 0.00 deg in 2 min standing still (BNO055 steps are 1/16 deg), so under 0.03 deg/min at rest.
   // Drift while moving isn't measured. (Before: 0.5, assumed.)
   double gyroNoiseDeg = 0.2, gyroDriftSigmaDegPerMin = 0.03, pitchNoiseDeg = 0.5;
@@ -85,12 +113,14 @@ struct Params {
   double rampMinDeg = 15, rampMaxDeg = 25;
   // RCJ 2026 field (3.1, 3.3, 3.4): walls ~2 cm thick (280 mm path), obstacles and speed bumps
   double wallThicknessMm = 20, obstacleRate = 0.03, bumpRate = 0.05, bumpHeightMm = 10;
+  double obstacleRMinMm = 25, obstacleRMaxMm = 45; // obstacle radius: 5-9 cm across, assumed (rules 3.4.3: any shape, large heavy items, >= 15 cm tall)
   // RCJ 2026 3.4.3: obstacles are "large, heavy items" and "may be fixed to the floor"; 3.4.5: one that is
   // moved stays where it ends up. ASSUMED (the rules give no mass or material): this share of the obstacles
   // is loose, each with a mass between obstacleMassMinKg and obstacleMassMaxKg and floor friction
   // obstacleMu; the rest are fixed. 0 = all fixed (the default, as before).
   double obstacleMovableFrac = 0, obstacleMassMinKg = 0.5, obstacleMassMaxKg = 2.0, obstacleMu = 0.4;
   double runTimeS = 480, stuckTimeoutS = 60, lopPauseS = 3;
+  double lopAnyDirection = 1; // put back after a lack of progress facing a random direction (rules 5.5.2); 0 = start direction
   // Analysis only, NOT the real robot: 1 = put the code's map position right each time it starts
   // reading a tile (same floor only). Shows how much never getting lost would be worth.
   double oracleTile = 0;
@@ -110,13 +140,13 @@ static std::map<std::string, double *> paramTable() {
     {"gyroMagnetic", &P.gyroMagnetic}, {"magErrorDeg", &P.magErrorDeg}, {"driverOhms", &P.driverOhms}, {"gyroMagneticOffsetDeg", &P.gyroMagneticOffsetDeg}, {"gyroMagneticAfterS", &P.gyroMagneticAfterS},
     {"tofMinReliableMm", &P.tofMinReliableMm},
     {"wallNudgeMm", &P.wallNudgeMm}, {"tofNoiseMm", &P.tofNoiseMm}, {"tofNoisePct", &P.tofNoisePct},
-    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
+    {"tofOffsetSigma", &P.tofOffsetSigma}, {"tofOffsetMeanMm", &P.tofOffsetMeanMm}, {"tofLeftBackExtraMm", &P.tofLeftBackExtraMm}, {"tofFloorGain", &P.tofFloorGain}, {"tofMaxRange", &P.tofMaxRange}, {"tofConeDeg", &P.tofConeDeg},
     {"gyroNoiseDeg", &P.gyroNoiseDeg}, {"gyroDriftSigmaDegPerMin", &P.gyroDriftSigmaDegPerMin},
     {"pitchNoiseDeg", &P.pitchNoiseDeg}, {"colourNoise", &P.colourNoise}, {"placeSigmaMm", &P.placeSigmaMm},
     {"placeSigmaDeg", &P.placeSigmaDeg}, {"rampMinDeg", &P.rampMinDeg}, {"rampMaxDeg", &P.rampMaxDeg},
     {"wallThicknessMm", &P.wallThicknessMm}, {"obstacleRate", &P.obstacleRate},
-    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"bumpHeightMm", &P.bumpHeightMm},
-    {"runTimeS", &P.runTimeS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
+    {"obstacleMovableFrac", &P.obstacleMovableFrac}, {"obstacleMassMinKg", &P.obstacleMassMinKg}, {"obstacleMassMaxKg", &P.obstacleMassMaxKg}, {"obstacleMu", &P.obstacleMu}, {"bumpRate", &P.bumpRate}, {"obstacleRMinMm", &P.obstacleRMinMm}, {"obstacleRMaxMm", &P.obstacleRMaxMm}, {"bumpHeightMm", &P.bumpHeightMm},
+    {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -693,7 +723,8 @@ static void lackOfProgress(const char *why) {
   pauseUntilUs = tUs + P.lopPauseS * 1e6;
   rx = (cpX + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (cpY + 0.5) * field::TILE + gauss(P.placeSigmaMm);
-  rhead = wrap360(gauss(P.placeSigmaDeg)); // placed facing the start direction
+  // RCJ 2026 5.5.2: after a lack of progress "the robot can be installed in any direction"
+  rhead = wrap360((P.lopAnyDirection > 0 ? 90.0 * std::uniform_int_distribution<int>(0, 3)(rng) : 0.0) + gauss(P.placeSigmaDeg));
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
   curTile = W.id(cpX, cpY); stillUs = 0; blueStopped = false; lastStillX = rx; lastStillY = ry;
@@ -823,6 +854,37 @@ uint16_t VL53L0X::readRangeContinuousMillimeters() {
     if (d > P.tofMaxRange * 1.5) continue;
     double w = prof * std::max(0.05, facing) / std::max(d * d, 100.0);
     sumW += w; sumWD += w * d;
+  }
+  // The cone also spreads up and down: its lower part reaches the floor, or a ramp's slope ahead. MEASURED on the
+  // robot: the back sensor (43 mm up) reads 170-540 mm with nothing behind it, the front ones ~690 on open floor and
+  // ~360-390 facing a ramp from the tile before it (logs/2026-10-16, 2026-10-17 sensor_check / ramp_sensors).
+  if (P.tofFloorGain > 0) {
+    double gz = W.height(rx, ry), hz = gz + s.height;
+    double axisElev = s.facing == 0 ? rpitch : s.facing == 2 ? -rpitch : 0; // nose up tilts the front beams up
+    double rx0 = W.rampX0 * field::TILE, rx1 = (W.rampX0 + W.rampLen) * field::TILE;
+    for (double hOff : {-half / 2, 0.0, half / 2}) {
+      double a = rad(base + hOff), dx = std::sin(a), dy = std::cos(a);
+      double dWall = raycast(ox, oy, dx, dy, P.tofMaxRange * 1.5);
+      double profH = std::exp(-hOff * hOff / (2 * sigma * sigma));
+      for (double vOff : {0.0, half / 3, 2 * half / 3, half}) {         // degrees below the beam axis
+        double elev = rad(axisElev - vOff), tz = std::tan(elev);
+        double sHit = -1, slope = 0;
+        bool nearRamp = W.rampLen > 0 && std::max(ox, ox + dx * dWall) > rx0 && std::min(ox, ox + dx * dWall) < rx1;
+        if (nearRamp) {                                                  // march: the ground isn't flat
+          for (double t = 20; t < std::min(dWall, P.tofMaxRange); t += 20) {
+            double g = W.height(ox + dx * t, oy + dy * t);
+            if (hz + t * tz <= g) { sHit = t; slope = std::atan((g - W.height(ox + dx * (t - 20), oy + dy * (t - 20))) / 20); break; }
+          }
+        } else if (tz < -1e-6) {                                          // flat floor at this level
+          double t = (hz - gz) / -tz;
+          if (t < dWall && t < P.tofMaxRange) sHit = t;
+        }
+        if (sHit < 0) continue;
+        double d3 = sHit / std::cos(elev), graze = std::fabs(std::sin(slope - elev));
+        double w = P.tofFloorGain * profH * std::exp(-vOff * vOff / (2 * sigma * sigma)) * graze / std::max(d3 * d3, 100.0);
+        sumW += w; sumWD += w * d3;
+      }
+    }
   }
   // too little light back (only far or grazing surfaces) = out of range
   if (sumW < sumProfile / (P.tofMaxRange * P.tofMaxRange)) return tofLast[code] = 8190;
@@ -968,6 +1030,7 @@ static bool loadGeometry(const std::string &path) {
 // --selftest: fixed experiments with the simulated hardware, through the robot's own functions.
 // The same tests on the real robot (see README) show which assumptions in Params need changing.
 int measure(int sensor);
+void fwd(double dist);
 static int selfTest() {
   // 3 x 3 field; middle tile walled on N, E and W, open to the south
   W = field::World();
@@ -1057,6 +1120,108 @@ static int selfTest() {
                 "lowest PWM that turns it on the spot %.0f\n", V, P.noLoadRpmAt12V * V / 12 / 60 * M_PI * P.wheelDiameter,
                 255 * fr, 255 * fr * P.stictionFactor, 255 * (fr + spin) * P.stictionFactor);
   }
+  {
+    // Move test M3 (Main/bench.cpp, robot-test): fwd(300) three times from rest on open floor, a wall right behind;
+    // the real distance driven each time and what the back sensor says (robot 2026-10-16/17, first move: 297-326 mm).
+    W = field::World();
+    W.W = 3; W.H = 6;
+    W.wall.assign(18, {{false, false, false, false}});
+    W.type.assign(18, field::FLOOR); W.level.assign(18, 0);
+    for (int y = 0; y < 6; y++) for (int x = 0; x < 3; x++) for (int d = 0; d < 4; d++)
+      if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+    W.sx = 1; W.sy = 0;
+    indexObstacles();
+    auto back = []() { double s = 0; int n = 0; for (int k = 0; k < 5; k++) { int v = measure(4); if (v > 0 && v < 1500) { s += v; n++; } } return n ? s / n : -1.0; };
+    for (int run = 0; run < 3; run++) {
+      place(450, 150 + 4 * (run - 1), 0); delay(500);
+      double y0 = ry, b0 = back();
+      std::printf("  M3 run %d start: back sensor %.0f mm\n", run + 1, b0);
+      for (int i = 1; i <= 3; i++) {
+        double ys = ry, bs = back();
+        unsigned long t0 = millis();
+        fwd(300);
+        double secs = (millis() - t0) / 1000.0;
+        delay(300);
+        double b = back();
+        std::printf("  M3 move %d: %.2f s, really moved %.0f mm, back sensor says %.0f mm (encoder target 300)\n", i, secs, ry - ys, b - bs);
+        delay(2000);
+      }
+      (void)y0;
+    }
+    // Move test M7: wheel speeds from the encoders, as Main/bench.cpp does it (robot 2026-10-18, wheels in the air:
+    // fw(150) A/B/D 67/66/89 RPM, fw(255) 118/139/150). The sim has no rolling load, so driving on the floor is the same.
+    {
+      W = field::World();
+      W.W = 7; W.H = 7;
+      W.wall.assign(49, {{false, false, false, false}});
+      W.type.assign(49, field::FLOOR); W.level.assign(49, 0);
+      for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      indexObstacles();
+      for (int pwm : {150, 255}) {
+        place(1050, 200, 0);
+        drivetrain.fw(pwm); delay(700);
+        drivetrain.reset_encoderCount(true, true, true);
+        delay(1000);
+        double a = drivetrain.encoderCountA, b = drivetrain.encoderCountB, d = drivetrain.encoderCountD;
+        drivetrain.fullstop(); delay(500);
+        std::printf("  M7 fw(%d): RPM A/B/D %.0f/%.0f/%.0f (robot %s)\n", pwm, a / 975 * 60, b / 975 * 60, d / 975 * 60,
+                    pwm == 150 ? "67/66/89" : "118/139/150");
+      }
+    }
+    // Move test M0 on open floor: what each sensor reads with no wall near (robot: back 170-540 or 8190, front ~690
+    // or 8190, sides ~470-760; logs/2026-10-16 move_tests2, 2026-10-17 sensor_check, ramp_sensors).
+    {
+      W = field::World();
+      W.W = 7; W.H = 7;
+      W.wall.assign(49, {{false, false, false, false}});
+      W.type.assign(49, field::FLOOR); W.level.assign(49, 0);
+      for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      indexObstacles();
+      place(1050, 1050, 0); delay(300);
+      const char *nm[8] = {"", "front-right", "right-front", "right-back", "back", "left-back", "left-front", "front-left"};
+      std::printf("  M0 open floor (walls 900+ mm away):");
+      for (int i = 1; i <= 7; i++) { std::printf(" %s", nm[i]); for (int k = 0; k < 3; k++) std::printf(" %d", measure(i)); std::printf(";"); }
+      std::printf("\n");
+      place(450, 1050, 0); delay(300); // west wall 450 mm from the middle: one tile out for the left sensors (CAD 359)
+      int lf1 = measure(6), lf2 = measure(6), lb1 = measure(5), lb2 = measure(5);
+      std::printf("  M0 wall one tile out on the left: left-front %d %d, left-back %d %d (CAD 359 + offset; robot's right side peaks at 375-400)\n", lf1, lf2, lb1, lb2);
+    }
+    // Move tests M6 / M8: a box (fixed, 9 cm across) in the middle of the path, its front D mm ahead of the robot, a wall at
+    // the far end of the next tile. The no-progress check must stop the move and back up (the box sits between the front
+    // sensors' beams). With --verbose the firmware's own lines show what happened.
+    for (double gap : {100.0, 150.0, 200.0, 250.0}) {
+      W = field::World();
+      W.W = 3; W.H = 4;
+      W.wall.assign(12, {{false, false, false, false}});
+      W.type.assign(12, field::FLOOR); W.level.assign(12, 0);
+      for (int y = 0; y < 4; y++) for (int x = 0; x < 3; x++) for (int d = 0; d < 4; d++)
+        if (!W.in(x + field::DX[d], y + field::DY[d])) W.wall[W.id(x, y)][d] = true;
+      W.wall[W.id(1, 1)][0] = true; W.wall[W.id(1, 2)][2] = true;      // wall at the far end of the next tile (y = 600)
+      double front = 150 + bodyFront;
+      W.obstacles = {{450, front + gap + 45, 45}};
+      indexObstacles();
+      place(450, 150, 0); delay(300);
+      std::printf("  M8 box %.0f mm ahead: start\n", gap);
+      fwd(300);
+      delay(300);
+      std::printf("  M8 box %.0f mm ahead: ended %.0f mm from the start (box front at %.0f)\n", gap, ry - 150, gap);
+    }
+    W.obstacles.clear(); indexObstacles();
+    // Move test M1: absoluteturn() 90 deg right, then left, from rest in the middle of a tile (robot 2026-10-16:
+    // right 0.97-1.01 s, left 0.76-0.80 s, all within 2 deg).
+    for (int k = 0; k < 2; k++) {
+      place(450, 450, 0); delay(500);
+      double h0 = myGyro.heading();
+      unsigned long t0 = millis();
+      absoluteturn(std::fmod(h0 + (k == 0 ? 90 : 270), 360));
+      double secs = (millis() - t0) / 1000.0;
+      delay(500);
+      double turned = myGyro.heading() - h0; if (turned > 180) turned -= 360; if (turned < -180) turned += 360;
+      std::printf("  M1 %s 90: %.2f s, turned %.1f deg\n", k == 0 ? "right" : "left", secs, turned);
+    }
+  }
   std::printf("COLOUR raw r g b c over each tile type\n");
   const char *names[] = {"white", "black", "blue", "silver"};
   int types[] = {field::FLOOR, field::BLACK_T, field::BLUE_T, field::SILVER_T};
@@ -1107,6 +1272,7 @@ int main(int argc, char **argv) {
     rng.seed(1);
     for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
     for (int i = 1; i <= 7; i++) tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma);
+    tof[5].offset += P.tofLeftBackExtraMm;
     return selfTest();
   }
 
@@ -1115,7 +1281,7 @@ int main(int argc, char **argv) {
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
   std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(sc - field::SCENARIOS));
   field::Extras ex;
-  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
+  ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.obstacleRMin = P.obstacleRMinMm; ex.obstacleRMax = P.obstacleRMaxMm; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
   W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
   indexObstacles();
   rng.seed((unsigned)seed * 7919u + 4242u);
@@ -1129,6 +1295,7 @@ int main(int argc, char **argv) {
 
   for (int i = 1; i <= 4; i++) { mot[i].gain = 1 + gauss(P.motorGainSigma); mot[i].traction = P.tractionMean; }
   for (int i = 1; i <= 7; i++) { tof[i].offset = P.tofOffsetMeanMm + gauss(P.tofOffsetSigma); tof[i].phaseUs = std::uniform_real_distribution<double>(0, P.tofPeriodUs)(rng); }
+  tof[5].offset += P.tofLeftBackExtraMm;
   gyroBiasDegPerUs = gauss(P.gyroDriftSigmaDegPerMin) / 60e6;
   magOffsetDeg = P.gyroMagneticOffsetDeg >= 0 ? P.gyroMagneticOffsetDeg : std::uniform_real_distribution<double>(0, 360)(rng);
   for (double &ph : magPhase) ph = std::uniform_real_distribution<double>(0, 2 * M_PI)(rng);
