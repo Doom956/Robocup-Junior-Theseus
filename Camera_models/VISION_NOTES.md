@@ -1,7 +1,8 @@
 # Victim vision: what changed (2026-10-17) and how to tune it
 
 Files: `ei_object_detection_PhiOmegaPsi -left.py`, `... -right.py` (identical except the
-PER-CAMERA SETTINGS block: name and FOMO confidences), `calibrate_colors.py`.
+PER-CAMERA SETTINGS block: name and FOMO confidences), `calibrate_colors.py`,
+`measure_letters.py` and `measure_cognitive.py` (camera: print what the checks see).
 Plan it follows: `VISION_FIX_PROMPT.md`. **Not tested on a camera yet.**
 
 ## What changed
@@ -9,7 +10,8 @@ Plan it follows: `VISION_FIX_PROMPT.md`. **Not tested on a camera yet.**
 |---|---|
 | One frame with one FOMO blob sent a letter | Persistence: same letter/sum in 3 of the last 4 frames, close to the same place (`Track`) |
 | Edges/seams read as letters | Shape check at every FOMO hit: one dark blob (Otsu threshold of the box), letter size, aspect 0.6-1.6, density 0.12-0.65, doesn't run across the box |
-| Hough threshold: too high misses, too low false hits | Lenient Hough (2500, top 3 circles) + strict checks: white wall around, every ring one clear colour, sum 0/1/2 |
+| Hough threshold: too high misses, too low false hits | Lenient Hough (1600, radius 25-65 px, top 3 circles; measured 2026-10-21) + strict checks: white wall around, every ring one clear colour, sum 0/1/2 |
+| Hough's circle a few px off the target, so ring samples landed in the wrong rings (right camera, 2026-10-21) | `refine_circle()` (2026-10-21): 16 rays from the wall walk inward to the target's outer edge, a circle is fitted through the edge points; circles that refine onto one already checked are skipped. Fake targets: good targets accepted 60 -> 364 of 400 (hard scenes 48 -> 348), centre error 7 -> 0 px, about 250-530 pixel reads per circle |
 | `c` on every raw circle stopped the robot | `c` only for a circle that passed every check |
 | Ring samples near ring edges (0.175·i R) | Samples at ring middles 0.1/0.3/0.5/0.7/0.9 R, median patches |
 | Unclassified ring counted as black | Unknown ring -> no target |
@@ -20,18 +22,36 @@ Plan it follows: `VISION_FIX_PROMPT.md`. **Not tested on a camera yet.**
 | FOMO sometimes got colour frames with circles drawn on | FOMO always gets the clean grayscale frame |
 | Left skipped letters when any circle was seen | Both checked every frame |
 
-## Values to measure on the robot (marked ASSUMED in the scripts)
-Leave `DEBUG_PRINT = True` and watch the OpenMV IDE terminal. Every candidate prints a line:
-`left f123 letter H x120 y96 size74 ACCEPT: ok score 0.81`.
+## Measuring the ASSUMED values (measure_letters.py + measure_cognitive.py)
+Both run the camera scripts' checks but reject nothing, and print one line per detection
+to the OpenMV IDE terminal, with every limit it breaks (`fails`), then a `#SUM` summary.
+Copy the terminal from `#CFG` to `#END` and paste it to Claude.
+- `measure_letters.py`: FOMO hits (score, peak, position, box contrast, Otsu threshold,
+  dark blob size, aspect, density, border touches). Needs trained.tflite + labels.txt.
+- `measure_cognitive.py` (2026-10-21, replaces `measure_vision.py`): Hough circles (radius,
+  strength, the wall around them: white share, L, chroma), and each ring's colour, agreement,
+  wall-normalised LAB and colour margin. No model needed. Circles are searched more leniently
+  than the camera script does (`mag` / `radius` / `rank` = the camera script wouldn't check
+  that circle). Set `RINGS` to the target's colours to see which rings read wrong. Each line
+  shows the refined circle that is checked, `fit` (edge points, 0 = Hough's circle kept) and
+  Hough's own circle; `dup` = refined onto a circle already checked. In the IDE the refined
+  circle is green/red and Hough's is blue.
 
-| Setting | How |
-|---|---|
-| `ROW_MIN` / `ROW_MAX` | Robot beside a wall with letters and targets at the rule height (7 cm). Note `y` of accepted hits, add ~25 px each side |
-| `LETTER_PX_MIN/MAX` | `size` of accepted letters stopped and driving past; use min-25% / max+25% |
-| `R_MIN` / `R_MAX` | `calibrate_colors.py` prints the radius; min-15% / max+15% |
-| `POS_TOL_PX` | Drive past a victim at normal speed; how far `x` moves between frames. Make it ~1.5x that |
-| `WALL_L_MIN`, `WALL_CHROMA_MAX`, `COLOR_CENTRES` | `calibrate_colors.py` |
-| `CIRCLE_THRESHOLD` | Lower until targets are found while driving; the checks reject the rest. Watch the fps line |
+1. Run `calibrate_colors.py` first and paste `COLOR_CENTRES` into **both** camera scripts
+   **and** `measure_cognitive.py` (ring colours depend on them).
+2. Set `CAMERA_NAME`, `SCENE`, `NOTE`, `MOTION` at the top, then run.
+3. Record, still and driving past, at the closest and furthest the robot really is from a wall:
+   - `measure_letters.py`: `H`, `S`, `U` (also rotated); `none` for decoys
+   - `measure_cognitive.py`: `H`, `S`, `U` targets (also off-centre); `F` a fake target
+   - `none` (both): empty wall, corner, wall seam, black/blue/silver tile, obstacle, decoy
+     letters/symbols (set `NOTE` to say which)
+
+KEEP IN SYNC: both copy the camera scripts' settings and checks. If you change a check or a
+value in the camera scripts, change it there too. On synthetic targets
+`measure_cognitive.py` gave the camera script's verdict and label on 600/600 circles (2026-10-21).
+
+What it can't measure: in a target scene the circle closest to passing in each frame is taken
+as the target (check the green circle in the IDE).
 
 ## Recalibrate at a venue (5 minutes per camera)
 1. Open `calibrate_colors.py` in the OpenMV IDE, connect one camera.
