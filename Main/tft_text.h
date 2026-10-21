@@ -28,7 +28,7 @@
 #define TFT_PIN_RST 27
 #define TFT_PIN_BL  25
 // Landscape, one way or the other: 1 or 3 (text upside down -> use the other one).
-#define TFT_ROTATION 1
+#define TFT_ROTATION 3
 
 class TftText {
  public:

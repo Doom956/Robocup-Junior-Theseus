@@ -254,15 +254,16 @@ void TftText::begin(uint8_t, uint8_t){
   pDc  = new mbed::DigitalOut(digitalPinToPinName(TFT_PIN_DC), 1);
   pRst = new mbed::DigitalOut(digitalPinToPinName(TFT_PIN_RST), 1);
   pBl  = new mbed::DigitalOut(digitalPinToPinName(TFT_PIN_BL), 1);  // backlight on
-  delay(10); pRst->write(0); delay(20); pRst->write(1); delay(150);
+  // The sequence that worked on the robot (2026-10-20 wiring finder): hardware reset, then sleep out and settings.
+  // A software reset (0x01) first left this module dark.
+  pRst->write(0); delay(5); pRst->write(1); delay(10);
   pCs->write(0); // the only device on these pins: selected for good
-  cmd(0x01); delay(150);                 // software reset
-  cmd(0x11); delay(120);                 // sleep out
-  cmd(0x3A); dat(0x55); delay(10);       // 16-bit colour
+  cmd(0x11); delay(10);                  // sleep out
+  cmd(0x3A); dat(0x55);                  // 16-bit colour
   cmd(0x36); dat(TFT_ROTATION == 3 ? 0xA0 : 0x60); // landscape (MV + MX or MY)
   cmd(0x21);                             // inversion on (IPS panel)
-  cmd(0x13); delay(10);                  // normal display
-  cmd(0x29); delay(50);                  // display on
+  cmd(0x13);                             // normal display
+  cmd(0x29);                             // display on
   tftThread.start(tftLoop);
 }
 
