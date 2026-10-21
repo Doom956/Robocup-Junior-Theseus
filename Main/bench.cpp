@@ -612,3 +612,28 @@ void runLcdTest(){
     delay(1000);
   }
 }
+
+// ---- dispenser test (BENCH_MODE 4 in main.cpp): the victim code's own dispenseLeft()/dispenseRight(), unchanged ----
+// Empties all 8 kits: left H (2), right H (2), left S, right S, left S, right S. Flip the pause switch on and off for
+// each drop (LED blinks slowly while waiting, stays on during a drop, blinks fast when finished).
+#include "dispenser.h"
+extern dispenser disp;
+extern int medkits;
+void runDispenserTest(){
+  pinMode(LEDPIN, OUTPUT);
+  const char side[6] = {'L', 'R', 'L', 'R', 'L', 'R'};
+  const char victim[6] = {'H', 'H', 'S', 'S', 'S', 'S'};
+  Serial.println("[BENCH] dispenser test: load all 8 kits, then flip the pause switch on and off for each drop");
+  for(int i = 0; i < 6; i++){
+    Serial.print("[BENCH] next: "); Serial.print(side[i] == 'L' ? "left " : "right "); Serial.print(victim[i]);
+    Serial.print(" ("); Serial.print(victim[i] == 'H' ? 2 : 1); Serial.println(" kits)");
+    while(digitalRead(BENCH_SWITCH_PIN) == LOW){ blink(1000); delay(20); }
+    while(digitalRead(BENCH_SWITCH_PIN) == HIGH){ blink(1000); delay(20); }
+    led(true);
+    if(side[i] == 'L') disp.dispenseLeft(victim[i]); else disp.dispenseRight(victim[i]);
+    led(false);
+    Serial.print("[BENCH] dropped; kits left in the code's count: "); Serial.println(medkits);
+  }
+  Serial.println("[BENCH] dispenser test finished (all 8 should be out)");
+  while(true){ blink(200); delay(20); }
+}
