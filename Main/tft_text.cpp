@@ -86,9 +86,9 @@ static void drawCell(int col, int row, char ch, uint16_t fg){
 }
 
 // ---- Minimap: the robot's map around it, under the text (text rows end at y 187) ----
-// 40 x 6 tiles of 8 x 8 px at y 190-237, north up. A tile: dark grey = visited, darker = seen but not visited, blue,
-// silver (checkpoint), red (black tile), orange (ramp), green (the start tile); white lines = walls, red lines = edges
-// blocked for an obstacle; the robot is a yellow square with a nub toward the way it faces.
+// 40 x 6 tiles of 8 x 8 px at y 190-237, north up, in the simulator's map colours (MC_ below): white = visited (pale
+// blue on an upper floor), off-white = seen, grey = unknown, blue, silver, black, sand = ramp, a ring = the start tile;
+// dark lines = walls, amber lines = edges blocked for an obstacle; the robot is an orange square with a nub ahead.
 #define MCELL 8
 #define MCOLS 40
 #define MROWS 6
@@ -104,6 +104,7 @@ static void drawCell(int col, int row, char ch, uint16_t fg){
 #define M_ROBOT     0x02000
 #define M_DIR_SH    14        // bits 14-15: the robot's direction
 #define M_START     0x10000
+#define M_UP        0x20000   // a tile on an upper floor (the start floor is START_FLOOR)
 static rtos::Mutex mapMutex;          // guards mapSnap / mapValid (held for a copy only)
 static uint32_t mapSnap[MROWS][MCOLS]; // written by the main loop, read by the screen thread
 static bool mapValid = false;
@@ -121,6 +122,7 @@ static uint32_t mapCode(int mx, int my, int rx, int ry, int dir, int floor){
       if(t.getObstacle(d)) c |= 1u << (4 + d);
     }
     if(visited) c |= M_VISITED;
+    if(floor != START_FLOOR) c |= M_UP;
     if(seen) c |= M_SEEN;
     c |= (uint32_t)type << M_TYPE_SH;
     if(t.getElevate() || t.getDescend()) c |= M_RAMP;
@@ -148,21 +150,36 @@ void tftMinimapUpdate(){
   mapMutex.unlock();
 }
 
+// Colours as in the simulator's map (tools/sim/physics/live.html, light theme), in RGB565
+#define MC_UNKNOWN 0xE71B  // #e2e2de never seen
+#define MC_SEEN    0xF79D  // #f0f0ec seen, not visited yet
+#define MC_TILE    0xFFFF  // #ffffff visited
+#define MC_TILE_UP 0xDF3E  // #dde7f3 visited, upper floor
+#define MC_WALL    0x18E3  // #1d1d1b
+#define MC_BLACK   0x1082  // #121212
+#define MC_BLUE    0x2319  // #2463c9
+#define MC_SILVER  0xAD96  // #a9b0b7
+#define MC_RAMP    0xDE54  // #d8c9a3
+#define MC_ROBOT   0xDA41  // #d9480f
+#define MC_BLOCKED 0xE508  // #e0a240 (amber: an edge blocked for an obstacle)
+
 static void drawMapCell(int r, int c, uint32_t code){
   uint16_t px[MCELL][MCELL];
-  uint16_t bg = COL_BLACK;
+  uint16_t bg = MC_UNKNOWN;
   if(code & (M_VISITED | M_SEEN)){
     int type = (code >> M_TYPE_SH) & 3;
-    bg = (code & M_VISITED) ? 0x4208 : 0x2104;              // dark grey / darker grey
-    if(code & M_START) bg = 0x03E0;                           // green
-    if(code & M_RAMP) bg = 0xFC00;                            // orange
-    if(type == BLUE) bg = 0x001F;
-    else if(type == CHECKPOINT) bg = 0xC618;                  // silver
-    else if(type == BLACK) bg = 0x8000;                       // dark red
+    bg = (code & M_VISITED) ? ((code & M_UP) ? MC_TILE_UP : MC_TILE) : MC_SEEN;
+    if(code & M_RAMP) bg = MC_RAMP;
+    if(type == BLUE) bg = MC_BLUE;
+    else if(type == CHECKPOINT) bg = MC_SILVER;
+    else if(type == BLACK) bg = MC_BLACK;
   }
   for(int y = 0; y < MCELL; y++) for(int x = 0; x < MCELL; x++) px[y][x] = bg;
+  if(code & M_START){ // the start tile: a dark ring inside the tile
+    for(int i = 2; i < 6; i++){ px[2][i] = MC_WALL; px[5][i] = MC_WALL; px[i][2] = MC_WALL; px[i][5] = MC_WALL; }
+  }
   for(int d = 0; d < 4; d++){
-    uint16_t col = (code & (1u << (4 + d))) ? COL_RED : (code & (1u << d)) ? COL_WHITE : 0;
+    uint16_t col = (code & (1u << (4 + d))) ? MC_BLOCKED : (code & (1u << d)) ? MC_WALL : 0;
     if(!col) continue;
     for(int i = 0; i < MCELL; i++){
       if(d == 0) px[0][i] = col;              // north: top row
@@ -172,13 +189,13 @@ static void drawMapCell(int r, int c, uint32_t code){
     }
   }
   if(code & M_ROBOT){
-    for(int y = 2; y < 6; y++) for(int x = 2; x < 6; x++) px[y][x] = COL_YELLOW;
+    for(int y = 2; y < 6; y++) for(int x = 2; x < 6; x++) px[y][x] = MC_ROBOT;
     int d = (code >> M_DIR_SH) & 3;
     for(int i = 3; i < 5; i++){
-      if(d == 0) px[1][i] = COL_YELLOW;
-      if(d == 1) px[i][6] = COL_YELLOW;
-      if(d == 2) px[6][i] = COL_YELLOW;
-      if(d == 3) px[i][1] = COL_YELLOW;
+      if(d == 0) px[1][i] = MC_ROBOT;
+      if(d == 1) px[i][6] = MC_ROBOT;
+      if(d == 2) px[6][i] = MC_ROBOT;
+      if(d == 3) px[i][1] = MC_ROBOT;
     }
   }
   int x0 = MX0 + c * MCELL, y0 = MY0 + r * MCELL;
