@@ -35,6 +35,9 @@ struct World {
   // ramp corridor (columns rampX0 .. rampX0+rampLen-1), heights in mm
   int rampX0 = 0, rampLen = 0;
   double rampDeg = 0, levelHeight[2] = {0, 0};
+  // fields drawn from a file: one-tile ramps running any way, each rising toward rampUp[tile] (0 N, 1 E, 2 S, 3 W) from
+  // a level-0 tile to a level-1 tile. Empty for generated fields (the corridor above).
+  std::vector<int> rampUp;
   std::vector<Obstacle> obstacles;
   std::vector<int> bump;     // per tile: 0 none, 1 = strip running east-west (crossed going N/S), 2 = running north-south
   double bumpH = 10, bumpW = 40;
@@ -52,6 +55,11 @@ struct World {
   double height(double px, double py) const {
     int x = (int)std::floor(px / TILE), y = (int)std::floor(py / TILE);
     if (!in(x, y)) return 0;
+    if (type[id(x, y)] == RAMP_T && !rampUp.empty()) {
+      int d = rampUp[id(x, y)];
+      double f = d == 0 ? py / TILE - y : d == 1 ? px / TILE - x : d == 2 ? y + 1 - py / TILE : x + 1 - px / TILE;
+      return levelHeight[0] + (levelHeight[1] - levelHeight[0]) * f;
+    }
     if (type[id(x, y)] == RAMP_T) {
       double f = (px - rampX0 * TILE) / (rampLen * TILE);
       f = f < 0 ? 0 : f > 1 ? 1 : f;

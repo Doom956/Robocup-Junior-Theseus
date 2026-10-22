@@ -975,7 +975,8 @@ uint16_t VL53L0X::readRangeContinuousMillimeters() {
       for (double vOff : {0.0, half / 3, 2 * half / 3, half}) {         // degrees below the beam axis
         double elev = rad(axisElev - vOff), tz = std::tan(elev);
         double sHit = -1, slope = 0;
-        bool nearRamp = W.rampLen > 0 && std::max(ox, ox + dx * dWall) > rx0 && std::min(ox, ox + dx * dWall) < rx1;
+        bool nearRamp = !W.rampUp.empty() ||  // a drawn field's ramps can run any way: always march (small fields)
+                        (W.rampLen > 0 && std::max(ox, ox + dx * dWall) > rx0 && std::min(ox, ox + dx * dWall) < rx1);
         if (nearRamp) {                                                  // march: the ground isn't flat
           for (double t = 20; t < std::min(dWall, P.tofMaxRange); t += 20) {
             double g = W.height(ox + dx * t, oy + dy * t);
@@ -1400,7 +1401,8 @@ static void testField(const std::string &name, std::mt19937 &frng) {
 static double mapRampDeg = -1; // from a "ramp_deg" line; otherwise drawn from rampMinDeg..rampMaxDeg
 static std::string mapField(const std::string &path, const std::string &exeDir, std::mt19937 &frng, double &startHead) {
   std::ifstream f(path);
-  for (const std::string &dir : {exeDir + "/fields/", exeDir + "/../fields/"}) if (!f) { f.clear(); f.open(dir + path); }
+  for (const std::string &dir : {exeDir + "/", exeDir + "/fields/", exeDir + "/../", exeDir + "/../fields/"})
+    if (!f) { f.clear(); f.open(dir + path); }
   if (!f) return "cannot open " + path;
   std::vector<std::string> g;
   std::string line;
@@ -1467,16 +1469,22 @@ static std::string mapField(const std::string &path, const std::string &exeDir, 
     int nx = i % w + field::DX[d], ny = i / w + field::DY[d];
     if (W.wall[i][d] && W.in(nx, ny)) W.wall[W.id(nx, ny)][(d + 2) % 4] = true;
   }
-  if (rx1 >= 0) { // one ramp corridor running east-west: every ramp row covers the same columns, level tiles at both ends
-    if (rx0 == 0 || rx1 == w - 1) return "a ramp needs a level tile at both ends (east and west)";
-    for (int y = 0; y < h; y++) {
-      int n = 0;
-      for (int x = rx0; x <= rx1; x++) n += W.type[W.id(x, y)] == field::RAMP_T;
-      if (n && n != rx1 - rx0 + 1) return "ramp tiles must run east-west over the same columns in every ramp row";
+  if (rx1 >= 0) { // one-tile ramps, any way round: a level-0 tile at one end, a level-1 tile at the other
+    W.rampUp.assign(w * h, -1);
+    for (int i = 0; i < w * h; i++) {
+      if (W.type[i] != field::RAMP_T) continue;
+      int x = i % w, y = i / w;
+      for (int d = 0; d < 4; d++) {
+        int ux = x + field::DX[d], uy = y + field::DY[d], lx = x - field::DX[d], ly = y - field::DY[d];
+        if (W.in(ux, uy) && W.in(lx, ly) && W.type[W.id(ux, uy)] != field::RAMP_T && W.type[W.id(lx, ly)] != field::RAMP_T &&
+            W.level[W.id(ux, uy)] == 1 && W.level[W.id(lx, ly)] == 0) W.rampUp[i] = d;
+      }
+      if (W.rampUp[i] < 0)
+        return "the ramp at row " + std::to_string(h - y) + " column " + std::to_string(x + 1) + " needs a level-0 tile at one end and a level-1 tile at the other";
     }
-    W.rampX0 = rx0; W.rampLen = rx1 - rx0 + 1;
+    W.rampX0 = rx0; W.rampLen = 1; // only for the replay viewer's colours
     W.rampDeg = mapRampDeg > 0 ? mapRampDeg : P.rampMinDeg + (P.rampMaxDeg - P.rampMinDeg) * u(frng);
-    W.levelHeight[1] = W.rampLen * field::TILE * std::tan(W.rampDeg * M_PI / 180.0);
+    W.levelHeight[1] = field::TILE * std::tan(W.rampDeg * M_PI / 180.0);
   }
   W.bumpH = P.bumpHeightMm;
   return "";
@@ -1601,6 +1609,8 @@ int main(int argc, char **argv) {
     *traceOut << "],\"bumps\":[";
     bool firstBump = true;
     for (int i = 0; i < W.W * W.H; i++) if (W.bump[i]) { *traceOut << (firstBump ? "" : ",") << "[" << i << "," << W.bump[i] << "]"; firstBump = false; }
+    *traceOut << "],\"rampUp\":[";
+    for (size_t k = 0; k < W.rampUp.size(); k++) *traceOut << (k ? "," : "") << W.rampUp[k];
     *traceOut << "],\"tiles\":[";
     for (int i = 0; i < W.W * W.H; i++) {
       int walls = 0;

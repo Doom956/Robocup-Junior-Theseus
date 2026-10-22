@@ -506,12 +506,18 @@ function drawTiles(ctx, V) {
     if (t === FIELD_TYPE.SOLID) fill = col.solid;
     ctx.fillStyle = fill;
     ctx.fillRect(px, py, S * sc + 0.5, S * sc + 0.5);
-    if (t === FIELD_TYPE.RAMP) {     // arrow pointing uphill
-      const left = F.level[F.id(F.rampX0 - 1, y)], right = F.level[F.id(F.rampX0 + F.rampLen, y)];
-      const up = F.levelHeight[right] > F.levelHeight[left] ? 1 : -1, cx = px + S * sc / 2, cy = py + S * sc / 2, a = S * sc * 0.25;
+    if (t === FIELD_TYPE.RAMP) {     // arrow pointing uphill: (ux, uy) on screen, north is up
+      let ux, uy = 0;
+      if (F.rampUp && F.rampUp.length) { const d = F.rampUp[i]; ux = [0, 1, 0, -1][d]; uy = [-1, 0, 1, 0][d]; }
+      else {
+        const left = F.level[F.id(F.rampX0 - 1, y)], right = F.level[F.id(F.rampX0 + F.rampLen, y)];
+        ux = F.levelHeight[right] > F.levelHeight[left] ? 1 : -1;
+      }
+      const cx = px + S * sc / 2, cy = py + S * sc / 2, a = S * sc * 0.25, tx = cx + a * ux, ty = cy + a * uy;
       ctx.strokeStyle = col.muted; ctx.lineWidth = Math.max(1.5, sc * 8);
-      ctx.beginPath(); ctx.moveTo(cx - a * up, cy); ctx.lineTo(cx + a * up, cy);
-      ctx.moveTo(cx + a * up - a * 0.5 * up, cy - a * 0.5); ctx.lineTo(cx + a * up, cy); ctx.lineTo(cx + a * up - a * 0.5 * up, cy + a * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - a * ux, cy - a * uy); ctx.lineTo(tx, ty);
+      ctx.moveTo(tx - a * 0.5 * ux - a * 0.5 * uy, ty - a * 0.5 * uy - a * 0.5 * ux); ctx.lineTo(tx, ty);
+      ctx.lineTo(tx - a * 0.5 * ux + a * 0.5 * uy, ty - a * 0.5 * uy + a * 0.5 * ux); ctx.stroke();
     }
   }
   // grid
@@ -888,6 +894,10 @@ function floorH(px, py) {
   const F = R.header.field, x = Math.floor(px / S), y = Math.floor(py / S);
   if (!F.in(x, y) || !F.levelHeight) return 0;
   const i = F.id(x, y), t = F.type[i];
+  if (t === FIELD_TYPE.RAMP && F.rampUp && F.rampUp.length) { // a drawn field's one-tile ramp, rising toward rampUp
+    const d = F.rampUp[i], f = d === 0 ? py / S - y : d === 1 ? px / S - x : d === 2 ? y + 1 - py / S : x + 1 - px / S;
+    return F.levelHeight[0] + (F.levelHeight[1] - F.levelHeight[0]) * f;
+  }
   if (t === FIELD_TYPE.RAMP) {
     const f = Math.min(1, Math.max(0, (px - F.rampX0 * S) / (F.rampLen * S)));
     const hA = F.levelHeight[F.level[F.id(F.rampX0 - 1, y)]], hB = F.levelHeight[F.level[F.id(F.rampX0 + F.rampLen, y)]];

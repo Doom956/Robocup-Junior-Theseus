@@ -36,8 +36,8 @@ Each tile's 3 characters are: type, level, extra.
 - **Extra:** after `S`, the start facing: `^` north, `>` east, `v` south, `<` west. On other tiles, `o` is an obstacle in
   the open (size from `obstacleRMinMm..obstacleRMaxMm`), `=` a speed bump running east-west, `I` one running north-south.
 
-A ramp runs east-west, and every ramp row covers the same columns, with a level tile at each end. If the real ramp runs
-north-south, draw the field turned so that it runs east-west. The robot doesn't know which way north is.
+A ramp is one tile long and can run any way. It needs a level-0 tile at one end and a level-1 tile at the other, and it
+rises toward the level-1 tile. A field can have more than one ramp (`event.txt` has two).
 
 `--set greyCheckpoints=1` makes checkpoints read like the team's grey tile (bench test 9, 2026-10-06: 0.45 of white). `read_color()`
 takes that for a plain tile, so the robot records no checkpoint, but the referee still restarts it on the last one it
