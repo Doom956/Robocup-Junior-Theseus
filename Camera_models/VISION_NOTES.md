@@ -69,6 +69,13 @@ as the target (check the green circle in the IDE).
   around", the line says how many patches were too dark (lower `WALL_L_MIN` to a little under
   the median L it prints) or too coloured (raise `WALL_CHROMA_MAX` a little over its chroma).
   Only white patches become the colour reference, so a lower share doesn't skew ring colours.
+- `GLARE_L_MARGIN` (10, ASSUMED) / `RING_MIN_VOTES` (5, ASSUMED), 2026-10-22: a ring patch whose
+  raw L is more than 10 over the wall's is an LED reflection and doesn't vote; a ring needs 5
+  patches left. Added because the right camera read the target's yellow centre as white in
+  every frame at the venue, while the blurry left camera read it. Ring reject lines now end in
+  `(L a b, raw L .. wall .., N glare)`: raw L at or above the wall's = glare or clipping (fix
+  the light: diffuse the LEDs, tilt them, or lower the gain); raw L clearly under the wall's
+  with small b = the colour itself reads pale (recalibrate).
 - `CONFIRM_HITS` / `TRACK_WINDOW` (3 of 4): more = fewer false victims, needs more frames.
 - `HINT_ON_LETTER` (off): turn on if letters are missed while driving; the robot then stops
   on a shape-checked letter and confirms it while still.

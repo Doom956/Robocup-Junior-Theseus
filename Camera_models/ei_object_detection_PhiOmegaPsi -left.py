@@ -17,6 +17,8 @@
 #     (refine_circle); circles that end up on the same target are checked once.
 #   - CHANGED 2026-10-22: the white-wall check needs 6 of 12 patches (was 8), and its
 #     reject line says how many patches were too dark / too coloured.
+#   - CHANGED 2026-10-22: ring patches much brighter than the wall (LED glare) don't vote, and
+#     ring reject lines show the ring's colour and brightness against the wall.
 #   - Colours: rings are sampled at their middles (0.1/0.3/0.5/0.7/0.9 R) with small median
 #     patches, normalised to the wall around the target, and matched to the nearest
 #     calibrated colour (calibrate_colors.py). Unclear ring -> no target (was: black).
@@ -96,6 +98,10 @@ RING_FRACS = (0.1, 0.3, 0.5, 0.7, 0.9)  # middle of each ring (diameters 1..5 cm
 RING_SAMPLES = 12        # angles per ring (old code: 35, and it skipped 0 deg)
 PATCH_HALF_FRAC = 0.04   # median patch half-size = 0.04 R (stays inside a 0.2 R wide ring)
 RING_AGREE = 0.6         # a ring needs 60% of its patches to agree on one colour
+GLARE_L_MARGIN = 10      # ASSUMED (2026-10-22): a ring patch more than this much brighter (raw L) than
+                         # the wall around the target is a reflection of the LEDs, not ink: it doesn't
+                         # vote. Right camera at the venue: the yellow centre read white in every frame.
+RING_MIN_VOTES = 5       # ASSUMED: a ring needs this many patches that aren't glare
 WALL_FRAC = 1.25         # wall check annulus just outside the target
 WALL_WHITE_FRAC = 0.5    # half of the annulus (6 of 12 patches) must look like wall.
                          # Was 0.6 (8 of 12): venue 2026-10-22, both cameras kept rejecting
@@ -332,6 +338,17 @@ def classify(lab):
         return "unknown"
     return best
 
+def ring_info(labs, ref, glare):
+    """NEW 2026-10-22, for reject lines: the ring's median wall-normalised LAB, its median raw L
+    against the wall's (a ring as bright as the wall or brighter = glare or clipping, not ink)
+    and how many patches were left out as glare."""
+    if not labs:
+        return "(%d glare, wall L %d)" % (glare, ref[0])
+    nl = [normalise(lab, ref) for lab in labs]
+    return "(L %.0f a %.0f b %.0f, raw L %d wall %d, %d glare)" % (
+        median([v[0] for v in nl]), median([v[1] for v in nl]), median([v[2] for v in nl]),
+        median([lab[0] for lab in labs]), ref[0], glare)
+
 def check_target(img, x, y, r):
     """NEW. Confirm a Hough circle is a cognitive target. Runs on the colour frame.
     Returns (label or None, reason, ring colours)."""
@@ -364,26 +381,35 @@ def check_target(img, x, y, r):
     # 2. Each ring must have one clear colour. Sampled at the ring middles.
     colours = []
     total = 0
+    glare_l = ref[0] + GLARE_L_MARGIN
     for k, frac in enumerate(RING_FRACS):
         pts = [(x, y)] if k == 0 else []   # the centre belongs to the inner circle
         for ca, sa in ANGLES:
             pts.append((int(x + frac * r * ca + 0.5), int(y - frac * r * sa + 0.5)))
         votes = {}
-        n = 0
+        labs = []          # the patches that vote
+        glare = 0
         for px, py in pts:
             lab = patch_lab(img, px, py, half)
             if lab is None:
                 continue
-            n += 1
+            if lab[0] > glare_l:
+                glare += 1     # NEW 2026-10-22: brighter than the wall = LED reflection, not ink
+                continue
+            labs.append(lab)
             name = classify(normalise(lab, ref))
             votes[name] = votes.get(name, 0) + 1
-        if n == 0:
+        n = len(labs)
+        if n + glare == 0:
             return None, "ring %d off the frame" % (k + 1), colours
+        if n < RING_MIN_VOTES:
+            return None, "ring %d glare %s" % (k + 1, ring_info(labs, ref, glare)), colours
         best = max(votes, key=votes.get)
-        if best == "white" or best == "unknown":
-            return None, "ring %d is %s" % (k + 1, best), colours   # was: counted as black
+        if best == "white" or best == "unknown":   # was: counted as black
+            return None, "ring %d is %s %s" % (k + 1, best, ring_info(labs, ref, glare)), colours
         if votes[best] < RING_AGREE * n:
-            return None, "ring %d unclear (%s %d/%d)" % (k + 1, best, votes[best], n), colours
+            return None, "ring %d unclear (%s %d/%d) %s" % (k + 1, best, votes[best], n,
+                                                          ring_info(labs, ref, glare)), colours
         colours.append(best)
         total += COLOR_VALUE[best]
 

@@ -25,10 +25,12 @@
 #   label = what the ring colours add up to (H/S/U; F = fake sum; - = a ring has no colour);
 #   wall_n / white_n = patches in the annulus just outside the circle / how many look like
 #   wall; wall_L / wall_chroma = their median raw L and chroma (WALL_L_MIN / WALL_CHROMA_MAX);
-#   ringK = colour:share:L:a:b:dist:ratio = the colour most of the ring's patches voted for,
+#   ringK = colour:share:L:a:b:dist:ratio:glare:rawL = the colour most of the ring's patches voted for,
 #   the share that voted for it (RING_AGREE), the median wall-normalised LAB of its patches,
-#   the median distance to the nearest colour centre (MAX_COLOR_DIST) and the median
-#   nearest / 2nd-nearest distance (MARGIN_RATIO).
+#   the median distance to the nearest colour centre (MAX_COLOR_DIST), the median
+#   nearest / 2nd-nearest distance (MARGIN_RATIO), the patches left out as glare (raw L more
+#   than GLARE_L_MARGIN over wall_L; colour "glare" = fewer than RING_MIN_VOTES left) and the
+#   median raw L of the patches that voted (2026-10-22).
 #   fails = every camera-script limit this circle breaks, joined by "+", or "ok".
 #   Circles are searched with a lower threshold and a wider radius range than the camera
 #   script, so "mag" / "radius" / "rank" = the camera script would not have checked this circle
@@ -74,6 +76,8 @@ RING_FRACS = (0.1, 0.3, 0.5, 0.7, 0.9)
 RING_SAMPLES = 12
 PATCH_HALF_FRAC = 0.04
 RING_AGREE = 0.6
+GLARE_L_MARGIN = 10        # 2026-10-22: ring patches this much brighter than the wall don't vote
+RING_MIN_VOTES = 5
 WALL_FRAC = 1.25
 WALL_WHITE_FRAC = 0.5      # 2026-10-22 (was 0.6)
 WALL_L_MIN = 65
@@ -196,23 +200,30 @@ def target_metrics(img, x, y, r):
         pts = [(x, y)] if k == 0 else []   # the centre belongs to the inner circle
         for ca, sa in ANGLES:
             pts.append((int(x + frac * r * ca + 0.5), int(y - frac * r * sa + 0.5)))
-        votes = {}; labs = []; d1s = []; ratios = []
+        votes = {}; labs = []; d1s = []; ratios = []; raw_l = []; glare = 0
         if ref is not None:
             for px, py in pts:
                 lab = patch_lab(img, px, py, half)
                 if lab is None:
                     continue
+                if lab[0] > ref[0] + GLARE_L_MARGIN:
+                    glare += 1     # brighter than the wall: doesn't vote (as in check_target())
+                    continue
                 nl = normalise(lab, ref)
                 name, d1, d2 = classify_detail(nl)
                 votes[name] = votes.get(name, 0) + 1
-                labs.append(nl); d1s.append(d1); ratios.append(d1 / max(d2, 0.001))
-        if labs:
+                labs.append(nl); d1s.append(d1); ratios.append(d1 / max(d2, 0.001)); raw_l.append(lab[0])
+        if len(labs) >= RING_MIN_VOTES or (labs and not glare):
             col = max(votes, key=votes.get)
             ring = {"col": col, "share": votes[col] / len(labs),
                     "L": median([l[0] for l in labs]), "a": median([l[1] for l in labs]),
                     "b": median([l[2] for l in labs]), "dist": median(d1s), "ratio": median(ratios)}
         else:
-            ring = {"col": "none", "share": 0.0, "L": -1, "a": 0, "b": 0, "dist": -1, "ratio": -1}
+            # "glare" = too few patches left once the glare is taken out (check_target() rejects)
+            ring = {"col": "glare" if glare else "none", "share": 0.0, "L": -1, "a": 0, "b": 0,
+                    "dist": -1, "ratio": -1}
+        ring["glare"] = glare
+        ring["rawL"] = median(raw_l) if raw_l else -1
         m["rings"].append(ring)
         if ring["col"] in COLOR_VALUE:
             total += COLOR_VALUE[ring["col"]]
@@ -346,7 +357,7 @@ def fails(m, y, hough_r, mag, rank, dup):
     elif m["white_n"] < WALL_WHITE_FRAC * m["wall_n"]:
         f.append("nowall")
     for k, g in enumerate(m["rings"]):
-        if g["col"] in ("white", "unknown", "none"):
+        if g["col"] in ("white", "unknown", "none", "glare"):
             f.append("ring%d%s" % (k + 1, "off" if g["col"] == "none" else g["col"]))
         elif g["share"] < RING_AGREE:
             f.append("ring%dunclear" % (k + 1))
@@ -354,7 +365,8 @@ def fails(m, y, hough_r, mag, rank, dup):
     return f
 
 def ring_text(g):
-    return "%s:%.2f:%.0f:%.0f:%.0f:%.0f:%.2f" % (g["col"], g["share"], g["L"], g["a"], g["b"], g["dist"], g["ratio"])
+    return "%s:%.2f:%.0f:%.0f:%.0f:%.0f:%.2f:%d:%d" % (g["col"], g["share"], g["L"], g["a"], g["b"], g["dist"],
+                                                     g["ratio"], g["glare"], g["rawL"])
 
 def spread(vals):
     if not vals:
@@ -366,14 +378,14 @@ def spread(vals):
 # ============================== MAIN LOOP ===============================================
 print("#CFG camera=%s scene=%s note=%s motion=%s rings=%s frames=%d circle_thr=%d r=%d-%d candidates=%d "
       "row=%d-%d ring_agree=%.2f wall_white=%.2f wall_L>=%d wall_chroma<=%d max_dist=%d margin=%.2f "
-      "measure_thr=%d measure_r=%d-%d refine=%s rays=%d edge_dist=%d" %
+      "measure_thr=%d measure_r=%d-%d refine=%s rays=%d edge_dist=%d glare_margin=%d min_votes=%d" %
       (CAMERA_NAME, SCENE, NOTE, MOTION, "/".join(EXPECT) or "-", FRAMES, CIRCLE_THRESHOLD, R_MIN, R_MAX,
        MAX_CIRCLE_CANDIDATES, ROW_MIN, ROW_MAX, RING_AGREE, WALL_WHITE_FRAC, WALL_L_MIN, WALL_CHROMA_MAX,
        MAX_COLOR_DIST, MARGIN_RATIO, MEASURE_CIRCLE_THRESHOLD, MEASURE_R_MIN, MEASURE_R_MAX,
-       REFINE, REFINE_RAYS, REFINE_EDGE_DIST))
+       REFINE, REFINE_RAYS, REFINE_EDGE_DIST, GLARE_L_MARGIN, RING_MIN_VOTES))
 print("#CENTRES " + " ".join("%s=%d/%d/%d" % (k, v[0], v[1], v[2]) for k, v in COLOR_CENTRES.items()))
 print("#COLS T,frame,label,x,y,r,mag,fit,hough (x:y:r),wall_n,white_n,wall_L,wall_chroma,"
-      "ring1,ring2,ring3,ring4,ring5 (colour:share:L:a:b:dist:ratio),sum,fails")
+      "ring1,ring2,ring3,ring4,ring5 (colour:share:L:a:b:dist:ratio:glare:rawL),sum,fails")
 
 clock = time.clock()
 frames_with_circle = 0       # frames with any circle
@@ -456,7 +468,7 @@ for frame in range(1, FRAMES + 1):
         if SCENE != "none":
             for k, g in enumerate(m["rings"]):
                 ring_read[k][g["col"]] = ring_read[k].get(g["col"], 0) + 1
-                if g["col"] != "none":
+                if g["col"] not in ("none", "glare"):
                     ring_lab[k][0].append(g["L"]); ring_lab[k][1].append(g["a"]); ring_lab[k][2].append(g["b"])
 
     if DRAW:   # last, so it never touches measured pixels
