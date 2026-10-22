@@ -162,6 +162,10 @@ struct Params {
   double homeCarry = 0;    // test 5: when it sets off home, pause 3 s and put it on a tile next to the start, facing the start
   double testNoCheckpoints = 0; // 1 = silver tiles become white (after a pause the code goes back to its last checkpoint)
   double testWide = 0;     // t6: the obstacle's tile is open on the side away from the obstacle (room to drive around it)
+  // 1 = checkpoint tiles are grey, not reflective silver (the 2026-10-22 event field): they read like the team's grey
+  // tile (red 304, blue 568, measured; green and clear assumed), which read_color() takes for a plain tile. The referee
+  // still restarts the robot on the last one it visited.
+  double greyCheckpoints = 0;
 } P;
 
 // --set name=value overrides any of the numbers above
@@ -186,7 +190,8 @@ static std::map<std::string, double *> paramTable() {
     {"runTimeS", &P.runTimeS}, {"lopAnyDirection", &P.lopAnyDirection}, {"captainGivesUp", &P.captainGivesUp}, {"slopeDrag", &P.slopeDrag}, {"startPauseS", &P.startPauseS}, {"stuckTimeoutS", &P.stuckTimeoutS}, {"oracleTile", &P.oracleTile}, {"oracleCentre", &P.oracleCentre},
     {"testPos", &P.testPos}, {"testOffsetMm", &P.testOffsetMm}, {"testTurnDeg", &P.testTurnDeg}, {"testGyroZero", &P.testGyroZero},
     {"carryTest", &P.carryTest}, {"carryAfterTiles", &P.carryAfterTiles}, {"homeCarry", &P.homeCarry},
-    {"carryOnRevisit", &P.carryOnRevisit}, {"testNoCheckpoints", &P.testNoCheckpoints}, {"testWide", &P.testWide}};
+    {"carryOnRevisit", &P.carryOnRevisit}, {"testNoCheckpoints", &P.testNoCheckpoints}, {"testWide", &P.testWide},
+    {"greyCheckpoints", &P.greyCheckpoints}};
 }
 
 static bool setParam(const std::string &kv) {
@@ -225,6 +230,7 @@ static double runStartUs = 0;
 
 // robot pose: x east, y north (mm, field corner = 0,0); heading clockwise from north (deg)
 static double rx, ry, rhead, rpitch = 0;
+static double mapStartHead = 0; // --scenario <file>.txt: the start tile's facing (0 north, 90 east, ...)
 struct Motor { int dir = RELEASE; int pwm = 0; double speed = 0, gain = 1, traction = 1, encFrac = 0; };
 static Motor mot[5];                   // 1 = A (left), 2 = B (right), 3 = C (left), 4 = D (right, mounted reversed)
 static double gyroBiasDegPerUs = 0;
@@ -824,7 +830,7 @@ static void lackOfProgress(const char *why) {
   rx = (cpX + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (cpY + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   // RCJ 2026 5.5.2: after a lack of progress "the robot can be installed in any direction"
-  rhead = wrap360((P.lopAnyDirection > 0 ? 90.0 * std::uniform_int_distribution<int>(0, 3)(rng) : 0.0) + gauss(P.placeSigmaDeg));
+  rhead = wrap360((P.lopAnyDirection > 0 ? 90.0 * std::uniform_int_distribution<int>(0, 3)(rng) : mapStartHead) + gauss(P.placeSigmaDeg));
   for (int i = 1; i <= 4; i++) mot[i].speed = 0;
   lastTileX = cpX; lastTileY = cpY; lastProgressUs = tUs + P.lopPauseS * 1e6;
   curTile = W.id(cpX, cpY); stillUs = 0; blueStopped = false; lastStillX = rx; lastStillY = ry;
@@ -1006,6 +1012,7 @@ void Adafruit_TCS34725::getRawData(uint16_t *r, uint16_t *g, uint16_t *b, uint16
   if (t == field::BLACK_T) { R = 40; G = 45; B = 40; C = 120; }
   if (t == field::BLUE_T) { R = 150; G = 220; B = 520; C = 900; }
   if (t == field::SILVER_T) { R = 1100; G = 1150; B = 1100; C = 3500; }
+  if (t == field::SILVER_T && P.greyCheckpoints > 0) { R = 304; G = 450; B = 568; C = 1300; }
   double maxCount = std::min(65535.0, (256 - (int)it_) * 1024.0); // AMS datasheet: max RGBC count
   auto noisy = [maxCount](double v) { return (uint16_t)std::min(maxCount, std::max(0.0, std::round(v * (1 + gauss(P.colourNoise))))); };
   *r = noisy(R); *g = noisy(G); *b = noisy(B); *c = noisy(C);
@@ -1386,6 +1393,93 @@ static void testField(const std::string &name, std::mt19937 &frng) {
   }
 }
 
+// --scenario <file>.txt: a real field drawn as text (tools/sim/physics/fields/README.md has the format). The file is looked
+// for as given, then in fields/ next to the simulator. Returns "" or what is wrong with the file.
+static double mapRampDeg = -1; // from a "ramp_deg" line; otherwise drawn from rampMinDeg..rampMaxDeg
+static std::string mapField(const std::string &path, const std::string &exeDir, std::mt19937 &frng, double &startHead) {
+  std::ifstream f(path);
+  for (const std::string &dir : {exeDir + "/fields/", exeDir + "/../fields/"}) if (!f) { f.clear(); f.open(dir + path); }
+  if (!f) return "cannot open " + path;
+  std::vector<std::string> g;
+  std::string line;
+  bool drawn = false; // the drawing ends at the first blank line after it
+  while (std::getline(f, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    std::istringstream ls(line);
+    std::string key;
+    ls >> key;
+    if (key.empty()) { drawn = drawn || !g.empty(); continue; }
+    if (key[0] == '#') continue;
+    if (key == "ramp_deg") { ls >> mapRampDeg; continue; }
+    if (key == "tile_mm") { ls >> field::TILE; continue; } // the field's tile pitch (a --set tileMm= on the command line is overridden)
+    if (!drawn && (line[0] == '+' || !g.empty())) g.push_back(line);
+  }
+  if (g.size() < 3 || g.size() % 2 == 0 || g[0][0] != '+') return "the drawing must start and end with a +---+ line";
+  int w = (int)(g[0].size() - 1) / 4, h = (int)(g.size() - 1) / 2;
+  for (std::string &s : g) s.resize(4 * w + 1, ' ');
+  W = field::World();
+  W.W = w; W.H = h;
+  W.wall.assign(w * h, {{false, false, false, false}});
+  W.type.assign(w * h, field::FLOOR); W.level.assign(w * h, 0); W.bump.assign(w * h, 0);
+  bool start = false;
+  int rx0 = w, rx1 = -1;
+  std::uniform_real_distribution<double> u(0, 1);
+  for (int r = 0; r < h; r++) {
+    int y = h - 1 - r; // first drawn row is the north edge
+    const std::string &north = g[2 * r], &cells = g[2 * r + 1], &south = g[2 * r + 2];
+    for (int x = 0; x < w; x++) {
+      int i = W.id(x, y);
+      W.wall[i][0] = north[4 * x + 2] == '-';
+      W.wall[i][2] = south[4 * x + 2] == '-';
+      W.wall[i][3] = cells[4 * x] == '|';
+      W.wall[i][1] = cells[4 * x + 4] == '|';
+      char c0 = cells[4 * x + 1], c1 = cells[4 * x + 2], c2 = cells[4 * x + 3];
+      switch (c0) {
+        case ' ': case '.': break;
+        case 'S': start = true; W.sx = x; W.sy = y;
+                  startHead = c2 == '>' ? 90 : c2 == 'v' ? 180 : c2 == '<' ? 270 : 0; break;
+        case 'B': W.type[i] = field::BLUE_T; break;
+        case 'K': W.type[i] = field::BLACK_T; break;
+        case 'C': W.type[i] = field::SILVER_T; break;
+        case 'R': W.type[i] = field::RAMP_T; rx0 = std::min(rx0, x); rx1 = std::max(rx1, x); break;
+        case 'X': W.type[i] = field::SOLID_T; break;
+        default: return std::string("unknown tile '") + c0 + "' in row " + std::to_string(r + 1);
+      }
+      if (c1 == '1') W.level[i] = 1;
+      if (c0 != 'S' && c2 == '=') W.bump[i] = 1;      // strip running east-west (crossed going north or south)
+      if (c0 != 'S' && c2 == 'I') W.bump[i] = 2;      // strip running north-south
+      if (c0 != 'S' && c2 == 'o') {                   // obstacle in the open, size and exact place from the seed
+        double rr = P.obstacleRMinMm + (P.obstacleRMaxMm - P.obstacleRMinMm) * u(frng);
+        W.obstacles.push_back({(x + 0.4 + 0.2 * u(frng)) * field::TILE, (y + 0.4 + 0.2 * u(frng)) * field::TILE, rr});
+      }
+    }
+  }
+  if (!start) return "no start tile (S)";
+  for (int i = 0; i < w * h; i++) if (W.type[i] == field::SOLID_T) // outside the field: closed on every side
+    for (int d = 0; d < 4; d++) {
+      W.wall[i][d] = true;
+      int nx = i % w + field::DX[d], ny = i / w + field::DY[d];
+      if (W.in(nx, ny)) W.wall[W.id(nx, ny)][(d + 2) % 4] = true;
+    }
+  for (int i = 0; i < w * h; i++) for (int d = 0; d < 4; d++) { // a wall drawn on one side is on both
+    int nx = i % w + field::DX[d], ny = i / w + field::DY[d];
+    if (W.wall[i][d] && W.in(nx, ny)) W.wall[W.id(nx, ny)][(d + 2) % 4] = true;
+  }
+  if (rx1 >= 0) { // one ramp corridor running east-west: every ramp row covers the same columns, level tiles at both ends
+    if (rx0 == 0 || rx1 == w - 1) return "a ramp needs a level tile at both ends (east and west)";
+    for (int y = 0; y < h; y++) {
+      int n = 0;
+      for (int x = rx0; x <= rx1; x++) n += W.type[W.id(x, y)] == field::RAMP_T;
+      if (n && n != rx1 - rx0 + 1) return "ramp tiles must run east-west over the same columns in every ramp row";
+    }
+    W.rampX0 = rx0; W.rampLen = rx1 - rx0 + 1;
+    W.rampDeg = mapRampDeg > 0 ? mapRampDeg : P.rampMinDeg + (P.rampMaxDeg - P.rampMinDeg) * u(frng);
+    W.levelHeight[1] = W.rampLen * field::TILE * std::tan(W.rampDeg * M_PI / 180.0);
+  }
+  W.bumpH = P.bumpHeightMm;
+  return "";
+}
+
 int main(int argc, char **argv) {
   std::string scenario = "loops", tracePath, geomPath;
   long seed = 1;
@@ -1435,12 +1529,28 @@ int main(int argc, char **argv) {
   for (const auto &s : field::SCENARIOS) if (scenario == s.name) sc = &s;
   bool isTest = false;
   for (const auto &s : TEST_FIELDS) if (scenario == s.name) { sc = &s; isTest = true; }
+  bool isMap = scenario.size() > 4 && scenario.compare(scenario.size() - 4, 4, ".txt") == 0;
+  static std::string mapName;
+  static field::Scenario mapSc = {"", 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  if (isMap) { // the result and trace name the field by its file name
+    size_t s = scenario.find_last_of("/\\");
+    mapName = scenario.substr(s == std::string::npos ? 0 : s + 1);
+    mapName.resize(mapName.size() - 4);
+    mapSc.name = mapName.c_str();
+    sc = &mapSc;
+  }
   if (!sc) { std::printf("{\"error\":\"unknown scenario %s\"}\n", scenario.c_str()); return 2; }
   std::mt19937 fieldRng((unsigned)seed * 2654435761u + (unsigned)(isTest ? 100 + (sc - TEST_FIELDS) : sc - field::SCENARIOS));
   field::Extras ex;
   field::TILE = P.tileMm;
   ex.wallT = P.wallThicknessMm; ex.obstacleRate = P.obstacleRate; ex.obstacleRMin = P.obstacleRMinMm; ex.obstacleRMax = P.obstacleRMaxMm; ex.bumpRate = P.bumpRate; ex.bumpH = P.bumpHeightMm;
-  if (isTest) testField(scenario, fieldRng);
+  if (isMap) {
+    std::string exe = argv[0];
+    size_t slash = exe.find_last_of("/\\");
+    std::string err = mapField(scenario, slash == std::string::npos ? "." : exe.substr(0, slash), fieldRng, mapStartHead);
+    if (!err.empty()) { std::printf("{\"error\":\"%s: %s\"}\n", scenario.c_str(), err.c_str()); return 2; }
+  }
+  else if (isTest) testField(scenario, fieldRng);
   else W = field::generate(*sc, fieldRng, P.rampMinDeg, P.rampMaxDeg, ex);
   if (P.testNoCheckpoints > 0) for (int &t : W.type) if (t == field::SILVER_T) t = field::FLOOR;
   indexObstacles();
@@ -1462,8 +1572,9 @@ int main(int argc, char **argv) {
   for (double &ph : magPhase) ph = std::uniform_real_distribution<double>(0, 2 * M_PI)(rng);
   rx = (W.sx + 0.5) * field::TILE + gauss(P.placeSigmaMm);
   ry = (W.sy + 0.5) * field::TILE + gauss(P.placeSigmaMm);
-  rhead = wrap360(gauss(P.placeSigmaDeg));
+  rhead = wrap360(mapStartHead + gauss(P.placeSigmaDeg));
   if (scenario == "t3") { rx -= P.testOffsetMm; rhead = wrap360(rhead - P.testTurnDeg); } // toward the open west side
+  gyroZeroDeg = mapStartHead; // a map's start facing east, south or west: the gyro reads 0 along the start tile's grid
   if (P.testGyroZero > 0) gyroZeroDeg = rhead;
   cpX = W.sx; cpY = W.sy;
   visited.assign(W.W * W.H, false);
