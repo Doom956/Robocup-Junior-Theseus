@@ -46,7 +46,14 @@ static const uint8_t FONT[95][5] = { // classic 5x7, ASCII 32-126, one byte per 
 
 static mbed::DigitalOut *pDin, *pClk, *pCs, *pDc, *pRst, *pBl;
 // Below normal: it only draws while the main loop sleeps, so the screen never slows navigation.
-static rtos::Thread tftThread(osPriorityBelowNormal, 4096);
+// Above normal, but each pass draws for at most DRAW_BUDGET_US and then sleeps PASS_MS: the screen always gets its turn
+// (below normal it never did while the robot drove without a laptop, 2026-10-20) and takes at most ~15% of the
+// processor, in short slices, so navigation is never held up for long.
+static rtos::Thread tftThread(osPriorityAboveNormal, 4096);
+#define DRAW_BUDGET_US 3000
+#define PASS_MS 20
+static unsigned long passStart;
+static bool overBudget(){ return micros() - passStart > DRAW_BUDGET_US; }
 
 // What the callers wrote: 2 rows of 40, like the HD44780's memory (only the first 16 are visible), so code written
 // for the old LCD (e.g. 32 spaces to clear) behaves the same.
@@ -221,17 +228,18 @@ static void drawMapCell(int r, int c, uint32_t code){
 static void drawMinimap(bool all){
   static uint32_t want[MROWS][MCOLS];
   static uint32_t shown[MROWS][MCOLS];
-  static bool any = false, first = true;
-  if(all) first = true;
+  static bool any = false, init = false;
+  if(!init || all){ memset(shown, 0xFF, sizeof(shown)); init = true; } // 0xFFFFFFFF is never a tile code: redraw all
   if(mapMutex.trylock()){
     if(mapValid){ memcpy(want, mapSnap, sizeof(want)); any = true; }
     mapMutex.unlock();
   }
   if(!any) return;
   for(int r = 0; r < MROWS; r++)
-    for(int c = 0; c < MCOLS; c++)
-      if(first || want[r][c] != shown[r][c]){ drawMapCell(r, c, want[r][c]); shown[r][c] = want[r][c]; }
-  first = false;
+    for(int c = 0; c < MCOLS; c++){
+      if(overBudget()) return; // the rest next pass
+      if(want[r][c] != shown[r][c]){ drawMapCell(r, c, want[r][c]); shown[r][c] = want[r][c]; }
+    }
 }
 
 static int rowLen(const char *r){ int n = 40; while(n > 0 && r[n - 1] == ' ') n--; return n; }
@@ -242,34 +250,35 @@ static void tftLoop(){
   char shown[2][40]; memset(shown, 0, sizeof(shown)); // 0 never matches: everything is drawn once
   uint16_t shownFg[2] = {0, 0};
   int shownScale[2] = {0, 0};
+  int clearRow[2] = {BAND_H, BAND_H}; // a band being cleared (font size changed): next pixel row to clear
   unsigned long lastRefresh = millis(), lastWake = millis();
   while(true){
+    passStart = micros();
     bool all = false;
-    if(millis() - lastWake >= WAKE_MS){ panelInit(false); lastWake = millis(); } // a few bytes: sleep out, display on
-    if(millis() - lastRefresh >= REFRESH_MS){ lastRefresh = millis(); all = true; } // redraw everything
+    if(millis() - lastWake >= WAKE_MS){ panelInit(false); lastWake = millis(); passStart = micros(); } // sleep out, display on
+    if(millis() - lastRefresh >= REFRESH_MS){ lastRefresh = millis(); all = true; memset(shown, 0, sizeof(shown)); }
     char snap[2][40];
-    if(lcdMutex.trylock()){ memcpy(snap, text, sizeof(snap)); lcdMutex.unlock(); }
-    else { rtos::ThisThread::sleep_for(std::chrono::milliseconds(20)); continue; }
-    for(int r = 0; r < 2; r++){
+    bool got = false;
+    if(lcdMutex.trylock()){ memcpy(snap, text, sizeof(snap)); lcdMutex.unlock(); got = true; }
+    for(int r = 0; got && r < 2; r++){
       // red for a warning ("!GYRO ..."), green for READY, else white (position line) / yellow (event line)
       uint16_t fg = snap[r][0] == '!' ? COL_RED : (r == 1 && strncmp(snap[r], "READY", 5) == 0) ? COL_GREEN
                     : (r == 0 ? COL_WHITE : COL_YELLOW);
       int len = rowLen(snap[r]);
       int sc = len <= 17 ? 3 : len <= 26 ? 2 : 1;               // shrink the font to fit the line
+      if(sc != shownScale[r]){ clearRow[r] = 0; shownScale[r] = sc; memset(shown[r], 0, sizeof(shown[r])); }
+      if(fg != shownFg[r]){ shownFg[r] = fg; memset(shown[r], 0, sizeof(shown[r])); }
+      while(clearRow[r] < BAND_H && !overBudget()){ fill(0, Y0[r] + clearRow[r], TFT_W, 2, COL_BLACK); clearRow[r] += 2; }
+      if(clearRow[r] < BAND_H) continue; // still clearing: text next pass
       int cols = (TFT_W - 2 * TEXT_X) / (6 * sc); if(cols > 40) cols = 40;
       int y = Y0[r] + (BAND_H - 8 * 2 * sc) / 2;
-      bool redo = all || fg != shownFg[r] || sc != shownScale[r];
-      if(sc != shownScale[r]) fill(0, Y0[r], TFT_W, BAND_H, COL_BLACK); // (not on the refresh: no flicker)
-      for(int c = 0; c < cols; c++){
-        if(redo || snap[r][c] != shown[r][c]){
-          drawCell(TEXT_X + c * 6 * sc, y, snap[r][c], fg, sc, 2 * sc);
-          shown[r][c] = snap[r][c];
-        }
+      for(int c = 0; c < cols && !overBudget(); c++){
+        if(snap[r][c] != shown[r][c]){ drawCell(TEXT_X + c * 6 * sc, y, snap[r][c], fg, sc, 2 * sc); shown[r][c] = snap[r][c]; }
       }
-      shownFg[r] = fg; shownScale[r] = sc;
     }
-    drawMinimap(all);
-    rtos::ThisThread::sleep_for(std::chrono::milliseconds(30));
+    if(!overBudget()) drawMinimap(all);
+    else if(all) drawMinimap(true); // over budget: this only marks the map for redrawing
+    rtos::ThisThread::sleep_for(std::chrono::milliseconds(PASS_MS));
   }
 }
 
