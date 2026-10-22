@@ -8,6 +8,7 @@ extern dispenser disp;
 extern char classes[6];
 extern int LEDPIN;
 extern volatile int victimSide;
+extern volatile int victimCode;
 
 void lcdPrint(const char* msg) {
   lcdMutex.lock();
@@ -62,39 +63,25 @@ int readSerial2(){ //right
   }
   return classifyCamByte(sample);
 }
-bool detectCam1(){ // left camera serial4
-   // read buffer
-  // if there is content, take 5 samples and take the most common letter.
-  int samples[5];
-  int n = 0;
-  int maxCount = 0;
-  char res = 0;
+// CHANGED 2026-10-21 (Vision-branch): the cameras confirm a victim themselves before sending
+// H/S/U (same letter / ring sum in 3 of their last 4 frames, every shape and ring check passed),
+// so the 5-byte vote is gone: a letter is signalled and dispensed at once.
+// "c" = a target passed every check in one frame but isn't confirmed yet (the camera's "stop and
+// look"). The robot is stopped by then, so wait up to CAM_CONFIRM_US for the camera's letter.
+const unsigned long CAM_CONFIRM_US = 1500000; // 4 camera frames at ~4-5.6 fps, plus margin
+
+// Victim (0/1/2 = H/S/U) from the byte that woke the camera thread, or the camera's next letter
+// within CAM_CONFIRM_US; -1 = no letter came.
+int waitForLetter(int (*readCam)(), int code){
   timer myTimer;
-  while(n<5){
-    if(myTimer.getTime() > 4*1000000) return false;
-    
-    int value = readSerial1();
-    
-    if(value >= 0){   // only H/S/U
-        samples[n] = value;
-        Serial.println(value);
-        n++;
-    }
+  while(code < 0){
+    if(myTimer.getTime() > CAM_CONFIRM_US) return -1;
+    code = readCam();
   }
-  for(int i =0; i<5;i++){
-    Serial.println(samples[i]);
-  }
-  
-  for(int i=0;i<6;i++){
-    int count = 0;
-    for(int j = 0;j<5;j++){
-      if(samples[j] == i) count++;
-    }
-    if(count > maxCount){
-      maxCount = count;
-      res = classes[i];
-    }
-  }
+  return code;
+}
+
+void signalVictim(char res){
   for(int i = 0; i<5;i++){
     digitalWrite(LEDPIN,HIGH);
     delay(500);
@@ -103,52 +90,23 @@ bool detectCam1(){ // left camera serial4
   }
   char msg[17]; snprintf(msg, sizeof(msg), "victim: %c", res);
   lcdPrint(msg);
-  
+}
+
+bool detectCam1(int code){ // left camera serial4
+  code = waitForLetter(readSerial1, code);
+  if(code < 0) return false;
+  char res = classes[code];
+  Serial.print("left camera victim "); Serial.println(res);
+  signalVictim(res);
   disp.dispenseLeft(res);
   return true;
 }
-bool detectCam2(){
-  // read buffer
-  // if there is content, take 5 samples and take the most common letter.
-  int samples[5];
-  int n = 0;
-  int maxCount = 0;
-  char res = 0;
-  timer myTimer;
-  while(n<5){
-    if(myTimer.getTime() > 4*1000000) return false;
-    
-    int value = readSerial2();
-
-    if(value >= 0){   // only H/S/U
-        samples[n] = value;
-        Serial.println(value);
-        n++;
-    }
-  }
-  for(int i =0; i<5;i++){
-    Serial.println(samples[i]);
-  }
-  
-  for(int i=0;i<6;i++){
-    int count = 0;
-    for(int j = 0;j<5;j++){
-      if(samples[j] == i) count++;
-    }
-    if(count > maxCount){
-      maxCount = count;
-      res = classes[i];
-    }
-  }
-  for(int i = 0; i<5;i++){
-    digitalWrite(LEDPIN,HIGH);
-    delay(500);
-    digitalWrite(LEDPIN,LOW);
-    delay(500);
-  }
-  char msg[17]; snprintf(msg, sizeof(msg), "victim: %c", res);
-  lcdPrint(msg);
-  
+bool detectCam2(int code){ // right camera serial3
+  code = waitForLetter(readSerial2, code);
+  if(code < 0) return false;
+  char res = classes[code];
+  Serial.print("right camera victim "); Serial.println(res);
+  signalVictim(res);
   disp.dispenseRight(res);
   return true;
 }
@@ -158,19 +116,22 @@ bool detectCam2(){
 // serviceCameraVictim() is outside to prevent I2C conflict with centered.x
 void serviceCameraVictim(){
   
+  // CHANGED 2026-10-21: the byte that woke the thread (victimCode) is acted on, not thrown away,
+  // and the buffer is cleared afterwards: the letters the camera kept sending while the robot
+  // blinked and dispensed are not a new victim.
   if(victimSide == 1){            // left camera (Serial3)
     if(detectWall(3) == 0){       // RCJ victims are wall-mounted
       Serial.println("victim at left");
+      if(detectCam1(victimCode)==true) markVictimAtEncoderPosition(TILE_MM);
       clearSerialBuffer1();
-      if(detectCam1()==true) markVictimAtEncoderPosition(TILE_MM);
       victimtoggle = true;
     }
   }
   else if(victimSide == 2){       // right camera (Serial2)
     if(detectWall(1) == 0){
       Serial.println("victim at right");
+      if(detectCam2(victimCode)==true) markVictimAtEncoderPosition(TILE_MM);
       clearSerialBuffer2();
-      if(detectCam2()==true) markVictimAtEncoderPosition(TILE_MM);
       victimtoggle = true;
     }
   }

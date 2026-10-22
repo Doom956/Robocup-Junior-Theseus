@@ -222,11 +222,15 @@ double headingErrorDeg(double targetDeg, double actualDeg) {
 
 // When a camera reports a letter while the robot is moving, the thread raises victimPending; fwd()/absoluteturn()
 // then stop the drivetrain, pause their PID + timer, run detectCam(), and use markVictimAtEncoderPosition() to label the correct tile before resuming.
+// CHANGED 2026-10-21 (Vision-branch): the cameras only send H/S/U for a victim they have confirmed, or "c"
+// ("stop and look": one frame passed every check). The byte that woke the thread is kept in victimCode and
+// detectCam() acts on it at once (a letter is dispensed straight away, "c" waits briefly for the letter).
 
 volatile bool fwdActive = false; // true only while inside fwd()
 volatile bool turnActive = false;
 volatile bool victimPending = false; // a camera reported -> movement must service it
 volatile int  victimSide = 0;        // 1 = left (Serial3), 2 = right (Serial2)
+volatile int  victimCode = -2;       // byte that woke the thread: 0/1/2 = H/S/U, -2 = "c"
 volatile bool isVictim = false;      // a victim already handled during current move
 
 rtos::Thread cameraThread;
@@ -239,7 +243,9 @@ void cameraTask(){
     if((fwdActive||turnActive) && !victimPending && !isVictim){
       
       //if(encoderCount>=0.3*pulsesForDistanceMm(TILE_MM)||encoderCount<=0.7*pulsesForDistanceMm(TILE_MM)){
-        if(readSerial1() != -1){        // left camera (Serial4)
+        int code1 = readSerial1();
+        int code2 = (code1 == -1) ? readSerial2() : -1;   // right only read if left had nothing, as before
+        if(code1 != -1){                // left camera (Serial4)
           if(fwdActive) victimTileFromEncoder(TILE_MM,encoderCount,nx,ny);
           Serial.println("nx, ny");
           Serial.println(nx);
@@ -247,13 +253,14 @@ void cameraTask(){
           Serial.println(mapGrid[nx][ny].getVictim());
           if(mapGrid[nx][ny].getVictim() == false){
             victimSide = 1;
+            victimCode = code1;
             drivetrain.fullstop();           // locks i2cMutex internally
             victimPending = true;
             rtos::ThisThread::sleep_for(std::chrono::milliseconds(10));
             serviceCameraVictim();           // locks i2cMutex internally
           }
         }
-        else if(readSerial2() != -1){   // right camera (Serial3)
+        else if(code2 != -1){           // right camera (Serial3)
           if(fwdActive) victimTileFromEncoder(TILE_MM,encoderCount,nx,ny);
           Serial.println("nx, ny");
           Serial.println(nx);
@@ -261,6 +268,7 @@ void cameraTask(){
           Serial.println(mapGrid[nx][ny].getVictim());
           if(mapGrid[nx][ny].getVictim() == false){
             victimSide = 2;
+            victimCode = code2;
             drivetrain.fullstop();           // locks i2cMutex internally
             victimPending = true;
             rtos::ThisThread::sleep_for(std::chrono::milliseconds(10));

@@ -154,7 +154,7 @@ void absoluteturn(double angle);
 // UART / Camera
 int  readSerial1();
 int  readSerial2();
-bool detectCam1();
-bool detectCam2();
+bool detectCam1(int code);   // code = the byte that woke the camera thread (0/1/2 = H/S/U, -2 = "c")
+bool detectCam2(int code);
 
 #endif
