@@ -3,6 +3,30 @@
 Competition firmware: branch `robot-test`, tag `known-good-2026-10-20` (2026-10-20 maze: home 3 of 3, 2:09 / 2:06 / 1:59,
 ramps 10/10). Details: ROBOT_TEST.md (robot-test). Camera scripts: `Camera_models/` on robot-test (Baichen).
 
+## For the actual runs (values as of calibration day, 2026-10-22)
+
+**Robot firmware:** robot-test `de988e4` with BENCH_MODE 0 (navigation = `known-good-2026-10-20`); the start-up line
+must say `firmware de988e4 robot-test`. Switch to Baichen's `Vision-branch` only if it passed cameras-on practice runs
+today; then write its commit here. Never run with a test mode (BENCH_MODE 2/4/5/6) on the robot.
+
+**Camera files, ready to copy:** `Documents\OpenMV\COMPETITION_2026-10-22\left\` and `...\right\`
+(from robot-test `5d575cb`). On each camera's drive: `main.py`, `labels.txt`, `trained.tflite` from its own folder
+(left folder -> left camera). Eject before unplugging. Check: `CAMERA_NAME` in main.py matches the camera.
+
+| Cognitive-target setting | Left camera | Right camera |
+|---|---|---|
+| black | 35, 2, 11 | 23, -11, 7 |
+| red | 62, 45, 23 | 72, 36, 15 |
+| yellow | 95, 0, 49 | 93, 3, 65 |
+| green | 60, -28, 25 | 51, -45, 35 |
+| blue | 84, -9, -19 | 85, -18, -17 |
+| `WALL_L_MIN` | 48 | 65 (not recalibrated) |
+| `WALL_CHROMA_MAX` | 42 | 35 (not recalibrated) |
+| `CIRCLE_THRESHOLD` | 1000 | 1600 (not recalibrated) |
+
+Letters (H/S/U): unchanged, work as before. Ring values: black -2, red -1, yellow 0, green +1, blue +2;
+sum 2 = H (2 kits), 1 = S (1 kit), 0 = U (none), anything else = fake (ignored).
+
 ## Before every run
 - Battery charged (write down the voltage). LED strips orange = battery low.
 - Gyro cable seated. Cameras plugged in (competition runs) and their LEDs blinking blue.
