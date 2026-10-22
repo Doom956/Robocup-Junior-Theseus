@@ -500,7 +500,8 @@ void finishTileMove(){
   markEdgeBothWays(x_pos, y_pos, currentDir);
   stepForward(currentDir, x_pos, y_pos); // x_pos/y_pos now = new tile
   int color = read_color();
-  if(color == 3 || silverDuringMove == true){
+  // grey checkpoints (the team's field) read as a plain tile: check for one only here, stopped on the tile
+  if(color == 3 || silverDuringMove == true || (color == 0 && greyCheckpoint())){
     mapGrid[x_pos][y_pos].setType(CHECKPOINT);
     x_checkpoint = x_pos; y_checkpoint = y_pos;
     floor_checkpoint = currentFloor;

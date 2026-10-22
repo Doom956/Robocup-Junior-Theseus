@@ -18,5 +18,6 @@ extern rtos::Mutex i2cMutex;
 void init_color();
 int  read_color();
 void takeWhiteReference(); // at the start of the run, on the start tile
+bool greyCheckpoint();     // the tile the robot has stopped on is a grey checkpoint
 
 #endif

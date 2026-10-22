@@ -129,3 +129,27 @@ void takeWhiteReference(){
   Serial.print(", start tile now ");
   Serial.println(clear, 0);
 }
+
+// Checkpoints on the team's field (and the 2026 event, which uses it) are grey, not reflective silver: the robot reads
+// them at 0.42-0.45 of the white reference with blue/red 1.7-1.8 (bench test 9, 2026-10-06, 3 runs), so read_color()
+// takes them for a plain tile. Only called once the robot has stopped on the tile: a reading across a black/white or
+// blue/white edge during a move would also look half as bright. Three readings must agree; on a white tile the first
+// one already says no, so it costs one read per tile.
+bool greyCheckpoint(){
+  for (int i = 0; i < 3; i++) {
+    if (i > 0) delay(60);      // > one integration period, so each read is a new measurement
+    uint16_t r, g, b, c;
+    i2cMutex.lock();
+    myMux.setPort(TCS_PORT);
+    tcs.setInterrupt(true);
+    tcs.getRawData(&r, &g, &b, &c);
+    i2cMutex.unlock();
+    float ratio = (float)c / clear;
+    Serial.print("grey check ");
+    Serial.print(ratio);
+    Serial.print(" b/r ");
+    Serial.println(r > 0 ? (float)b / r : 0);
+    if (ratio < GREY_MIN_RATIO || ratio > GREY_MAX_RATIO || r > SILVER_THRESHOLD || b > 2.5 * r) return false;
+  }
+  return true;
+}

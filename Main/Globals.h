@@ -36,6 +36,8 @@
 #define BLACK_THRESHOLD       0.1f
 #define SILVER_THRESHOLD      800
 #define WHITE_THRESHOLD       0.85f
+#define GREY_MIN_RATIO        0.30f // grey checkpoint tile: clear between these shares of white (robot: 0.42-0.45)
+#define GREY_MAX_RATIO        0.65f // (a dim white spot on the ramp read 0.75)
 #define MULTIPLER             1.1
 #define WALL_MISMATCH_THRESHOLD 2
 #define TARGET_WALL_DISTANCE 80
