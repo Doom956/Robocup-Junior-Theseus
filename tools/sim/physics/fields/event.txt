@@ -1,0 +1,18 @@
+# 2026-10-22 event field: the team's school maze, from the captain's drawing (5 x 6 tiles).
+# Two one-tile ramps up to floor 2 (the two middle tiles of row 3): one from the west, one from the north.
+# Checkpoints are grey on the real field: add --set greyCheckpoints=1 to have the robot read them as plain tiles.
+# The START TILE IS A GUESS (bottom-left, facing north): change S to the real start tile. Ramp angle not measured yet.
+tile_mm 320
++---+---+---+---+---+
+|        K          |
++   +   +   +   +   +
+|B          |R  |   |
++   +---+---+   +   +
+|    R    1   1 |C  |
++   +---+---+---+   +
+|        K  |B      |
++   +---+   +---+   +
+|       |   |       |
++   +   +   +   +   +
+|S ^         C      |
++---+---+---+---+---+
