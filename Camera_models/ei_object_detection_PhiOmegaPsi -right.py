@@ -131,13 +131,13 @@ DUP_FRAC = 0.15          # refined circles this close (x R) to one already check
 # (mean; the runs differ by 7 at most). Was assumed (black 15/0/0, red 55/55/35, yellow 90/-5/70,
 # green 55/-45/25, blue 60/-5/-45). Blue and yellow read pale (glare): blue is only 25 from white.
 COLOR_CENTRES = {
-    "black":  (35,   4,  -3),
-    "red":    (68,  51,  24),
-    "yellow": (97, -11,  32),
-    "green":  (59, -35,  25),
-    "blue":   (90, -19, -14),
+    "black":  (23, -11,   7),
+    "red":    (72,  36,  15),
+    "yellow": (93,   3,  65),
+    "green":  (51, -45,  35),
+    "blue":   (85, -18, -17),
     "white":  (100,  0,   0),  # wall / paper: never a ring colour
-}
+}  # calibrated 2026-10-22 at the venue (right camera)
 COLOR_VALUE = {"black": -2, "red": -1, "yellow": 0, "green": 1, "blue": 2}
 SUM_TO_LABEL = {2: "H", 1: "S", 0: "U"}  # any other sum = fake target, never reported
 L_WEIGHT = 0.5           # L counts half: lighting changes L more than hue
