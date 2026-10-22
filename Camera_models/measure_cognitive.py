@@ -99,13 +99,13 @@ REFINE_GROWN = 1.2       # a fit more than 20% bigger than Hough's circle gets a
                          # fits and pushed them onto a dark rim around the target)
 DUP_FRAC = 0.15          # refined circles this close (x R) to one already checked: skipped
 COLOR_CENTRES = {
-    "black":  (35,   4,  -3),
-    "red":    (68,  51,  24),
-    "yellow": (97, -11,  32),
-    "green":  (59, -35,  25),
-    "blue":   (90, -19, -14),
-    "white":  (100,  0,   0),
-}
+    "black":  (23, -11,   7),
+    "red":    (72,  36,  15),
+    "yellow": (93,   3,  65),
+    "green":  (51, -45,  35),
+    "blue":   (85, -18, -17),
+    "white":  (100,  0,   0),  # wall / paper: never a ring colour
+}  # calibrated 2026-10-22 at the venue (right camera)
 COLOR_VALUE = {"black": -2, "red": -1, "yellow": 0, "green": 1, "blue": 2}
 SUM_TO_LABEL = {2: "H", 1: "S", 0: "U"}
 L_WEIGHT = 0.5
