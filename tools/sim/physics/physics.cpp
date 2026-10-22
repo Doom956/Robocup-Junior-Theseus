@@ -163,7 +163,7 @@ struct Params {
   double testNoCheckpoints = 0; // 1 = silver tiles become white (after a pause the code goes back to its last checkpoint)
   double testWide = 0;     // t6: the obstacle's tile is open on the side away from the obstacle (room to drive around it)
   // 1 = checkpoint tiles are grey, not reflective silver (the 2026-10-22 event field): they read like the team's grey
-  // tile (red 304, blue 568, measured; green and clear assumed), which read_color() takes for a plain tile. The referee
+  // tile (bench test 9, 2026-10-06), which read_color() takes for a plain tile. The referee
   // still restarts the robot on the last one it visited.
   double greyCheckpoints = 0;
 } P;
@@ -1012,7 +1012,9 @@ void Adafruit_TCS34725::getRawData(uint16_t *r, uint16_t *g, uint16_t *b, uint16
   if (t == field::BLACK_T) { R = 40; G = 45; B = 40; C = 120; }
   if (t == field::BLUE_T) { R = 150; G = 220; B = 520; C = 900; }
   if (t == field::SILVER_T) { R = 1100; G = 1150; B = 1100; C = 3500; }
-  if (t == field::SILVER_T && P.greyCheckpoints > 0) { R = 304; G = 450; B = 568; C = 1300; }
+  // the grey tile on the robot (bench test 9, 2026-10-06, 3 runs): r 281 g 413 b 492 c 1181 against white c 2610, here
+  // scaled to this model's white (C 2000): clear 0.45 of white, blue/red 1.75
+  if (t == field::SILVER_T && P.greyCheckpoints > 0) { R = 215; G = 316; B = 377; C = 905; }
   double maxCount = std::min(65535.0, (256 - (int)it_) * 1024.0); // AMS datasheet: max RGBC count
   auto noisy = [maxCount](double v) { return (uint16_t)std::min(maxCount, std::max(0.0, std::round(v * (1 + gauss(P.colourNoise))))); };
   *r = noisy(R); *g = noisy(G); *b = noisy(B); *c = noisy(C);

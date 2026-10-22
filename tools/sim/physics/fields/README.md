@@ -39,6 +39,6 @@ Each tile's 3 characters are: type, level, extra.
 A ramp runs east-west, and every ramp row covers the same columns, with a level tile at each end. If the real ramp runs
 north-south, draw the field turned so that it runs east-west. The robot doesn't know which way north is.
 
-`--set greyCheckpoints=1` makes checkpoints read like the team's grey tile (red 304, blue 568, measured). `read_color()`
+`--set greyCheckpoints=1` makes checkpoints read like the team's grey tile (bench test 9, 2026-10-06: 0.45 of white). `read_color()`
 takes that for a plain tile, so the robot records no checkpoint, but the referee still restarts it on the last one it
 visited.
