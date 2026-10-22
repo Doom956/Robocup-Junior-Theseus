@@ -64,6 +64,11 @@ as the target (check the green circle in the IDE).
 - `MARGIN_RATIO` (0.75): higher = a patch counts as a colour even when it's between two
   colours (more lenient); lower = stricter.
 - `RING_AGREE` (0.6): share of a ring's patches that must agree.
+- `WALL_WHITE_FRAC` (0.5, was 0.6 until the venue 2026-10-22): share of the 12 patches just
+  outside the target that must look like wall. When a target is rejected with "no white wall
+  around", the line says how many patches were too dark (lower `WALL_L_MIN` to a little under
+  the median L it prints) or too coloured (raise `WALL_CHROMA_MAX` a little over its chroma).
+  Only white patches become the colour reference, so a lower share doesn't skew ring colours.
 - `CONFIRM_HITS` / `TRACK_WINDOW` (3 of 4): more = fewer false victims, needs more frames.
 - `HINT_ON_LETTER` (off): turn on if letters are missed while driving; the robot then stops
   on a shape-checked letter and confirms it while still.

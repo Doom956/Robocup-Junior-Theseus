@@ -15,6 +15,8 @@
 #     around it, 5 rings that each have a clear colour, and a sum of 0, 1 or 2.
 #   - CHANGED 2026-10-21: each Hough circle is first moved onto the target's outer edge
 #     (refine_circle); circles that end up on the same target are checked once.
+#   - CHANGED 2026-10-22: the white-wall check needs 6 of 12 patches (was 8), and its
+#     reject line says how many patches were too dark / too coloured.
 #   - Colours: rings are sampled at their middles (0.1/0.3/0.5/0.7/0.9 R) with small median
 #     patches, normalised to the wall around the target, and matched to the nearest
 #     calibrated colour (calibrate_colors.py). Unclear ring -> no target (was: black).
@@ -95,7 +97,9 @@ RING_SAMPLES = 12        # angles per ring (old code: 35, and it skipped 0 deg)
 PATCH_HALF_FRAC = 0.04   # median patch half-size = 0.04 R (stays inside a 0.2 R wide ring)
 RING_AGREE = 0.6         # a ring needs 60% of its patches to agree on one colour
 WALL_FRAC = 1.25         # wall check annulus just outside the target
-WALL_WHITE_FRAC = 0.6    # 60% of the annulus must look like wall
+WALL_WHITE_FRAC = 0.5    # half of the annulus (6 of 12 patches) must look like wall.
+                         # Was 0.6 (8 of 12): venue 2026-10-22, both cameras kept rejecting
+                         # targets with "no white wall around".
 WALL_L_MIN = 48          # left camera, venue 2026-10-22. Was 65: MEASURED 2026-10-21: wall raw L 5% = 80 / 83 (calibrate_colors.py, 2 runs;
                          # it suggested 70 / 73), earlier recording's wall p10 72; the red and
                          # green rings read raw L 47-61, so 65 keeps them from counting as wall.
@@ -348,7 +352,13 @@ def check_target(img, x, y, r):
         return None, "wall annulus off the frame", None
     white = [w for w in wall if is_wall(w)]
     if len(white) < WALL_WHITE_FRAC * len(wall):
-        return None, "no white wall around (%d/%d)" % (len(white), len(wall)), None
+        # NEW 2026-10-22: why the patches failed. Too dark -> WALL_L_MIN is above the wall's L;
+        # too coloured -> WALL_CHROMA_MAX is below its chroma (or the annulus is on the target).
+        dark = sum(1 for w in wall if w[0] < WALL_L_MIN)
+        tinted = sum(1 for w in wall if w[1] * w[1] + w[2] * w[2] > WALL_CHROMA_MAX * WALL_CHROMA_MAX)
+        chroma = median([math.sqrt(w[1] * w[1] + w[2] * w[2]) for w in wall])
+        return None, "no white wall around (%d/%d; %d too dark, %d too coloured; median L %d chroma %.0f)" % (
+            len(white), len(wall), dark, tinted, median([w[0] for w in wall]), chroma), None
     ref = (median([w[0] for w in white]), median([w[1] for w in white]), median([w[2] for w in white]))
 
     # 2. Each ring must have one clear colour. Sampled at the ring middles.
