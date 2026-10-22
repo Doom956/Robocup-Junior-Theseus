@@ -85,7 +85,7 @@ LETTER_MIN_PIXELS = 60
 # 27-52 px (median 35). With 2500 / 50-115 it was checked in 3 of 31 frames, now 28 of 31.
 # Other circles on the same target (inner ring edges, and 1.4-2.3x bigger ones around it) are
 # rejected by the checks below; R_MAX keeps the big ones from taking the 3 candidate places.
-CIRCLE_THRESHOLD = 1600  # just under the weakest target circle (was 2500, assumed).
+CIRCLE_THRESHOLD = 1000  # left camera, venue 2026-10-22. Was 1600: just under the weakest target circle (was 2500, assumed).
                          # The checks below do the rejecting, not this number.
 R_MIN = 25               # smallest target 27 px (was 50)
 R_MAX = 65               # largest target 52 px + 25% for distance (was 115, assumed)
@@ -96,12 +96,12 @@ PATCH_HALF_FRAC = 0.04   # median patch half-size = 0.04 R (stays inside a 0.2 R
 RING_AGREE = 0.6         # a ring needs 60% of its patches to agree on one colour
 WALL_FRAC = 1.25         # wall check annulus just outside the target
 WALL_WHITE_FRAC = 0.6    # 60% of the annulus must look like wall
-WALL_L_MIN = 65          # MEASURED 2026-10-21: wall raw L 5% = 80 / 83 (calibrate_colors.py, 2 runs;
+WALL_L_MIN = 48          # left camera, venue 2026-10-22. Was 65: MEASURED 2026-10-21: wall raw L 5% = 80 / 83 (calibrate_colors.py, 2 runs;
                          # it suggested 70 / 73), earlier recording's wall p10 72; the red and
                          # green rings read raw L 47-61, so 65 keeps them from counting as wall.
                          # Was 45 (assumed). calibrate's suggested WALL_CHROMA_MAX 47 not used:
                          # its loose wall test caps chroma at 40, and pale blue/yellow would pass.
-WALL_CHROMA_MAX = 35     # MEASURED 2026-10-21: the wall around the target read chroma 17-33
+WALL_CHROMA_MAX = 42     # left camera, venue 2026-10-22. Was 35: MEASURED 2026-10-21: the wall around the target read chroma 17-33
                          # (tinted; normalise() removes the tint). Was 22 (assumed): the target
                          # failed "no white wall" (7/12 patches, needs 8).
 
@@ -131,13 +131,13 @@ DUP_FRAC = 0.15          # refined circles this close (x R) to one already check
 # (mean; the runs differ by 7 at most). Was assumed (black 15/0/0, red 55/55/35, yellow 90/-5/70,
 # green 55/-45/25, blue 60/-5/-45). Blue and yellow read pale (glare): blue is only 25 from white.
 COLOR_CENTRES = {
-    "black":  (35,   4,  -3),
-    "red":    (68,  51,  24),
-    "yellow": (97, -11,  32),
-    "green":  (59, -35,  25),
-    "blue":   (90, -19, -14),
+    "black":  (35,   2,  11),
+    "red":    (62,  45,  23),
+    "yellow": (95,   0,  49),
+    "green":  (60, -28,  25),
+    "blue":   (84,  -9, -19),
     "white":  (100,  0,   0),  # wall / paper: never a ring colour
-}
+}  # calibrated 2026-10-22 at the venue (left camera)
 COLOR_VALUE = {"black": -2, "red": -1, "yellow": 0, "green": 1, "blue": 2}
 SUM_TO_LABEL = {2: "H", 1: "S", 0: "U"}  # any other sum = fake target, never reported
 L_WEIGHT = 0.5           # L counts half: lighting changes L more than hue

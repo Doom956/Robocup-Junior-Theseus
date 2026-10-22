@@ -55,7 +55,7 @@ DRAW = True              # show each circle (green = accepted, red = rejected) a
 
 # Circle search for RECORDING: lower threshold and wider radius range than the camera script,
 # so circles it just misses are printed too.
-MEASURE_CIRCLE_THRESHOLD = 1500
+MEASURE_CIRCLE_THRESHOLD = 900  # venue 2026-10-22 (was 1500)
 MEASURE_R_MIN = 20
 MEASURE_R_MAX = 119
 MAX_CIRCLES_RECORDED = 5  # the circles the camera script checks + the strongest others
