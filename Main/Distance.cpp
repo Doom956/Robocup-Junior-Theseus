@@ -651,6 +651,10 @@ static int obstacleavoidanceSteps(int leftright){
         // (failed sensor, wall dead-ahead, or unusual obstacle geometry).
         timer turnTimer;
         const unsigned long TURN_TIMEOUT_US = 2000000; // 2 seconds
+        // CHANGED 2026-10-23: 150, the top power of absoluteturn() (was 255). The 2 A fuse blew twice, both times in this
+        // turn (2026-10-22 practice_vision 16:25, competition run 2 2026-10-23): all four motors at 255 on the spot, up to
+        // 4 x 1.6 A (Pololu stall current). The turn still ends when the far-side sensor clears.
+        const int AVOID_TURN_PWM = 150;
 
         if(leftright == 1){ // obstacle at left
           _ = measure(1);
@@ -661,7 +665,7 @@ static int obstacleavoidanceSteps(int leftright){
             motorB->run(BACKWARD);
             motorD->run(FORWARD);
             i2cMutex.unlock();
-            drivetrain.drive(255,255,255,255);
+            drivetrain.drive(AVOID_TURN_PWM,AVOID_TURN_PWM,AVOID_TURN_PWM,AVOID_TURN_PWM);
             if(Pausemaze == true){
               drivetrain.fullstop();
               return -2;
@@ -679,7 +683,7 @@ static int obstacleavoidanceSteps(int leftright){
             motorB->run(FORWARD);
             motorD->run(BACKWARD); // D is mounted reversed; BACKWARD raw = physically FORWARD, matching motorB
             i2cMutex.unlock();
-            drivetrain.drive(255,255,255,255);
+            drivetrain.drive(AVOID_TURN_PWM,AVOID_TURN_PWM,AVOID_TURN_PWM,AVOID_TURN_PWM);
             if(Pausemaze == true){
               drivetrain.fullstop();
               return -2;
