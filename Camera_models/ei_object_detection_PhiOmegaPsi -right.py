@@ -46,6 +46,13 @@ DEFAULT_CONFIDENCE = 0.9
 EXPOSURE_US = 10000      # kept from the old script. Shorter = less blur while moving;
                          # try 5000 with EXTRA_GAIN_DB ~6 and re-run calibrate_colors.py.
 EXTRA_GAIN_DB = 0        # added to the gain the camera settled on at start-up.
+# CHANGED 2026-10-22 (right camera, home tests): the lock took whatever gain the camera settled on in its
+# first 2 s (0.0 to 2.4 dB across power-ups), so letters scored differently after each restart and the
+# trident needed 2.3 cm closer than with automatic gain. Fixed values instead (None = old behaviour).
+# FIXED_GAIN_DB: TO TEST (higher = brighter picture). RGB gains = the right camera's own locked values
+# at home (64.9-65.5, 60.8-61.8, 60.206).
+FIXED_GAIN_DB = 6.0
+FIXED_RGB_GAIN_DB = (65.0, 61.4, 60.206)
 LOCK_GAIN_AND_WB = True  # NEW: stops colours drifting when a dark tile / bright wall
                          # comes into view. Locks at whatever it sees at power-up,
                          # so start it facing a normal lit wall.
@@ -158,12 +165,16 @@ MARGIN_RATIO = 0.75      # nearest must be clearly nearer than the 2nd nearest.
 # --- stop hints ("c" byte; the robot stops for any byte, then waits for H/S/U) ---
 HINT_ON_TARGET = True    # a target that passed every check in one frame -> "c"
 HINT_ON_LETTER = False   # turn on if letters are missed while driving past
+LETTER_SHAPE_CHECK = False  # CHANGED 2026-10-22 (home test, left camera): the size/density/contrast checks
+                            # rejected a correct, steady Omega for 45+ frames in a row; the Korea script (no shape
+                            # check) sent it every frame. False: a FOMO hit above CLASS_CONFIDENCE counts, the 3-of-4
+                            # persistence still applies. Plain wall: test.
 
 # --- debugging ---
-DEBUG_PRINT = True       # one line per candidate with the reason it was accepted/rejected
+DEBUG_PRINT = False      # one line per candidate with the reason it was accepted/rejected
 DEBUG_SAVE = False       # save frames with candidates + log.csv to the SD card
 DEBUG_MAX_FILES = 400
-DEBUG_DRAW = True        # overlays for the OpenMV IDE preview (drawn last)
+DEBUG_DRAW = False       # overlays for the OpenMV IDE preview (drawn last)
 
 # ============================== CAMERA SET-UP ===========================================
 sensor.reset()
@@ -177,11 +188,11 @@ sensor.skip_frames(time=2000)          # let gain / white balance settle at this
 if LOCK_GAIN_AND_WB:
     # NEW: freeze gain and white balance so colours don't drift frame to frame.
     try:
-        gain = sensor.get_gain_db()
-        rgb_gain = sensor.get_rgb_gain_db()
+        gain = sensor.get_gain_db() if FIXED_GAIN_DB is None else FIXED_GAIN_DB
+        rgb_gain = sensor.get_rgb_gain_db() if FIXED_RGB_GAIN_DB is None else FIXED_RGB_GAIN_DB
         sensor.set_auto_gain(False, gain_db=gain + EXTRA_GAIN_DB)
         sensor.set_auto_whitebal(False, rgb_gain_db=rgb_gain)
-        print("locked gain %.1f dB, rgb gain %s" % (gain + EXTRA_GAIN_DB, str(rgb_gain)))
+        print("%s gain %.1f dB, rgb gain %s" % ("fixed" if FIXED_GAIN_DB is not None else "locked", gain + EXTRA_GAIN_DB, str(rgb_gain)))
     except Exception as e:
         print("could not lock gain/white balance:", e)
 
@@ -676,7 +687,10 @@ while True:
         for x, y, w, h, score in detection_list:
             letter_seen = True
             cx = math.floor(x + (w / 2)); cy = math.floor(y + (h / 2))   # FOMO centre, as in the original script
-            ok, reason, size = check_letter(img, cx, cy)
+            if LETTER_SHAPE_CHECK:
+                ok, reason, size = check_letter(img, cx, cy)
+            else:
+                ok, reason, size = True, "no shape check", 0
             debug_log(frame, "letter", name, cx, cy, size, ok, reason + " score %.2f" % score)
             if ok:
                 dets.append(("letter", cx, cy, size, name))

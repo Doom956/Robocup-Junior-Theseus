@@ -22,6 +22,30 @@ Plan it follows: `VISION_FIX_PROMPT.md`. **Not tested on a camera yet.**
 | FOMO sometimes got colour frames with circles drawn on | FOMO always gets the clean grayscale frame |
 | Left skipped letters when any circle was seen | Both checked every frame |
 
+## Competition version (2026-10-22 night, home tests in the OpenMV IDE)
+The two scripts here are byte-for-byte what is on the cameras (debug printing and drawing off;
+turn `DEBUG_PRINT` / `DEBUG_DRAW` on for IDE checks). Three changes on top of 9afa037:
+- **`LETTER_SHAPE_CHECK = False`**: a FOMO hit above `CLASS_CONFIDENCE` counts; the 3-of-4 persistence
+  still applies. The shape checks rejected correct, steady letters at run distance on every frame or
+  for 45+ frames in a row: right camera, trident "size 49 px" (limit 50) on all frames; left, Omega
+  "size 120 px" / "low contrast" at scores 0.74-0.87. Plain white sheet with the checks off: nothing
+  sent (both cameras). Not tested: a real wall seam or corner.
+- **`FIXED_GAIN_DB = 6.0` + `FIXED_RGB_GAIN_DB`** (each camera's own white balance): the start-up lock
+  took whatever the camera settled on (0.0-3.2 dB across power-ups), so scores changed after every
+  restart and the wall around targets read L 50-75 ("too dark"). Right camera, same trident spot:
+  locked 1 frame in 2-3 accepted, automatic 1 in 2, fixed 6 dB every frame at 0.80-0.90; green (U) and
+  yellow (H) targets on almost every frame at run distance, Phi / Omega 0.98-0.99. Set at home:
+  **check at the venue** (letters missed / "too dark" -> higher; "ring .. glare" on real targets -> lower).
+- **Left `CLASS_CONFIDENCE` U 0.6** (H, S 0.7): its blurry lens gives Omega 0.60-0.72.
+
+Left camera lens (threadlocked, front part turned and put back on 2026-10-22): the trident reads as
+Phi (H 0.75-0.93, S under 0.4) in every script, at every limit; yellow-outer targets fail the ring
+check (the letter model calls that one H). Fix = a new lens, focused at run distance.
+
+Fallback if this stops working and we only want letters: the pre-rewrite script (683c632). It finds
+letters on every frame (scores just over its limits) but can't read cognitive targets (needs them very
+close and read the green U target as H) and sends "c" for any circle.
+
 ## Measuring the ASSUMED values (measure_letters.py + measure_cognitive.py)
 Both run the camera scripts' checks but reject nothing, and print one line per detection
 to the OpenMV IDE terminal, with every limit it breaks (`fails`), then a `#SUM` summary.
