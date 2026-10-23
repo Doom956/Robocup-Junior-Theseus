@@ -49,6 +49,7 @@ void runBench(); // bench.cpp
 void runMoveTests(); // bench.cpp
 void runLcdTest(); // bench.cpp
 void runDispenserTest(); // bench.cpp
+void runDistanceCheck(); // bench.cpp
 
 // 1 = bench mode: instead of a run, measure the values the simulator guesses (see bench.cpp). 2 = move tests: the
 // turns and one-tile moves on an open floor, no maze needed (bench.cpp, runMoveTests()). 3 = LCD test. 0 for competition.
@@ -601,6 +602,8 @@ void setup(){
   lcdStartupCheck(); // gyro, colour sensor, distance sensors: a problem stays on line 2
 #if BENCH_MODE == 3
   runLcdTest(); // never returns
+#elif BENCH_MODE == 8
+  runDistanceCheck(); // never returns
 #elif BENCH_MODE == 4
   runDispenserTest(); // never returns
 #elif BENCH_MODE == 2

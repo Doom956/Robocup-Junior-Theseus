@@ -637,3 +637,71 @@ void runDispenserTest(){
   Serial.println("[BENCH] dispenser test finished (all 8 should be out)");
   while(true){ blink(200); delay(20); }
 }
+
+// ---- distance sensors (BENCH_MODE 8): which sensor pair reads square at the wrong heading ----
+// 2026-10-23: since the afternoon, 8 of 24 moves started 3-5 deg off after paralleling (0-1 of 20 in the morning). No
+// placing by hand: in a straight corridor tile (walls left and right, ideally one ahead) the robot turns itself in 3 deg
+// steps from -12 to +12 deg and, for each pair, finds the heading where its two sensors read the same (the pair is
+// square to its wall there). The side walls are parallel and the wall ahead square to them, so every pair should be
+// square at the same heading. A pair that is square somewhere else is crooked, loose or one sensor reads long/short:
+// paralleling squares the robot to that wrong angle. Readings as the run uses them (SENSOR_OFFSET_MM applied).
+static bool distWall(int v){ return v > 0 && v < 400; }
+static int distAvg(int sensor){
+  long sum = 0; int n = 0;
+  for(int i = 0; i < 3; i++){ int v = measure(sensor); if(distWall(v)){ sum += v; n++; } }
+  return n ? (int)(sum / n) : -1;
+}
+struct DistFit { double sx = 0, sy = 0, sxx = 0, sxy = 0; int n = 0;
+  void add(double x, double y){ sx += x; sy += y; sxx += x * x; sxy += x * y; n++; }
+  bool ok() const { return n >= 4 && fabs(n * sxx - sx * sx) > 1e-6; }
+  double slope() const { return (n * sxy - sx * sy) / (n * sxx - sx * sx); }
+  double zero() const { double b = slope(); double a = (sy - b * sx) / n; return fabs(b) > 1e-6 ? -a / b : 0; } };
+static void distReport(const char *name, const char *sensors, const DistFit &f){
+  Serial.print("[BENCH] "); Serial.print(name); Serial.print(" pair ("); Serial.print(sensors); Serial.print("): ");
+  if(!f.ok()){ Serial.println("no wall in enough steps"); return; }
+  Serial.print("square at "); Serial.print(f.zero(), 1); Serial.print(" deg, "); Serial.print(f.slope(), 2);
+  Serial.print(" mm/deg ("); Serial.print(f.n); Serial.println(" steps)");
+}
+void runDistanceCheck(){
+  pinMode(LEDPIN, OUTPUT);
+  Serial.println("[BENCH] distance sensor check (BENCH_MODE 8): the robot turns -12..+12 deg by itself in a straight corridor");
+  Serial.println("[BENCH] pairs: left = sensor 6 (front) / 5 (back), right = 2 (front) / 3 (back), front = 7 (left) / 1 (right)");
+  while(true){
+    waitForSwitch("8 sensors", "robot in the middle of a straight corridor tile (walls left and right, one ahead if possible), roughly square");
+    const double h0 = myGyro.heading();
+    DistFit left, right, front;
+    for(int off = -12; off <= 12; off += 3){
+      double target = fmod(h0 + off + 360.0, 360.0);
+      absoluteturn(target);
+      drivetrain.fullstop();
+      delay(250);
+      int lf = distAvg(6), lb = distAvg(5), rf = distAvg(2), rb = distAvg(3), fl = distAvg(7), fr = distAvg(1);
+      double rel = wrap180(myGyro.heading() - h0);
+      Serial.print("[DIST] heading "); Serial.print(rel, 1);
+      Serial.print(" | left "); Serial.print(lf); Serial.print("/"); Serial.print(lb);
+      Serial.print(" | right "); Serial.print(rf); Serial.print("/"); Serial.print(rb);
+      Serial.print(" | front "); Serial.print(fl); Serial.print("/"); Serial.println(fr);
+      if(lf > 0 && lb > 0) left.add(rel, lf - lb);
+      if(rf > 0 && rb > 0) right.add(rel, rf - rb);
+      if(fl > 0 && fr > 0) front.add(rel, fl - fr);
+    }
+    absoluteturn(h0);
+    drivetrain.fullstop();
+    distReport("left ", "6/5", left);
+    distReport("right", "2/3", right);
+    distReport("front", "7/1", front);
+    // the side pairs should be about 3 mm/deg (176 mm apart); square at the same heading within ~1.5 deg
+    double zs[3]; int k = 0;
+    if(left.ok()) zs[k++] = left.zero();
+    if(right.ok()) zs[k++] = right.zero();
+    if(front.ok()) zs[k++] = front.zero();
+    if(k >= 2){
+      double lo = zs[0], hi = zs[0];
+      for(int i = 1; i < k; i++){ lo = min(lo, zs[i]); hi = max(hi, zs[i]); }
+      Serial.print("[BENCH] pairs disagree by "); Serial.print(hi - lo, 1);
+      Serial.println(hi - lo <= 1.5 ? " deg: OK, the sensors agree" : " deg: the pair that is square somewhere else is crooked, loose or reads wrong");
+      led(hi - lo <= 1.5);
+    }
+    Serial.println("[BENCH] flip the switch again to repeat");
+  }
+}
