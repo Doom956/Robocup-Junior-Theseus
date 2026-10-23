@@ -552,7 +552,7 @@ static void printAllForever(const char *lcdText){
 
 // Which move tests run, in this order (0 = M0 sensor watch, 1-8 = M1-M8); change it to repeat a few.
 // Without a maze (2026-10-18): wheels in the air, sensors on open floor, turns, 3 moves, blocked, blocked later.
-static const int MOVE_TESTS[] = {7, 0, 1, 3, 6, 8};
+static const int MOVE_TESTS[] = {7, 0, 1, 2, 3}; // 2026-10-23 venue: as 10-21 (M2 back in), no obstacle tests (6, 8)
 
 void runMoveTests(){
   pinMode(LEDPIN, OUTPUT);
