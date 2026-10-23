@@ -33,6 +33,7 @@ void serviceCameraVictim();
 void victimTileFromEncoder(int distanceMm, int encoderCount, int &victimX, int &victimY);
 int  turnNeededDeg(int cardinalDir);
 int  calibrateSensor(int sensor, int trueDistanceMm);
+void tileVictimCheck(bool wallL, bool wallR, int x, int y); // uart_camera_comms.cpp: stopped on a new tile, look for a victim
 void initializeMap();
 void readWallsRel(bool &wallF, bool &wallR, bool &wallB, bool &wallL);
 bool checkTileMismatch(bool wallF, bool wallR, bool wallB, bool wallL);
@@ -632,6 +633,9 @@ void loop(){
   
   
   static bool wallF, wallR, wallB, wallL;
+  static bool victimChecked[MAP_SIZE][MAP_SIZE] = {}; // tile stop done (tileVictimCheck), on arrival
+  static bool victimCheckedTurn[MAP_SIZE][MAP_SIZE] = {}; // ... and after a turn there
+  static Direction wallsDir = NORTH; // heading wallF/R/B/L were read in (a botched-turn recovery changes currentDir)
   switch (state) {
     case SENSE_TILE: {
       // reset per-tile toggles
@@ -645,6 +649,7 @@ void loop(){
       // Read for walls
       Serial.println("reading walls");
       readWallsRel(wallF, wallR, wallB, wallL);
+      wallsDir = currentDir;
       // re-sense: does this tile actually match what the map already recorded for it?
       tilecheck = checkTileMismatch(wallF, wallR, wallB, wallL);
       if(tilecheck && relocateOnMismatch(wallF, wallR, wallB, wallL)) tilecheck = false;
@@ -682,6 +687,11 @@ void loop(){
     case VICTIM_DETECT: {
       
       Serial.println("victim detect");
+      // CHANGED 2026-10-23: stopped on a tile seen for the first time, look for a victim (tileVictimCheck)
+      if(!returning && inBounds(x_pos, y_pos) && !victimChecked[x_pos][y_pos] && !mapGrid[x_pos][y_pos].getVictim()){
+        victimChecked[x_pos][y_pos] = true;
+        tileVictimCheck(wallL, wallR, x_pos, y_pos);
+      }
       state = PLAN_NEXT;
       if(Pausemaze == true) state = PAUSE;
       break;
@@ -727,7 +737,8 @@ void loop(){
     }
     case EXECUTE_MOVE: {
       if (turnCompletedForMove == false) {
-        if(plannedMoveDir != currentDir){
+        const bool turned = plannedMoveDir != currentDir;
+        if(turned){
           absoluteturn(plannedTurnDeg);
         }
         delay(80);  // settle after the turn (a fresh distance reading takes ~33 ms)
@@ -741,6 +752,16 @@ void loop(){
         currentDir = plannedMoveDir;
         turnCompletedForMove = true;
         botchedTurnAttempts = 0; // clean turn -> reset the recovery counter
+        // CHANGED 2026-10-23: turned on a new tile -> the walls that were ahead / behind are now beside a camera.
+        // A U-turn only swaps the sides already looked at on arrival.
+        if(turned && plannedMoveDir != wallsDir && plannedMoveDir != rotateDir(wallsDir, 2) && !returning &&
+           inBounds(x_pos, y_pos) && !victimCheckedTurn[x_pos][y_pos] && !mapGrid[x_pos][y_pos].getVictim()){
+          victimCheckedTurn[x_pos][y_pos] = true;
+          bool seen[4];
+          seen[wallsDir] = wallF; seen[rotateDir(wallsDir, +1)] = wallR;
+          seen[rotateDir(wallsDir, +2)] = wallB; seen[rotateDir(wallsDir, -1)] = wallL;
+          tileVictimCheck(seen[rotateDir(currentDir, -1)], seen[rotateDir(currentDir, +1)], x_pos, y_pos);
+        }
       }
       // as in RETURN: only an avoidance during this move may block an edge in finishTileMove()
       // (BACKPEDAL goes straight back to planning, so one from a move that ended on black stayed set)

@@ -177,3 +177,31 @@ void serviceCameraVictim(){
   isVictim = true;       // at most one victim serviced per move
   victimPending = false; // re-enable the camera thread
 }
+
+// CHANGED 2026-10-23 (competition day): victim check while stopped on each new tile, on arrival and again after a
+// turn there (the walls that were ahead / behind are then beside a camera). The first competition run drove past a
+// trident on its right just after a turn. Standing still, the cameras sent their first letter 0.04-0.66 s after a
+// stop (8 of 8 victims, 2026-10-22/23 practice logs), so the wait for a first byte is 1.5 s (was 4 s on 10-22).
+// Ends as soon as a camera on a side with a wall sends anything; then the usual detectCam() read (up to 4 s).
+const unsigned long TILE_VICTIM_WAIT_US = 1500000;
+void tileVictimCheck(bool wallL, bool wallR, int x, int y){
+  if(!wallL && !wallR) return;
+  Serial.println("tile victim check");
+  clearSerialBuffer1(); clearSerialBuffer2();   // bytes from while it was moving
+  timer myTimer;
+  while(myTimer.getTime() < TILE_VICTIM_WAIT_US && !Pausemaze){
+    bool left  = wallL && readSerial1() != -1;
+    bool right = !left && wallR && readSerial2() != -1;
+    if(left || right){
+      Serial.println(left ? "victim at left (tile check)" : "victim at right (tile check)");
+      bool found = left ? detectCam1() : detectCam2();
+      if(found && inBounds(x, y)){
+        mapGrid[x][y].setVictim(true);
+        Serial.print("marked victim at tile x="); Serial.print(x); Serial.print(", y="); Serial.println(y);
+      }
+      if(left) clearSerialBuffer1(); else clearSerialBuffer2();
+      return;
+    }
+    delay(10);
+  }
+}

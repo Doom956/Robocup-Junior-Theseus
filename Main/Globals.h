@@ -157,5 +157,6 @@ int  readSerial1();
 int  readSerial2();
 bool detectCam1();
 bool detectCam2();
+void tileVictimCheck(bool wallL, bool wallR, int x, int y); // stopped on a new tile: look for a victim
 
 #endif
