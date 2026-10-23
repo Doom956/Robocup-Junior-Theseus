@@ -242,6 +242,15 @@ void waitForMoveToStop(){
   for(int i = 0; i < 300 && !victimHeld; i++) rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
   drivetrain.fullstop();
 }
+// A camera byte in the last moment of a move starts a victim stop in the camera thread (read up to 4 s, blink 5 s,
+// kits) after fwd()/absoluteturn() have already returned, and the main loop went on. 2026-10-23 (colour_check.txt,
+// 15:42:22): the tile stop then read the same camera at the same time, both found the H, both blinked and both
+// dispensed, driving the dispenser stepper from two threads at once. Called at the end of every move and before a
+// tile stop: wait until such a stop is over (30 ms first: one that was being set up as the move ended).
+void waitForCameraVictim(){
+  rtos::ThisThread::sleep_for(std::chrono::milliseconds(30));
+  while(victimPending) rtos::ThisThread::sleep_for(std::chrono::milliseconds(5));
+}
 void cameraTask(){
   while(true){
     int encoderCount = (drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3;
@@ -610,7 +619,30 @@ void setup(){
 }
 int iterator = 0;
 
-
+// Tile stops (tileVictimCheck): which walls of each tile each camera has already looked at, standing still.
+// Bit side = left camera, bit 4 + side = right camera (side = absolute direction of that wall).
+static uint8_t victimLooked[3][MAP_SIZE][MAP_SIZE] = {};
+// CHANGED 2026-10-23: a tile stop on every visit (was: first visit only, never on the way home), for each wall beside
+// the robot that this camera hasn't looked at from this tile yet, so coming back the other way (a dead end, the way
+// home) the other camera looks at the same walls. Competition run 2: the left camera missed a trident and the robot
+// came back past it with no stop. Tiles with a victim marked are skipped, as before.
+void tileVictimLook(bool wallLeft, bool wallRight){
+  if(!inBounds(x_pos, y_pos) || currentFloor < 0 || currentFloor > 2 || mapGrid[x_pos][y_pos].getVictim()) return;
+  uint8_t &looked = victimLooked[currentFloor][x_pos][y_pos];
+  const uint8_t bitL = 1 << (int)rotateDir(currentDir, -1), bitR = 1 << (4 + (int)rotateDir(currentDir, +1));
+  const bool lookL = wallLeft && !(looked & bitL), lookR = wallRight && !(looked & bitR);
+  if(!lookL && !lookR) return;
+  if(lookL) looked |= bitL;
+  if(lookR) looked |= bitR;
+  tileVictimCheck(lookL, lookR, x_pos, y_pos);
+}
+// On the way home RETURN never reads walls, so the map's walls say which sides to look at. Only while the way home
+// still fits with time for the stops (RETURN_SEC_PER_TILE a tile plus 3 s for up to two stops).
+void tileVictimLookHome(int movesLeft){
+  if(mazeTime.getTime() / 1000000.0 + movesLeft * (RETURN_SEC_PER_TILE + 3.0) + RETURN_MARGIN_S >= RUN_TIME_S) return;
+  if(!inBounds(x_pos, y_pos)) return;
+  tileVictimLook(mapGrid[x_pos][y_pos].getWall(rotateDir(currentDir, -1)), mapGrid[x_pos][y_pos].getWall(rotateDir(currentDir, +1)));
+}
 
 void loop(){
   //diagPrintStackUsage();
@@ -633,8 +665,6 @@ void loop(){
   
   
   static bool wallF, wallR, wallB, wallL;
-  static bool victimChecked[MAP_SIZE][MAP_SIZE] = {}; // tile stop done (tileVictimCheck), on arrival
-  static bool victimCheckedTurn[MAP_SIZE][MAP_SIZE] = {}; // ... and after a turn there
   static Direction wallsDir = NORTH; // heading wallF/R/B/L were read in (a botched-turn recovery changes currentDir)
   switch (state) {
     case SENSE_TILE: {
@@ -687,11 +717,8 @@ void loop(){
     case VICTIM_DETECT: {
       
       Serial.println("victim detect");
-      // CHANGED 2026-10-23: stopped on a tile seen for the first time, look for a victim (tileVictimCheck)
-      if(!returning && inBounds(x_pos, y_pos) && !victimChecked[x_pos][y_pos] && !mapGrid[x_pos][y_pos].getVictim()){
-        victimChecked[x_pos][y_pos] = true;
-        tileVictimCheck(wallL, wallR, x_pos, y_pos);
-      }
+      // CHANGED 2026-10-23: stopped on a tile, look for a victim on the walls beside it (tileVictimLook)
+      if(!returning) tileVictimLook(wallL, wallR); // on the way home: in RETURN
       state = PLAN_NEXT;
       if(Pausemaze == true) state = PAUSE;
       break;
@@ -752,15 +779,13 @@ void loop(){
         currentDir = plannedMoveDir;
         turnCompletedForMove = true;
         botchedTurnAttempts = 0; // clean turn -> reset the recovery counter
-        // CHANGED 2026-10-23: turned on a new tile -> the walls that were ahead / behind are now beside a camera.
-        // A U-turn only swaps the sides already looked at on arrival.
-        if(turned && plannedMoveDir != wallsDir && plannedMoveDir != rotateDir(wallsDir, 2) && !returning &&
-           inBounds(x_pos, y_pos) && !victimCheckedTurn[x_pos][y_pos] && !mapGrid[x_pos][y_pos].getVictim()){
-          victimCheckedTurn[x_pos][y_pos] = true;
+        // CHANGED 2026-10-23: turned on a tile -> other walls are now beside the cameras (after a U-turn the same two,
+        // each now seen by the other camera). tileVictimLook skips the ones already looked at.
+        if(turned){
           bool seen[4];
           seen[wallsDir] = wallF; seen[rotateDir(wallsDir, +1)] = wallR;
           seen[rotateDir(wallsDir, +2)] = wallB; seen[rotateDir(wallsDir, -1)] = wallL;
-          tileVictimCheck(seen[rotateDir(currentDir, -1)], seen[rotateDir(currentDir, +1)], x_pos, y_pos);
+          tileVictimLook(seen[rotateDir(currentDir, -1)], seen[rotateDir(currentDir, +1)]);
         }
       }
       // as in RETURN: only an avoidance during this move may block an edge in finishTileMove()
@@ -911,10 +936,12 @@ void loop(){
       if(dy == 0) moveDir = (dx == 1) ? EAST : WEST;
       else        moveDir = (dy == 1) ? NORTH : SOUTH;
 
+      tileVictimLookHome(path.size() - 1); // CHANGED 2026-10-23: walls beside it as it arrived ...
       if(turnToDirection(moveDir) == false){
         if(Pausemaze == true) state = PAUSE;
         break; // re-plan and retry next loop
       }
+      tileVictimLookHome(path.size() - 1); // ... and after turning toward the next tile
       obstacle = false;
       fwd(TILE_MM);
       if(moveInterrupted == true){

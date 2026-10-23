@@ -625,6 +625,7 @@ void fwd(double dist){ // in mm
   
   fwdActive = false; // camera thread idles until the next move
   drivetrain.fullstop();
+  waitForCameraVictim(); // a stop the camera thread started as the move ended (before the encoders reset: it marks by them)
   drivetrain.reset_encoderCount(true,true,true);
   victimtoggle = false;
 }
@@ -692,6 +693,7 @@ void absoluteturn(double angle){
   Serial.println("finished turning");
   turnActive = false; // camera thread idles until the next move
   drivetrain.fullstop();
+  waitForCameraVictim(); // a stop the camera thread started as the turn ended
   drivetrain.reset_encoderCount(true,true,true); // reset encoder counters.
 }
 

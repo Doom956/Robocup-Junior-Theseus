@@ -79,6 +79,7 @@ extern volatile bool turnActive;
 extern volatile bool isVictim;
 extern volatile bool victimPending;
 extern volatile bool victimHeld;
+void waitForCameraVictim(); // main.cpp: wait until a camera-thread victim stop is over
 extern volatile bool victimtoggle;
 extern bool obstacle;
 extern bool blacktoggle;      // fwd() saw black ahead, marked it BLACK and backed off
