@@ -228,10 +228,19 @@ volatile bool turnActive = false;
 volatile bool victimPending = false; // a camera reported -> movement must service it
 volatile int  victimSide = 0;        // 1 = left (Serial3), 2 = right (Serial2)
 volatile bool isVictim = false;      // a victim already handled during current move
+volatile bool victimHeld = false;    // fwd()/absoluteturn() stopped for victimPending and are waiting
 
 rtos::Thread cameraThread;
 rtos::Mutex i2cMutex;
 rtos::Mutex lcdMutex; // lcd mutex to prevent conflict
+// fwd()/absoluteturn() check victimPending once per loop, before they set the motors: a stop that came after that
+// check was overwritten by the loop's own drive command, and the robot drove on for the whole camera wait
+// (2026-10-23 practice 2: 4 s at full power into a wall at 23,21, encoders +1013 mm, map one tile off afterwards).
+// Wait until the loop has stopped itself (up to 300 ms: avoidance, backing up and climbing don't check), stop again.
+void waitForMoveToStop(){
+  for(int i = 0; i < 300 && !victimHeld; i++) rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
+  drivetrain.fullstop();
+}
 void cameraTask(){
   while(true){
     int encoderCount = (drivetrain.encoderCountA+drivetrain.encoderCountB+drivetrain.encoderCountD)/3;
@@ -249,7 +258,7 @@ void cameraTask(){
             victimSide = 1;
             drivetrain.fullstop();           // locks i2cMutex internally
             victimPending = true;
-            rtos::ThisThread::sleep_for(std::chrono::milliseconds(10));
+            waitForMoveToStop();
             serviceCameraVictim();           // locks i2cMutex internally
           }
         }
@@ -263,7 +272,7 @@ void cameraTask(){
             victimSide = 2;
             drivetrain.fullstop();           // locks i2cMutex internally
             victimPending = true;
-            rtos::ThisThread::sleep_for(std::chrono::milliseconds(10));
+            waitForMoveToStop();
             serviceCameraVictim();           // locks i2cMutex internally
           }
         }

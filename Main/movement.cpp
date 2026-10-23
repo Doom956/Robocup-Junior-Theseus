@@ -120,6 +120,7 @@ void fwd(double dist){ // in mm
   fwdActive = true;
   isVictim = false;
   victimPending = false;
+  victimHeld = false;
   moveInterrupted = false; // becomes true only if a pause aborts this move
   blacktoggle = false;
   fwdShort = false;
@@ -259,9 +260,11 @@ void fwd(double dist){ // in mm
       gyroPID.pausePID(1);
       Scale_PID.pausePID(1);
       myTime.pause(1);
+      victimHeld = true; // the camera thread waits for this before its 4 s wait
       while(victimPending == true){
         rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
       }
+      victimHeld = false;
       gyroPID.pausePID(2);
       climbPID.pausePID(2);
       Scale_PID.pausePID(2);
@@ -635,6 +638,7 @@ void absoluteturn(double angle){
   turnActive = true;
   isVictim = false;
   victimPending = false;
+  victimHeld = false;
   // Shortest signed-path error, wrapped into [-180, 180]:
   //   sign of diff  = direction to turn (+CW/turnright, -CCW/turnleft)
   //   |diff|        = shortest angular distance to target
@@ -665,9 +669,11 @@ void absoluteturn(double angle){
     if(victimPending){ // service camera victim mid-turn
       drivetrain.fullstop();
       myPID.pausePID(1); myTimer.pause(1);
+      victimHeld = true; // the camera thread waits for this before its 4 s wait
       while(victimPending==true){
         rtos::ThisThread::sleep_for(std::chrono::milliseconds(1));
       }
+      victimHeld = false;
       myPID.pausePID(2); myTimer.pause(2);
     }
     // Recompute the wrapped error every tick.

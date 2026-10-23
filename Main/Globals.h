@@ -78,6 +78,7 @@ extern volatile bool fwdActive;
 extern volatile bool turnActive;
 extern volatile bool isVictim;
 extern volatile bool victimPending;
+extern volatile bool victimHeld;
 extern volatile bool victimtoggle;
 extern bool obstacle;
 extern bool blacktoggle;      // fwd() saw black ahead, marked it BLACK and backed off
