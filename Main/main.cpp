@@ -769,6 +769,22 @@ void loop(){
       if (turnCompletedForMove == false) {
         const bool turned = plannedMoveDir != currentDir;
         if(turned){
+          // CHANGED 2026-10-24: a U-turn with a wall ahead (a dead end) goes as two left 90s with a tile stop between:
+          // halfway, the right camera faces the wall that was ahead squarely. On arrival that wall is in front of the
+          // robot and after the turn behind it, so it was only glimpsed mid-turn at an angle (2026-10-24 practice: the
+          // right camera stopped the robot ~1 s into every dead-end U-turn and read nothing in 4 s).
+          const bool deadEndLook = plannedMoveDir == rotateDir(currentDir, 2) && wallsDir == currentDir && wallF &&
+                                   !returning && inBounds(x_pos, y_pos) && currentFloor >= 0 && currentFloor <= 2 &&
+                                   !mapGrid[x_pos][y_pos].getVictim() &&
+                                   !(victimLooked[currentFloor][x_pos][y_pos] & (1 << (4 + (int)currentDir)));
+          if(deadEndLook){
+            const Direction ahead = currentDir;
+            absoluteturn(turnNeededDeg(rotateDir(currentDir, -1)));
+            delay(80);
+            parallel(); // squares up on the wall that was ahead, now on the right
+            victimLooked[currentFloor][x_pos][y_pos] |= 1 << (4 + (int)ahead);
+            tileVictimCheck(false, true, x_pos, y_pos);
+          }
           absoluteturn(plannedTurnDeg);
         }
         delay(80);  // settle after the turn (a fresh distance reading takes ~33 ms)
