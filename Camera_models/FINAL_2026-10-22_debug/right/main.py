@@ -51,7 +51,9 @@ EXTRA_GAIN_DB = 0        # added to the gain the camera settled on at start-up.
 # trident needed 2.3 cm closer than with automatic gain. Fixed values instead (None = old behaviour).
 # FIXED_GAIN_DB: TO TEST (higher = brighter picture). RGB gains = the right camera's own locked values
 # at home (64.9-65.5, 60.8-61.8, 60.206).
-FIXED_GAIN_DB = 6.0
+FIXED_GAIN_DB = 4.0      # CHANGED 2026-10-23 at the venue (right): at 6.0 a yellow-centre target in the middle of the
+                         # picture burnt out (yellow and wall raw L 100, "ring 1 is white"). At 4.0: that target H across
+                         # the picture, trident at 45 deg S on every frame (0.76-0.99), Phi H 0.90-1.00.
 FIXED_RGB_GAIN_DB = (65.0, 61.4, 60.206)
 LOCK_GAIN_AND_WB = True  # NEW: stops colours drifting when a dark tile / bright wall
                          # comes into view. Locks at whatever it sees at power-up,
@@ -164,7 +166,9 @@ MARGIN_RATIO = 0.75      # nearest must be clearly nearer than the 2nd nearest.
 
 # --- stop hints ("c" byte; the robot stops for any byte, then waits for H/S/U) ---
 HINT_ON_TARGET = True    # a target that passed every check in one frame -> "c"
-HINT_ON_LETTER = False   # turn on if letters are missed while driving past
+HINT_ON_LETTER = True    # CHANGED 2026-10-23 at the venue: letters were missed while driving past. A letter hit in
+                         # one frame sends "c" (stop and look); the robot stops and the camera confirms it standing
+                         # still (3 of 4 frames). Blank field walls gave no letter hits on either camera.
 LETTER_SHAPE_CHECK = False  # CHANGED 2026-10-22 (home test, left camera): the size/density/contrast checks
                             # rejected a correct, steady Omega for 45+ frames in a row; the Korea script (no shape
                             # check) sent it every frame. False: a FOMO hit above CLASS_CONFIDENCE counts, the 3-of-4

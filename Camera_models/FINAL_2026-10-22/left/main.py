@@ -52,7 +52,9 @@ EXTRA_GAIN_DB = 0        # added to the gain the camera settled on at start-up.
 # (left: 1.0 to 3.2 dB across power-ups). Fixed values instead (None = old behaviour). 6.0 dB made every
 # letter and both targets work at run distance on the right camera. RGB gains = the left camera's own
 # locked values at home (65.3, 61.6-61.8, 60.206).
-FIXED_GAIN_DB = 6.0
+FIXED_GAIN_DB = 2.5      # CHANGED 2026-10-23 at the venue (left): 6.0 (set at home) burnt the wall out (L 100);
+                         # 3.0 still burnt out the field's brightest wall, 1.5 lost the letters there. At 2.5
+                         # the wall reads L 84-97 on the bright and the darker wall, letters on every frame (0.78-0.98).
 FIXED_RGB_GAIN_DB = (65.3, 61.7, 60.206)
 LOCK_GAIN_AND_WB = True  # NEW: stops colours drifting when a dark tile / bright wall
                          # comes into view. Locks at whatever it sees at power-up,
@@ -165,7 +167,9 @@ MARGIN_RATIO = 0.75      # nearest must be clearly nearer than the 2nd nearest.
 
 # --- stop hints ("c" byte; the robot stops for any byte, then waits for H/S/U) ---
 HINT_ON_TARGET = True    # a target that passed every check in one frame -> "c"
-HINT_ON_LETTER = False   # turn on if letters are missed while driving past
+HINT_ON_LETTER = True    # CHANGED 2026-10-23 at the venue: letters were missed while driving past. A letter hit in
+                         # one frame sends "c" (stop and look); the robot stops and the camera confirms it standing
+                         # still (3 of 4 frames). Blank field walls gave no letter hits on either camera.
 LETTER_SHAPE_CHECK = False  # CHANGED 2026-10-22 (left, home test): the size/density/contrast checks rejected
                             # a correct, steady Omega for 45+ frames in a row ("size 120", "low contrast") at model
                             # scores 0.74-0.87; the Korea script (no shape check) sent it every frame. False: a FOMO
